@@ -104,6 +104,8 @@ nauf_reg <- function(formula, family = gaussian, data, ...) {
   }
   
   mod <- eval(mce)
+  mod$call <- mc
+  
   return(nauf_on(mod))
 }
 

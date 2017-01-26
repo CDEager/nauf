@@ -7,36 +7,23 @@
 #' creating contrast columns \code{f11} and \code{f12}, it creates columns
 #' \code{f1A} and \code{f1B}.
 #'
-#' If \code{x} is a factor, then its levels are sorted (which eliminates
-#' \code{NA} as a level if \code{\link[base]{addNA}} has been used, but
-#' does not remove any \code{NA} values), and the length of the resulting
-#' vector is taken as the number of levels to form sum contrasts with (and
-#' the levels are used to name the contrast columns). If \code{x} is a
-#' character vector, its unique values are sorted and used as the column names,
-#' and its length is used as number of levels.  If \code{x} is a numeric vector
-#' with more than one element, then it is sorted and converted to character
-#' and treated as if \code{x} had been passed as a character vector.  If
-#' \code{x} is a numeric vector with only one element, then its value is used
-#' as the number of factor levels, and the columns of the contrast matrix
-#' are not given names, resulting in essentially a call to
-#' \code{\link[stats]{contr.sum}}.
+#' First, \code{x} is coerced to character, and its unique non-\code{NA} values
+#' are sorted alphabetically.  If there are two unique values, and they are
+#' equal to (ignoring case) "F" and "T", "FALSE" and "TRUE", "NO" and "YES", or
+#' "0" and "1", then their order is reversed (this makes it so the positive
+#' level gets the dummy coefficient rather than the negative level, which has
+#' a more intuitive interpretation).  Then \code{\link[stats]{contr.sum}} is
+#' called, and the column names of the resulting contrast matrix are set using
+#' the character vector of unique values (excluding the final element that
+#' gets coded as \code{-1} for all dummy variables).  If
+#' \code{return_contr = TRUE}, then this contrast matrix is returned.  If
+#' \code{return_contr = FALSE}, then \code{x} is converted to an unordered
+#' factor with the named sum contrats and returned. \code{NA} is never assigned
+#' as a level in the contrast matrix or in the factor returned by the function,
+#' but \code{NA} values in \code{x} are not removed in the factor returned
+#' when \code{return_contr = FALSE}. See the examples.
 #'
-#' At this point, if there are fewer than two levels, an error is thrown.
-#' Otherwise, \code{\link[stats]{contr.sum}} is called to obtain the contrast
-#' matrix, and the rows and columns are given the names of the levels; that is,
-#' for a factor with \code{K} levels, there are \code{K - 1} columns whose names
-#' are the first \code{K - 1} levels, and \code{K} rows whose names are the
-#' \code{K} levels.  The names are in alphabetical order excpet for if there are
-#' two levels and they are \code{0} and \code{1} or \code{FALSE} and \code{TRUE},
-#' in which case they are assigned in the reverse order so that the dummy
-#' variable coefficient represents a change toward \code{1} rather than the
-#' less intuitive default of representing a change toward \code{0}.
-#'
-#' Lastly, if \code{x} is a factor and \code{return_factor = TRUE}, then the
-#' resulting contrasts are applied to \code{x} and \code{x} is returned rather
-#' than the contrast matrix.
-#'
-#' Using sum contrasts is important for handling not-applicable \code{NA} values
+#' Using sum contrasts is important for handling \code{NA} values
 #' in a factor since in the model matrix the \code{NAs} can be set to zero for
 #' all of the dummy variables, averaging over the effect of the factor rather
 #' than causing the \code{NAs} to be coded as the base level as would occur
@@ -47,14 +34,16 @@
 #' logicals, variables coded as integer \code{0 / 1}, etc.).  See
 #' \code{\link{nauf_model_frame}} and \code{\link{nauf_interaction}} for details.
 #'
-#' @param x Either a factor or a numeric or character vector.
-#' @param return_factor A logical indicating whether a factor (\code{TRUE}) or
-#'   contrast matrix (\code{FALSE}, the default) should be returned.
-#'   If \code{x} is not a factor, then \code{return_factor} is ignored.
+#' @param x A factor or vector, with at least two unique non-\code{NA} values,
+#'   which can be coerced to character with \code{\link[base]{as.character}}.
+#' @param return_contr A logical. If \code{TRUE} (the default), a contrast
+#'   matrix is returned. If \code{FALSE}, \code{x} is converted to an unordered
+#'   factor with the contrast matrix applied.
 #'
-#' @return If \code{x} is a factor and \code{return_factor = TRUE}, then
-#'   an unordered factor with named sum contrasts is returned.  Otherwise,
-#'   a matrix of named sum contrasts is returned.
+#' @return If \code{return_contr = TRUE}, a contrast matrix obtained from
+#'   \code{\link[stats]{contr.sum}} with named columns rather than numbered
+#'   columns.  If \code{return_contr = FALSE}, then \code{x} is returned
+#'   as an unordered factor with the named sum contrasts applied.
 #'
 #' @seealso \code{\link{nauf_interaction}} for interactions involving unordered
 #'   factors where at least one has \code{NA} values,
@@ -63,71 +52,61 @@
 #'   \code{NAs} in regressions.
 #'
 #' @examples
-#' f <- factor(rep(c("a", "b", "c", NA), 2))
+#' f <- factor(rep(c("a", "b", "c", NA), 2), levels = c("b", "c", "a"))
 #' f <- addNA(f)
 #' levels(f)  # NA listed as factor
 #' contrasts(f)  # NA included in contrast matrix
-#' named_contr_sum(f)  # contrast matrix with named columns and NA excluded
-#' named_contr_sum(f, TRUE)  # return factor with same contrasts
-#' 
-#' named_contr_sum(letters[1:5])  # character method
-#' named_contr_sum(5)  # same as contr.sum
-#' named_contr_sum(c(1, 3, 6))  # converted to character
-#' named_contr_sum(c(0, 1))  # treated differently (1 before 0)
+#' named_contr_sum(f)  # named sum contrasts (NA dropped; levels alphabetized)
+#' named_contr_sum(levels(f))  # same output
+#' named_contr_sum(f, FALSE)  # f (values unchanged) with named sum contrasts
+#'
+#' f <- c(TRUE, FALSE, FALSE, TRUE)
+#' class(f)  # logical
+#' named_contr_sum(f)  # TRUE gets the dummy variable
+#' f <- named_contr_sum(f, FALSE)
+#' class(f)  # factor
+#'
+#' named_contr_sum(letters[1:5])  # character argument
+#' named_contr_sum(rep(letters[1:5], 2), FALSE)  # creates factor
+#'
+#' named_contr_sum(c(1, 6, 3))  # numeric argument
+#' named_contr_sum(rep(c(1, 6, 3), 2), FALSE)  # creates factor
+#'
+#' # ordered factors are converted to unordered factors, so use with caution
+#' f <- factor(rep(1:3, 2), ordered = TRUE)
+#' is.ordered(f)
+#' f
+#' f <- named_contr_sum(f, FALSE)
+#' is.ordered(f)
+#' f
 #'
 #' \dontrun{
-#' named_contr_sum(1)  # must be >= 2
-#' named_contr_sum(rep(c("a", NA), 3))  # only one unique non-NA
+#' # error from stats::contr.sum because only one unique non-NA value
+#' named_contr_sum(5)
+#' named_contr_sum(rep(c("a", NA), 3), FALSE)
 #' }
 #'
 #' @importMethodsFrom stats contrasts<- contrasts
 #'
 #' @export
-named_contr_sum <- function(x, return_factor = FALSE) {
-  if (!is.factor(x) & !is.numeric(x) & !is.character(x)) {
-    stop("'x' must be a factor or a numeric or character vector")
+named_contr_sum <- function(x, return_contr = TRUE) {
+  if (length(dim(x))) stop("'x' must be a vector or factor")
+
+  x <- as.character(x)
+  n <- length((lvs <- sort(unique(x))))
+  if (n == 2 && (all(tolower(lvs) == c("false", "true"))
+  || all(lvs == c("0", "1")) || all(tolower(lvs) == c("f", "t"))
+  || all(tolower(lvs) == c("no", "yes")))) {
+    lvs <- lvs[2:1]
   }
-  
-  if (is.factor(x)) {
-    lvs <- sort(levels(x))
-    n <- length(lvs)
-  } else if (is.character(x)) {
-    lvs <- sort(unique(x))
-    n <- length(lvs)
-  } else if (is.numeric(x)) {
-    if (length(x) > 1) {
-      lvs <- sort(as.character(unique(x)))
-      n <- length(lvs)
-    } else {
-      n <- x
-      lvs <- NULL
-    }
-  } else {
-    stop("'x' must be a factor or a numeric or character vector")
-  }
-  
-  if (n < 2) {
-    stop("contrasts cannot be applied to factors with fewer than two levels")
-  }
-  
-  if (n == 2 & !is.null(lvs)) {
-    if (all(lvs == c("FALSE", "TRUE")) | all(lvs == c("0", "1"))) {
-      lvs <- lvs[2:1]
-    }
-  }
-  
-  contr <- contr.sum(n)
-  if (!is.null(lvs)) {
-    rownames(contr) <- lvs
-    colnames(contr) <- lvs[-n]
-    if (is.factor(x) & return_factor) {
-      x <- factor(x, ordered = FALSE, levels = lvs)
-      contrasts(x) <- contr
-      return(x)
-    }
-  }
-  
-  return(contr)
+  contr <- stats::contr.sum(lvs)
+  colnames(contr) <- lvs[-n]
+
+  if (return_contr) return(contr)
+
+  x <- factor(x, ordered = FALSE, levels = lvs)
+  contrasts(x) <- contr
+  return(x)
 }
 
 
@@ -185,7 +164,7 @@ named_contr_sum <- function(x, return_factor = FALSE) {
 #'   B \tab  0 \tab  1\cr
 #'   C \tab -1 \tab -1
 #' }
-#' 
+#'
 #' Contrasts for main effect of \code{bilingual}
 #' \tabular{r}{
 #'         \tab TRUE\cr
@@ -193,7 +172,7 @@ named_contr_sum <- function(x, return_factor = FALSE) {
 #'   FALSE \tab -1\cr
 #'   NA    \tab  0
 #' }
-#' 
+#'
 #' This setup allows the regression coefficient \code{bilingualTRUE} to
 #' only apply when either \code{dialectA} or \code{dialectB} is \code{1},
 #' and to always be multiplied by \code{0} when \code{dialectA} and
@@ -202,8 +181,8 @@ named_contr_sum <- function(x, return_factor = FALSE) {
 #' the contrast coding to the \code{dialect} coefficients.  That is, we have:
 #'
 #' \code{
-#'   mean(A) = (Intercept) + dialectA  
-#'   mean(B) = (Intercept) + dialectB 
+#'   mean(A) = (Intercept) + dialectA
+#'   mean(B) = (Intercept) + dialectB
 #'   mean(C) = (Intercept) - dialectA - dialectB
 #' }
 #'
@@ -217,7 +196,7 @@ named_contr_sum <- function(x, return_factor = FALSE) {
 #'   mean(B:FALSE) = mean(B) - bilingualTRUE
 #' }
 #'
-#' Provided that any covariates have been put on unit scale (see 
+#' Provided that any covariates have been put on unit scale (see
 #' \code{\link[base]{scale}}) and orthogonal polynomial contrasts have been set
 #' for any ordered factors (see \code{\link[stats]{contr.poly}}), both of which
 #' are good ideas for most regressions anyway, then these types of contrasts
@@ -241,7 +220,7 @@ named_contr_sum <- function(x, return_factor = FALSE) {
 #'   B \tab FALSE \tab  0 \tab -1\cr
 #'   C \tab NA    \tab  0 \tab  0
 #' }
-#' 
+#'
 #'
 #' These contrasts are undesirable because the same interaction term could be
 #' expressed with one column with some releveling, and in cases more complicated
@@ -256,7 +235,7 @@ named_contr_sum <- function(x, return_factor = FALSE) {
 #'   B \tab FALSE \tab  1\cr
 #'   C \tab NA    \tab  0
 #' }
-#' 
+#'
 #' Determining these contrasts manually can be tedious (especially as the number
 #' of factors and levels grows), hence \code{nauf_interaction}.
 #' For this example \code{nauf_interaction} determines that \code{C} is
@@ -295,16 +274,16 @@ named_contr_sum <- function(x, return_factor = FALSE) {
 #'   dialect = c("A", "A", "B", "B", "C"),
 #'   bilingual = c(TRUE, FALSE, TRUE, FALSE, NA))
 #' nauf_interaction(dat)  # drops dialect C
-#' 
+#'
 #' dat <- as.data.frame(lapply(dat, function(n) rep(n, 10)))
 #' dat$x <- rnorm(nrow(dat))
 #' dat$f <- rep(c("U", "V"), 25)
 #' nauf_interaction(dat, c("dialect", "bilingual")) # same as initial example
 #' nauf_interaction(dat)  # ignores x, checks dialect:bilingual:f
-#' 
+#'
 #' nauf_interaction(dat, c("dialect", "f"))
 #' # sees that neither has NAs and returns the levels of the factors
-#' 
+#'
 #' \dontrun{
 #' nauf_interaction(dat, "dialect")  # error; only one column
 #' nauf_interaction(dat, c("dialect", "x"))  # error; only one unordered factor
@@ -321,7 +300,7 @@ nauf_interaction <- function(x, cols = colnames(x)) {
       stop("'cols' must be a character, numeric, or logical vector")
     }
   }
-  
+
   x <- x[, cols]
   makefac <- unlist(lapply(x, function(n) any(c("character", "logical") %in%
     class(n))))
@@ -332,19 +311,19 @@ nauf_interaction <- function(x, cols = colnames(x)) {
   if (sum(uf) < 2) {
     stop("interaction must involve at least two unordered factors")
   }
-  
+
   x <- x[, uf]
   cols <- colnames(x)
   mainlvs <- lapply(x, function(n) sort(levels(n)))
   if (!any(unlist(lapply(x, anyNA)))) {
     return(list(levels = mainlvs, changed = FALSE))
   }
-  
+
   # unique character x with no NAs
   ux <- as.matrix(unique(x))
   ux <- ux[apply(!is.na(ux), 1, all), , drop = FALSE]
   rownames(ux) <- 1:nrow(ux)
-  
+
   # reduce ux
   rx <- ux
   while (ncol(rx) > 1) {
@@ -360,11 +339,11 @@ nauf_interaction <- function(x, cols = colnames(x)) {
     rx[, 2] <- paste(rx[, 1], rx[, 2], sep = ".")
     rx <- rx[rows, -1, drop = FALSE]
   }
-  
+
   ux <- data.frame(ux[rownames(rx), , drop = FALSE], stringsAsFactors = FALSE)
   lvs <- lapply(ux, function(n) sort(unique(n)))
   changed <- !is.logical(all.equal(mainlvs, lvs))
-  
+
   return(list(levels = lvs, changed = changed))
 }
 
@@ -428,7 +407,7 @@ get_ccna <- function(object) {
 #'
 #' @return A list with two elements: \code{mefc} (main effect factor contrasts)
 #'   and \code{ccna} (contrast changes due to \code{NAs}).
-#' 
+#'
 #'   \code{mefc} is a list with two elements \code{unordered} and \code{ordered},
 #'   each of which is a named list with an entry for each unordered or ordered
 #'   factor in the regression which contains the contrasts applied to the main

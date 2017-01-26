@@ -91,7 +91,6 @@ model.matrix.nauf <- function(object = NULL, data = NULL, ...) {
     asgn <- asgn[order(asgn$a), , drop = FALSE]
     mm <- mm[, asgn$cn, drop = FALSE]
     attr(mm, "assign") <- asgn$a
-    
   }
   
   attr(mm, "contrasts") <- NULL
