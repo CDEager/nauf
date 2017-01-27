@@ -9,19 +9,19 @@
 #'
 #' First, \code{x} is coerced to character, and its unique non-\code{NA} values
 #' are sorted alphabetically.  If there are two unique values, and they are
-#' equal to (ignoring case) "F" and "T", "FALSE" and "TRUE", "NO" and "YES", or
-#' "0" and "1", then their order is reversed (this makes it so the positive
-#' level gets the dummy coefficient rather than the negative level, which has
-#' a more intuitive interpretation).  Then \code{\link[stats]{contr.sum}} is
-#' called, and the column names of the resulting contrast matrix are set using
-#' the character vector of unique values (excluding the final element that
-#' gets coded as \code{-1} for all dummy variables).  If
-#' \code{return_contr = TRUE}, then this contrast matrix is returned.  If
-#' \code{return_contr = FALSE}, then \code{x} is converted to an unordered
-#' factor with the named sum contrats and returned. \code{NA} is never assigned
-#' as a level in the contrast matrix or in the factor returned by the function,
-#' but \code{NA} values in \code{x} are not removed in the factor returned
-#' when \code{return_contr = FALSE}. See the examples.
+#' equal to (ignoring case) "F" and "T", "FALSE" and "TRUE", "N" and "Y",
+#' "NO" and "YES", or "0" and "1", then their order is reversed (this makes it
+#' so the positive level gets the dummy coefficient rather than the negative
+#' level, which has a more intuitive interpretation).  Then
+#' \code{\link[stats]{contr.sum}} is called, and the column names of the
+#' resulting contrast matrix are set using the character vector of unique values
+#' (excluding the final element that gets coded as \code{-1} for all dummy
+#' variables).  If \code{return_contr = TRUE}, then this contrast matrix is
+#' returned.  If \code{return_contr = FALSE}, then \code{x} is converted to an
+#' unordered factor with the named sum contrats and returned. \code{NA} is never
+#' assigned as a level in the contrast matrix or in the factor returned by the
+#' function, but \code{NA} values in \code{x} are not removed in the factor
+#' returned when \code{return_contr = FALSE}. See the examples.
 #'
 #' Using sum contrasts is important for handling \code{NA} values
 #' in a factor since in the model matrix the \code{NAs} can be set to zero for
@@ -96,7 +96,7 @@ named_contr_sum <- function(x, return_contr = TRUE) {
   n <- length((lvs <- sort(unique(x))))
   if (n == 2 && (all(tolower(lvs) == c("false", "true"))
   || all(lvs == c("0", "1")) || all(tolower(lvs) == c("f", "t"))
-  || all(tolower(lvs) == c("no", "yes")))) {
+  || all(tolower(lvs) == c("no", "yes")) || all(tolower(lvs)==c("n", "y")))) {
     lvs <- lvs[2:1]
   }
   contr <- stats::contr.sum(lvs)
@@ -119,23 +119,22 @@ named_contr_sum <- function(x, return_contr = TRUE) {
 #'
 #' If there are not at least two unordered factors in the specified columns,
 #' an error is thrown. Otherwise, the unordered factors involved in the
-#' interaction are subsetted.  If none of these has \code{NA} values, then
-#' function stops and returns a list of the levels for each factor.  If any
-#' of the unordered factors has \code{NA} values, then a table of all their
-#' unique combinations in \code{x} is made, excluding any combination which
-#' contains \code{NAs}.  Then the unique combinations are examined two columns
-#' at a time, removing redundant rows, and then dropping levels which
-#' only occur once within-column.  Then the two columns are collapsed as a new
-#' column which is compared with the next column, continuing the process until
-#' there is only one column.  If there is only one unique combination at any
-#' point, then an error is thrown.  Otherwise, the levels for each factor
-#' which should be used in the interaction are returned.  Note that only the
-#' highest order interaction of the unordered factors is considered.  If
-#' unordered factors \code{A}, \code{B}, and \code{C} are involved in an
-#' interaction, it may be that \code{A} needs levels dropped in the third-order
-#' interaction, but not in the interaction \code{A:B}, for example.  The
-#' function would need to be called separately with \code{cols = c("A", "B")}
-#' to determine the levels for the second-order interaction.
+#' interaction are subsetted.  Then a table of all their unique combinations in
+#' \code{x} is made, excluding any combination which contains \code{NAs}.
+#' Then levels which are not used in the no-\code{NA} subset are dropped.
+#' If any of the factors has only one remaining level or if there are any
+#' zeros in the full contingency table of the factors, then a warning is issued
+#' indicating that there is collinearity in the interaction term (the term
+#' shouldn't be included and will cause \code{NA} regression coefficients).
+#' The levels for each factor which are applicable in the interaction are
+#' returned along with a logical indicating if any levels were dropped. Note
+#' that only the highest order interaction of the unordered factors is
+#' considered.  If unordered factors \code{A}, \code{B}, and \code{C} are
+#' involved in an interaction, it may be that \code{A} needs levels dropped in
+#' the third-order interaction, but not in the interaction \code{A:B}, for
+#' example.  The function would need to be called separately with
+#' \code{cols = c("A", "B")} to determine the levels for the second-order
+#' interaction.
 #'
 #' This function is implemented in \code{\link{nauf_model_frame}}, and is
 #' necessary in cases where \code{NA} values are collinear with non-\code{NA}
@@ -277,12 +276,8 @@ named_contr_sum <- function(x, return_contr = TRUE) {
 #'
 #' dat <- as.data.frame(lapply(dat, function(n) rep(n, 10)))
 #' dat$x <- rnorm(nrow(dat))
-#' dat$f <- rep(c("U", "V"), 25)
-#' nauf_interaction(dat, c("dialect", "bilingual")) # same as initial example
-#' nauf_interaction(dat)  # ignores x, checks dialect:bilingual:f
-#'
-#' nauf_interaction(dat, c("dialect", "f"))
-#' # sees that neither has NAs and returns the levels of the factors
+#' dat$o <- factor(rep(1:3, length.out = 50), ordered = TRUE)
+#' nauf_interaction(dat)  # ignores x and o; same result as above
 #'
 #' \dontrun{
 #' nauf_interaction(dat, "dialect")  # error; only one column
@@ -294,18 +289,19 @@ nauf_interaction <- function(x, cols = colnames(x)) {
   if (!is.data.frame(x)) stop("'x' must be a data.frame'")
   if (length(cols) < 2) stop("must supply more than one factor")
   if (!is.character(cols)) {
-    if (is.numeric(cols)) {
+    if (is.numeric(cols) || is.logical(cols)) {
       cols <- colnames(x)[cols]
     } else {
       stop("'cols' must be a character, numeric, or logical vector")
     }
   }
+  cols <- unique(cols)
 
   x <- x[, cols]
   makefac <- unlist(lapply(x, function(n) any(c("character", "logical") %in%
-    class(n))))
+    class(n)) || length(sort(unique(n))) == 2))
   for (j in cols[makefac]) {
-    x[, j] <- factor(x[, j])
+    x[, j] <- factor(x[, j], ordered = FALSE)
   }
   uf <- unlist(lapply(x, function(n) is.factor(n) & !is.ordered(n)))
   if (sum(uf) < 2) {
@@ -313,89 +309,25 @@ nauf_interaction <- function(x, cols = colnames(x)) {
   }
 
   x <- x[, uf]
-  cols <- colnames(x)
-  mainlvs <- lapply(x, function(n) sort(levels(n)))
-  if (!any(unlist(lapply(x, anyNA)))) {
-    return(list(levels = mainlvs, changed = FALSE))
+  mefc <- lapply(x, function(n) sort(levels(n)))
+  x <- unique(x)
+  x <- droplevels(x[apply(!is.na(x), 1, all), , drop = FALSE])
+  if (!nrow(x)) stop("No unique combinations of the factors with no NAs")
+  ccna <- lapply(x, function(n) sort(levels(n)))
+  changed <- !is.logical(all.equal(mefc, ccna))
+  if (any(unlist(lapply(x, nlevels)) < 2)) {
+    warning("Collinearity in the interaction ",
+      paste(colnames(x), collapse = ":"))
+  }
+  if (any(!xtabs(~ ., x))) {
+    warning("Collinearity in the interaction ",
+      paste(colnames(x), collapse = ":"))
   }
 
-  # unique character x with no NAs
-  ux <- as.matrix(unique(x))
-  ux <- ux[apply(!is.na(ux), 1, all), , drop = FALSE]
-  rownames(ux) <- 1:nrow(ux)
-
-  # reduce ux
-  rx <- ux
-  while (ncol(rx) > 1) {
-    tab <- xtabs(~ rx[, 1] + rx[, 2])
-    d <- dimnames(tab)
-    d1 <- d[[1]][rowSums(tab) > 1]
-    d2 <- d[[2]][colSums(tab) > 1]
-    if (!length(d1) || !length(d2)) {
-      stop("collinearity in the interaction term ",
-        paste(colnames(ux), collapse = ":"))
-    }
-    rows <- which(rx[, 1] %in% d1 & rx[, 2] %in% d2)
-    rx[, 2] <- paste(rx[, 1], rx[, 2], sep = ".")
-    rx <- rx[rows, -1, drop = FALSE]
-  }
-
-  ux <- data.frame(ux[rownames(rx), , drop = FALSE], stringsAsFactors = FALSE)
-  lvs <- lapply(ux, function(n) sort(unique(n)))
-  changed <- !is.logical(all.equal(mainlvs, lvs))
-
-  return(list(levels = lvs, changed = changed))
+  return(list(levels = ccna, changed = changed))
 }
 
 
-# 'main effect factor contrasts'
-# get factor contrasts applied to main effects terms from a model fit with nauf
-get_mefc <- function(object) {
-  if (inherits(object, "lm")) {
-    a <- attributes(object$terms)
-    if (length(a$mefc)) {
-      uf <- a$mefc[unlist(lapply(a$mefc, function(n) !n$ordered))]
-      of <- a$mefc[unlist(lapply(a$mefc, function(n) n$ordered))]
-      uf <- if (length(uf)) lapply(uf, function(n) n$contrasts)
-      of <- if (length(of)) lapply(of, function(n) n$contrasts)
-      for (u in names(uf)) {
-        if (a$hasna[u]) {
-          uf[[u]] <- rbind(uf[[u]], 0)
-          rownames(uf[[u]])[nrow(uf[[u]])] <- NA
-        }
-      }
-      return(list(unordered = uf, ordered = of))
-    }
-  }
-  return(NULL)
-}
-
-
-# 'contrast changes due to NA values'
-# get factor contrast changes due to NA values from a model fit with nauf
-get_ccna <- function(object) {
-  if (inherits(object, "lm")) {
-    a <- attributes(object$terms)
-    if (length(a$ccna)) {
-      ccna <- lapply(a$ccna, function(n) lapply(n$levels, named_contr_sum))
-      uf <- get_mefc(object)$unordered
-      for (j in 1:length(ccna)) {
-        for (u in names(ccna[[j]])) {
-          lvs <- rownames(uf[[u]])
-          rn <- rownames(ccna[[j]][[u]])
-          lvs <- lvs[!(lvs %in% rn)]
-          if (length(lvs)) {
-            z <- matrix(0, length(lvs), ncol(ccna[[j]][[u]]),
-              dimnames = list(lvs, colnames(ccna[[j]][[u]])))
-            ccna[[j]][[u]] <- rbind(ccna[[j]][[u]], z)
-          }
-        }
-      }
-      return(ccna)
-    }
-  }
-  return(NULL)
-}
 
 #' Contrasts for a model fit with \code{\link{nauf_reg}}.
 #'
@@ -403,7 +335,9 @@ get_ccna <- function(object) {
 #' \code{\link{nauf_reg}}, including changes in contrasts for interactions
 #' involving \code{NAs}.
 #'
-#' @param object A model fit using \code{\link{nauf_reg}}.
+#' @param object A model fit using \code{\link{nauf_reg}}, a model frame made
+#'   by \code{\link{nauf_model_frame}}, or the \code{terms} object from either
+#'   of these.
 #'
 #' @return A list with two elements: \code{mefc} (main effect factor contrasts)
 #'   and \code{ccna} (contrast changes due to \code{NAs}).
@@ -426,5 +360,54 @@ get_ccna <- function(object) {
 #' }
 #' @export
 nauf_contrasts <- function(object) {
-  return(list(mefc = mefc(object), ccna = ccna(object)))
+  if (!is.nauf(object)) stop("must supply an object that inherits from nauf")
+
+  if (inherits(object, "lm")) {
+    trms <- object$terms
+  } else if (inherits(object, "data.frame")) {
+    trms <- attr(object, "terms")
+  } else if (inherits(object, "terms")) {
+    trms <- object
+  } else {
+    stop("must supply a fitted regression model, model frame, or terms object")
+  }
+
+  a <- attributes(trms)
+  if (length(a$mefc)) {
+    uf <- a$mefc[unlist(lapply(a$mefc, function(n) !n$ordered))]
+    of <- a$mefc[unlist(lapply(a$mefc, function(n) n$ordered))]
+    uf <- if (length(uf)) lapply(uf, function(n) n$contrasts)
+    of <- if (length(of)) lapply(of, function(n) n$contrasts)
+    for (u in names(uf)) {
+      if (a$hasna[u]) {
+        uf[[u]] <- rbind(uf[[u]], 0)
+        rownames(uf[[u]])[nrow(uf[[u]])] <- NA
+      }
+    }
+
+    if (length(a$ccna)) {
+      ccna <- lapply(a$ccna, function(n) lapply(n$levels, named_contr_sum))
+      for (j in 1:length(ccna)) {
+        for (u in names(ccna[[j]])) {
+          lvs <- rownames(uf[[u]])
+          rn <- rownames(ccna[[j]][[u]])
+          lvs <- lvs[!(lvs %in% rn)]
+          if (length(lvs)) {
+            z <- matrix(0, length(lvs), ncol(ccna[[j]][[u]]),
+              dimnames = list(lvs, colnames(ccna[[j]][[u]])))
+            ccna[[j]][[u]] <- rbind(ccna[[j]][[u]], z)
+          }
+        }
+      }
+    } else {
+      ccna <- list()
+    }
+
+    return(list(mefc = list(unordered = uf, ordered = of), ccna = ccna))
+
+  } else {
+    warning("no factors in model; returning NULL")
+    return(NULL)
+  }
 }
+
