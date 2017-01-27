@@ -1,5 +1,4 @@
-library(nauf)
-context("Named sum contrasts")
+context("named_contr_sum")
 
 uf <- factor(rep(c("b", "c", "a", NA), 2), levels = c("b", "c", "a"))
 uf <- addNA(uf)
@@ -61,6 +60,4 @@ test_that("errors thrown correctly", {
   expect_error(named_contr_sum(data.frame(factor(rep(c("a", "b"), 3)))))
 })
 
-rm(uf, uf_ncs, contr_uf_ncs, of, of_ncs, contr_of_ncs, lf, lf_ncs, contr_lf_ncs,
-  nlf, nlf_ncs, contr_nlf_ncs, nf, nf_ncs, contr_nf_ncs, cf, cf_ncs,
-  contr_cf_ncs)
+rm(list = ls())

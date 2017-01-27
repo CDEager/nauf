@@ -94,9 +94,10 @@ named_contr_sum <- function(x, return_contr = TRUE) {
 
   x <- as.character(x)
   n <- length((lvs <- sort(unique(x))))
-  if (n == 2 && (all(tolower(lvs) == c("false", "true"))
-  || all(lvs == c("0", "1")) || all(tolower(lvs) == c("f", "t"))
-  || all(tolower(lvs) == c("no", "yes")) || all(tolower(lvs)==c("n", "y")))) {
+  if (n == 2 && (all(lvs == c("0", "1"))
+  || all((lvs2 <- tolower(lvs)) == c("false", "true"))
+  || all(lvs2 == c("f", "t")) || all(lvs2 == c("no", "yes"))
+  || all(lvs2 == c("n", "y")))) {
     lvs <- lvs[2:1]
   }
   contr <- stats::contr.sum(lvs)
@@ -108,7 +109,6 @@ named_contr_sum <- function(x, return_contr = TRUE) {
   contrasts(x) <- contr
   return(x)
 }
-
 
 
 #' Unordered factor interactions involving \code{NAs}.
@@ -316,8 +316,7 @@ nauf_interaction <- function(x, cols = colnames(x)) {
   ccna <- lapply(x, function(n) sort(levels(n)))
   changed <- !is.logical(all.equal(mefc, ccna))
   if (any(unlist(lapply(x, nlevels)) < 2)) {
-    warning("Collinearity in the interaction ",
-      paste(colnames(x), collapse = ":"))
+    stop("At least one factor has only one level when NAs are removed")
   }
   if (any(!xtabs(~ ., x))) {
     warning("Collinearity in the interaction ",
@@ -326,7 +325,6 @@ nauf_interaction <- function(x, cols = colnames(x)) {
 
   return(list(levels = ccna, changed = changed))
 }
-
 
 
 #' Contrasts for a model fit with \code{\link{nauf_reg}}.
@@ -376,17 +374,24 @@ nauf_contrasts <- function(object) {
   if (length(a$mefc)) {
     uf <- a$mefc[unlist(lapply(a$mefc, function(n) !n$ordered))]
     of <- a$mefc[unlist(lapply(a$mefc, function(n) n$ordered))]
-    uf <- if (length(uf)) lapply(uf, function(n) n$contrasts)
-    of <- if (length(of)) lapply(of, function(n) n$contrasts)
-    for (u in names(uf)) {
-      if (a$hasna[u]) {
-        uf[[u]] <- rbind(uf[[u]], 0)
-        rownames(uf[[u]])[nrow(uf[[u]])] <- NA
-      }
+    if (length(uf)) {
+      uf <- lapply(uf, function(n) n$contrasts)
+    } else {
+      uf <- list()
+    }
+    if (length(of)) {
+      of <- lapply(of, function(n) n$contrasts)
+    } else {
+      of <- list()
+    }
+    for (u in names(uf)[a$hasna[names(uf)]]) {
+      uf[[u]] <- rbind(uf[[u]], 0)
+      rownames(uf[[u]])[nrow(uf[[u]])] <- NA
     }
 
     if (length(a$ccna)) {
-      ccna <- lapply(a$ccna, function(n) lapply(n$levels, named_contr_sum))
+      ccna <- lapply(a$ccna, function(n) lapply(n$factors,
+        function(p) p$contrasts))
       for (j in 1:length(ccna)) {
         for (u in names(ccna[[j]])) {
           lvs <- rownames(uf[[u]])
@@ -406,8 +411,8 @@ nauf_contrasts <- function(object) {
     return(list(mefc = list(unordered = uf, ordered = of), ccna = ccna))
 
   } else {
-    warning("no factors in model; returning NULL")
-    return(NULL)
+    return(list(mefc = list(unordered = list(), ordered = list()),
+      ccna = list()))
   }
 }
 

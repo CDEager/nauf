@@ -1,5 +1,4 @@
-library(nauf)
-context("Unordered factor interactions involving NAs")
+context("nauf_interaction")
 
 dat <- rbind(
   expand.grid(f1 = c("a", "b"), f2 = c(TRUE, FALSE),
@@ -90,22 +89,19 @@ test_that("simple unordered factor cases work", {
 })
 
 test_that("higher order cases work", {
-  expect_equal(nauf_interaction(dat, c(1, 2, 3)), f123)
   expect_equal(nauf_interaction(dat, c(1, 2, 4)), f124)
-  expect_equal(nauf_interaction(dat, c(1, 3, 4)), f134)
   expect_equal(nauf_interaction(dat, c(2, 3, 4)), f234)
-  expect_equal(nauf_interaction(dat), f1234)
 })
 
 test_that("warnings work", {
-  expect_warning(nauf_interaction(dat, c(1, 2, 3)))
-  expect_warning(nauf_interaction(dat, c(1, 3, 4)))
-  expect_warning(nauf_interaction(dat))
+  expect_warning(expect_equal(nauf_interaction(dat, c(1, 3, 4)), f134))
 })
 
 test_that("errors work", {
+  expect_error(nauf_interaction(dat, c(1, 2, 3)))
   expect_error(nauf_interaction(dat, "d"))
   expect_error(nauf_interaction(dat, c("f1", "x")))
+  expect_error(nauf_interaction(dat))
 })
 
-rm(dat, f12, f13, f14, f23, f24, f34, f123, f124, f134, f234, f1234)
+rm(list = ls())

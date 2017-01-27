@@ -59,4 +59,3 @@ nauf_off <- function(object) {
   return(object)
 }
 
-

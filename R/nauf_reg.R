@@ -6,7 +6,7 @@
 #' regression family, ensuring that the \code{nauf} methods are used to form
 #' the model frame and model matrix, and also ensuring that generic functions
 #' used on the fitted model object (predict, summary, etc.) use these methods.
-#' 
+#'
 #' The \code{formula}, \code{family}, and \code{data} arguments are the same
 #' as would be passed to \code{\link[stats]{lm}} and \code{\link[stats]{glm}},
 #' except that \code{family = "negbin"} is allowed and fits a negative binomial
@@ -31,7 +31,7 @@
 #' set custom contrasts for ordered factors, do so in the data frame prior
 #' to calling \code{nauf_reg}).
 #'
-#' @param formula A \code{\link[stats]{formula}} describing the model to be fit. 
+#' @param formula A \code{\link[stats]{formula}} describing the model to be fit.
 #' @param family A regression \code{\link[stats]{family}} or, for negative
 #'   binomial regressions, a character string \code{"negbin"}.  The default
 #'   is \code{gaussian}.
@@ -68,44 +68,42 @@
 #' @importMethodsFrom stats family formula
 #'
 #' @export
-nauf_reg <- function(formula, family = gaussian, data, ...) {
+nauf_reg <- function(formula, data, family = gaussian, ...) {
   mc <- match.call()
   mc$model <- TRUE
   mc$x <- TRUE
   mc$contrasts <- NULL
   mc$na.action <- "na.pass"
-  
+
   mce <- mc
-  mce$formula <- call("nauf", formula)
-  
-  nb <- FALSE
-  if (is.character(family)) {
-    if (family %in% c("negbin", "nb", "negative binomial")) {
-      nb <- TRUE
-      mce$family <- NULL
-      mce[[1]] <- quote(MASS::glm.nb)
-    } else {
-      family <- get(family, mode = "function", envir = parent.frame())
-    }
-  }
-  if (!nb) {
-    if (is.function(family)) {
-      family <- family()
-    }
+  mce$formula <- call("nauf_on", formula)
+
+  if (is.function(family)) {
+    family <- family()
     if (is.null(family$family)) {
-      print(family)
       stop("'family' not recognized")
     }
-    if (family$family == "gaussian" & family$link == "identity") {
+    if (family$family == "gaussian" && family$link == "identity") {
       mce[[1]] <- quote(stats::lm)
     } else {
       mce[[1]] <- quote(stats::glm)
     }
+  } else if (is.character(family)) {
+    if (family == "gaussian") {
+      mce[[1]] <- quote(stats::lm)
+    } else if (family == "negbin") {
+      mce[[1]] <- quote(MASS::glm.nb)
+      mce$family <- NULL
+    } else {
+      stop("'family' not recognized")
+    }
+  } else {
+    stop("'family' not recognized")
   }
-  
-  mod <- eval(mce)
+
+  mod <- eval(mce, parent.frame())
   mod$call <- mc
-  
+
   return(nauf_on(mod))
 }
 

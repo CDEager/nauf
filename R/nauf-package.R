@@ -1,5 +1,6 @@
+
 #' nauf: An R package for fitting regressions with not applicable values in unordered factors.
-#' 
+#'
 #' The \code{nauf} package provides tools for fitting regressions where
 #' unordered factors may have \code{NA} values in addition to their
 #' regular levels.  In this package, \code{NA} is used to encode when an
@@ -9,7 +10,7 @@
 #' for an observation, or that while the observation may technically be
 #' definable by one of the factor levels, the interpretation of its belonging
 #' to that group isn't the same.
-#' 
+#'
 #' For example, in a linguistic study examining
 #' three dialects of the same language, where two dialects have both monolingual
 #' and bilingual speakers, but the third has only monolingual speakers, a binary
@@ -44,7 +45,7 @@
 #' allow \code{NA} values in the unordered factors.  For the treatment of
 #' unordered factors, see \code{\link{named_contr_sum}},
 #' \code{\link{nauf_interaction}}, and \code{\link{nauf_contrasts}}.
-#' 
+#'
 #' @docType package
 #' @name foo
 #'
@@ -52,3 +53,4 @@
 #' @import MASS
 #' @import methods
 NULL
+
