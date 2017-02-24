@@ -48,8 +48,8 @@ interaction.
 
 This function is implemented in \code{\link{nauf_model_frame}}, and is
 necessary in cases where \code{NA} values are collinear with non-\code{NA}
-values in other unordered factors.  For example, consider a hypothetical
-study where participants speak one of three different dialects of Spanish,
+values in other unordered factors.  For example, consider a linguistic
+study where participants speak one of three different dialects,
 which we will denote \code{A}, \code{B}, and \code{C}.  Suppose that in
 dialects \code{A} and \code{B}, some speakers are bilingual in the (same)
 second language while others are monolingual, but in dialect \code{C}, all
@@ -105,9 +105,9 @@ of \code{bilingual}, and the estimates for the sub-groups can be obtained by:
   mean(B:FALSE) = mean(B) - bilingualTRUE
 }
 
-Provided that any covariates have been put on unit scale (see
+Provided that all covariates have been put on unit scale (see
 \code{\link[base]{scale}}) and orthogonal polynomial contrasts have been set
-for any ordered factors (see \code{\link[stats]{contr.poly}}), both of which
+for all ordered factors (see \code{\link[stats]{contr.poly}}), both of which
 are good ideas for most regressions anyway, then these types of contrasts
 also result in the intercept being the corrected mean, and the output is
 easier to interpret.  An additional (and more important) advantage to

@@ -57,13 +57,6 @@ f124 <- list(levels = list(
   f4 = c("2", "3")),
 changed = TRUE)
 
-# warning: empty cells
-f134 <- list(levels = list(
-  f1 = c("c", "d"),
-  f3 = c("u", "v", "w"),
-  f4 = c("2", "3")),
-changed = TRUE)
-
 f234 <- list(levels = list(
   f2 = c("FALSE", "TRUE"),
   f3 = c("u", "v", "w"),
@@ -93,15 +86,41 @@ test_that("higher order cases work", {
   expect_equal(nauf_interaction(dat, c(2, 3, 4)), f234)
 })
 
-test_that("warnings work", {
-  expect_warning(expect_equal(nauf_interaction(dat, c(1, 3, 4)), f134))
-})
-
 test_that("errors work", {
   expect_error(nauf_interaction(dat, c(1, 2, 3)))
   expect_error(nauf_interaction(dat, "d"))
   expect_error(nauf_interaction(dat, c("f1", "x")))
   expect_error(nauf_interaction(dat))
+  expect_error(nauf_interaction(dat, c(1, 2, 3, 4)))
+})
+
+d <- expand.grid(
+  f1 = c("a", "b", "c"),
+  f2 = c("d", "e", "f"),
+  f3 = c("g", "h", "i"))
+d$f2[d$f1 == "b" & d$f2 == "d"] <- NA
+d$f2[d$f1 == "a"] <- NA
+d$f3[d$f1 == "c" & d$f3 == "g"] <- NA
+d <- rbind(d, d)
+
+f1f2f3 <- list(levels = list(
+  f1 = c("b", "c"),
+  f2 = c("e", "f"),
+  f3 = c("h", "i")),
+changed = TRUE)
+
+test_that("non-fatal collinearities are dropped", {
+  expect_equal(nauf_interaction(d, c("f1", "f2", "f3")), f1f2f3)
+})
+
+d <- expand.grid(
+  f1 = c("a", "b", "c"),
+  f2 = c("d", "e", "f"),
+  f3 = c("g", "h", "i"))
+d$f3[d$f1 == "a" & d$f2 == "e" & d$f3 != "i"] <- NA
+
+test_that("warnings work", {
+  expect_warning(nauf_interaction(d, c("f1", "f2", "f3")))
 })
 
 rm(list = ls())

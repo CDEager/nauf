@@ -132,7 +132,6 @@ test_that("warnings work", {
   expect_warning(expect_equal(nauf_model_frame(form1, dat,
     subset = dat$x < 2, offset = os, weights = w,
     drop.unused.levels = FALSE), mf1))
-  expect_warning(nauf_model_frame(form3, dat))
   expect_warning(nauf_model_frame(y ~ f1:x, dat))
 })
 

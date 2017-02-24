@@ -136,8 +136,8 @@ named_contr_sum <- function(x, return_contr = TRUE) {
 #'
 #' This function is implemented in \code{\link{nauf_model_frame}}, and is
 #' necessary in cases where \code{NA} values are collinear with non-\code{NA}
-#' values in other unordered factors.  For example, consider a hypothetical
-#' study where participants speak one of three different dialects of Spanish,
+#' values in other unordered factors.  For example, consider a linguistic
+#' study where participants speak one of three different dialects,
 #' which we will denote \code{A}, \code{B}, and \code{C}.  Suppose that in
 #' dialects \code{A} and \code{B}, some speakers are bilingual in the (same)
 #' second language while others are monolingual, but in dialect \code{C}, all
@@ -193,9 +193,9 @@ named_contr_sum <- function(x, return_contr = TRUE) {
 #'   mean(B:FALSE) = mean(B) - bilingualTRUE
 #' }
 #'
-#' Provided that any covariates have been put on unit scale (see
+#' Provided that all covariates have been put on unit scale (see
 #' \code{\link[base]{scale}}) and orthogonal polynomial contrasts have been set
-#' for any ordered factors (see \code{\link[stats]{contr.poly}}), both of which
+#' for all ordered factors (see \code{\link[stats]{contr.poly}}), both of which
 #' are good ideas for most regressions anyway, then these types of contrasts
 #' also result in the intercept being the corrected mean, and the output is
 #' easier to interpret.  An additional (and more important) advantage to
@@ -294,6 +294,7 @@ nauf_interaction <- function(x, cols = colnames(x)) {
     }
   }
   cols <- unique(cols)
+  nm <- paste(cols, collapse = ":")
 
   x <- x[, cols]
   makefac <- unlist(lapply(x, function(n) any(c("character", "logical") %in%
@@ -303,23 +304,48 @@ nauf_interaction <- function(x, cols = colnames(x)) {
   }
   uf <- unlist(lapply(x, function(n) is.factor(n) & !is.ordered(n)))
   if (sum(uf) < 2) {
-    stop("interaction must involve at least two unordered factors")
+    stop("interaction ", nm, " does not involve at least two unordered factors")
   }
 
   x <- x[, uf]
   mefc <- lapply(x, function(n) sort(levels(n)))
   x <- unique(x)
   x <- droplevels(x[apply(!is.na(x), 1, all), , drop = FALSE])
-  if (!nrow(x)) stop("No unique combinations of the factors with no NAs")
+  if (!nrow(x)) {
+    stop("No unique applicable combinations in ", nm)
+  }
+  
+  if (any(!xtabs(~ ., x))) {
+    torm <- vector("list", ncol(x))
+    
+    for (j in 1:length(torm)) {
+      for (i in levels(x[, j])) {
+        check <- droplevels(x[x[, j] == i, -j, drop = FALSE])
+        if (any(unlist(lapply(check, nlevels)) == 1)) {
+          torm[[j]] <- c(torm[[j]], i)
+        }
+      }
+    }
+    
+    for (j in 1:length(torm)) {
+      if (length(torm[[j]])) {
+        x[x[, j] %in% torm[[j]], j] <- NA
+      }
+    }
+    
+    x <- droplevels(x[apply(!is.na(x), 1, all), , drop = FALSE])
+    if (!nrow(x)) {
+      stop("No unique applicable combinations in ", nm)
+    }
+  }
+  
   ccna <- lapply(x, function(n) sort(levels(n)))
   changed <- !is.logical(all.equal(mefc, ccna))
   if (any(unlist(lapply(x, nlevels)) < 2)) {
-    stop("At least one factor has only one level when NAs are removed")
+    stop("At least one factor in ", nm,
+      " has only one level when NAs are removed")
   }
-  if (any(!xtabs(~ ., x))) {
-    warning("Collinearity in the interaction ",
-      paste(colnames(x), collapse = ":"))
-  }
+  if (any(!xtabs(~ ., x))) warning("Collinearity in the interaction ", nm)
 
   return(list(levels = ccna, changed = changed))
 }
