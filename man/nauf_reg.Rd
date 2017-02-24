@@ -67,7 +67,6 @@ m <- nauf_reg(y ~ f1 * f2 * (f3 + x), mydata, family = poisson)
 m <- nauf_reg(y ~ f1 * f2 * (f3 + x), mydata, family = "negbin")
 }
 
-
 }
 \seealso{
 For information about the elements in the fitted model object and

@@ -83,7 +83,8 @@ nauf_reg <- function(formula, data, family = gaussian, ...) {
     }
     if (family$family == "gaussian" && family$link == "identity") {
       mce[[1]] <- quote(stats::lm)
-      mce <- mce[-which(names(mce) == "family")]
+      f <- which(names(mce) == "family")
+      if (length(f)) mce <- mce[-which(names(mce) == "family")]
     } else {
       mce[[1]] <- quote(stats::glm)
     }

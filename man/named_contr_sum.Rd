@@ -90,7 +90,6 @@ named_contr_sum(5)
 named_contr_sum(rep(c("a", NA), 3), FALSE)
 }
 
-
 }
 \seealso{
 \code{\link{nauf_interaction}} for interactions involving unordered
