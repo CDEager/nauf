@@ -30,15 +30,17 @@ NULL
 
 
 #' @rdname nauf-class
+#' @export
 is.nauf <- function(object) {
   return(inherits(object, "nauf"))
 }
 
 
 #' @rdname nauf-class
+#' @export
 nauf_on <- function(object) {
-  if (!isS4(object) && (inherits(object, "formula") ||
-  inherits(object, "lm") || inherits(object, "data.frame"))) {
+  if (!isS4(object) && inherits(object, c("formula", "lm", "data.frame",
+  "list"))) {
     cl <- class(object)
     cl <- unique(c("nauf", cl))
     class(object) <- cl
@@ -50,6 +52,7 @@ nauf_on <- function(object) {
 
 
 #' @rdname nauf-class
+#' @export
 nauf_off <- function(object) {
   if (is.nauf(object)) {
     cl <- class(object)

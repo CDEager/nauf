@@ -52,5 +52,6 @@
 #' @import stats
 #' @import MASS
 #' @import methods
+#' @import lsmeans
 NULL
 

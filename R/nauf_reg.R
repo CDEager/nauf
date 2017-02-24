@@ -65,8 +65,6 @@
 #' m <- nauf_reg(y ~ f1 * f2 * (f3 + x), mydata, family = "negbin")
 #' }
 #'
-#' @importMethodsFrom stats family formula
-#'
 #' @export
 nauf_reg <- function(formula, data, family = gaussian, ...) {
   mc <- match.call()
@@ -85,6 +83,7 @@ nauf_reg <- function(formula, data, family = gaussian, ...) {
     }
     if (family$family == "gaussian" && family$link == "identity") {
       mce[[1]] <- quote(stats::lm)
+      mce <- mce[-which(names(mce) == "family")]
     } else {
       mce[[1]] <- quote(stats::glm)
     }

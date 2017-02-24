@@ -1,12 +1,18 @@
 Package: nauf
 Type: Package
-Title: What the Package Does (Title Case)
-Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
-License: What license is it under?
+Title: Not Applicable Unordered Factors
+Version: 0.0.0-999
+Authors@R: person("Christopher D.", "Eager",
+    email = "eagerstats@gmail.com", role = c("aut","cre"))
+Description: nauf allows not applicable values (as opposed to values missing at
+    random) in unordered factors to be modeled with already-existing regression
+    fitting functions through the use of sum contrasts and setting NA values to
+    zero in the model matrix.
+License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true
-Suggests: testthat
+URL: https://github.com/CDEager/nauf
+BugReports: https://github.com/CDEager/nauf/issues
+Suggests:
+    testthat
+RoxygenNote: 5.0.1

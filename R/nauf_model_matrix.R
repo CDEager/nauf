@@ -81,8 +81,6 @@ nauf_model_matrix <- function(object = NULL, data = NULL, ...) {
 
 #' @describeIn nauf_model_matrix S3 method for class 'nauf'
 #'
-#' @importMethodsFrom stats model.matrix terms formula contrasts contrasts<-
-#'
 #' @export
 model.matrix.nauf <- function(object = NULL, data = NULL, ...) {
   if (is.nauf(object) & inherits(object, "lm")) {

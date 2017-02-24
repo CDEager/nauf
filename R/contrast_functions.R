@@ -86,8 +86,6 @@
 #' named_contr_sum(rep(c("a", NA), 3), FALSE)
 #' }
 #'
-#' @importMethodsFrom stats contrasts<- contrasts
-#'
 #' @export
 named_contr_sum <- function(x, return_contr = TRUE) {
   if (length(dim(x))) stop("'x' must be a vector or factor")
@@ -356,6 +354,7 @@ nauf_interaction <- function(x, cols = colnames(x)) {
 #' m <- nauf_reg(y ~ f1 * f2 * (f3 + x1 + x2), data = mydata)
 #' nauf_contrasts(m)
 #' }
+#'
 #' @export
 nauf_contrasts <- function(object) {
   if (!is.nauf(object)) stop("must supply an object that inherits from nauf")

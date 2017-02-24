@@ -24,7 +24,7 @@
 #' \code{\link{nauf_interaction}} is called, and, if changes in contrasts are
 #' required in the interaction term, they are recorded.
 #'
-#' @param formula A \code{\link[stats]{formula}. \code{\link[stats]{terms}}
+#' @param formula A \code{\link[stats]{formula}}. \code{\link[stats]{terms}}
 #'   attributes are ignored.
 #' @param data A data.frame containing the variables for the model.
 #' @param na.action Changes from the default value (\code{\link[stats]{na.pass}})
@@ -80,8 +80,6 @@ nauf_model_frame <- function(formula, data = NULL, na.action = "na.pass",
 
 
 #' @describeIn nauf_model_frame S3 method for class 'nauf'
-#'
-#' @importMethodsFrom stats contrasts contrasts<- model.frame formula
 #'
 #' @export
 model.frame.nauf <- function(formula, data = NULL, na.action = "na.pass",
