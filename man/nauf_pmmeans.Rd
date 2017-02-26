@@ -4,16 +4,16 @@
 \alias{nauf_pmmeans}
 \title{Predicted marginal means with \code{NA} unordered factor values.}
 \usage{
-nauf_pmmeans(object, facs, keep_level = NULL, drop_level = NULL,
+nauf_pmmeans(object, vars, keep_level = NULL, drop_level = NULL,
   keep_group = NULL, drop_group = NULL, pairwise = TRUE)
 }
 \arguments{
 \item{object}{A regression model fit with \code{\link{nauf_reg}} or a
 reference grid created with \code{\link{nauf_grid}}.}
 
-\item{facs}{A character vector specifying the names of factors included
+\item{vars}{A character vector specifying the names of variables included
 in the model for which estimates are to be estimated for the full
-interaction term.}
+interaction term.  At least one must be a factor.  See 'Details'.}
 
 \item{keep_level}{A named list of character vectors specifying the levels
 of factors which should be considered in the reference grid. See 'Details'.}
@@ -44,20 +44,24 @@ An object of class \code{lsm.list} which inherits from \code{nauf}
   on the scale of the dependent variable, or whether to use the inverse
   link function (e.g. for logistic regression, whether results should be
   given in log-odds or probability). The object additionally has an attribute
-  \code{specs} which is a list of the \code{facs}, \code{keep_level},
+  \code{specs} which is a list of the \code{vars}, \code{keep_level},
   \code{drop_level}, \code{keep_group}, and \code{drop_group} arguments
   passed in the call to \code{nauf_pmmeans}.
 }
 \description{
 \code{nauf_pmmeans} computes predicted marginal means (also called
 least-squares means, a term which is less generally applicable) for a factor
-or the interaction of several factors in a model fit with \code{nauf_reg},
+or an interaction involving factors in a model fit with \code{nauf_reg},
 and optionally pairwise comparisons of these group means.  There are several
 subsetting arguments which allow for the predictions to be generated over
 only the relevant subset of the reference grid created by
 \code{\link{nauf_grid}} (see 'Details').
 }
 \details{
+First a description for the estimates generated when all elements of
+\code{vars} are factors is given, and then the covariate estimates are
+described.
+
 Because, by design, certain factors in a regression fit with
 \code{\link{nauf_reg}} are applicable only within subsets of the data,
 using \code{\link[lsmeans]{lsmeans}} directly will generate and average
@@ -75,7 +79,7 @@ when multiple calls to \code{nauf_pmmeans} will be made for the same model.
 There are four ways to specify a subset of the reference grid to use in the
 the computation of predicted marginal means, all of which default to
 \code{NULL}, which indicates that the entire reference grid should be used.
-If any of the factors specified in \code{facs} have \code{NA} values,
+If any of the factors specified in \code{vars} have \code{NA} values,
 this will lead to incorrect estimates.
 
 The \code{keep_level} argument, if specified, should be a named list
@@ -101,7 +105,7 @@ As an example, consider a situation where factor \code{f1} takes levels
 \code{A} and \code{B}, and factor \code{f2} takes levels \code{C} and
 \code{D} when \code{f1 = A}, but \code{f2 = NA} whenver \code{f1 = B}.  That
 is, \code{f2} is only contrastive for the group \code{f1 = A}.  In this
-case, calling \code{nauf_pmmeans} with \code{facs = "f2"}, but not
+case, calling \code{nauf_pmmeans} with \code{vars = "f2"}, but not
 specifying any of the subsetting arguments, would generate mean estimates
 for \code{f2} averaging over the groups \code{f1 = B, f2 = C} and
 \code{f1 = B, f2 = D}, which are not real groups.  To avoid this, there
@@ -134,6 +138,22 @@ required (but may be used).
 The recommended use of the subsetting arguments is to create a list of
 of explicit group definitions for \code{keep_group} as its own object, and
 then use the relevant elements of that list in calls to \code{nauf_pmmeans}.
+
+If \code{vars} contains a combination of factors and covariates, then the
+estimates generated are the slope for the full interaction of all of the
+covariates in \code{vars} for each group in the full interaction of all of
+the factors in \code{vars}.  As such, an error is thrown if \code{vars}
+contains only covariates but no factors, or if \code{vars} includes
+covariates but the full interaction of the variables listed in \code{vars}
+is not in the model.  So, for example, for factor \code{f1} and covariates
+\code{x1} and \code{x2}, with the full interaction \code{f1 * x1 * x2} in
+the model, \code{vars = c("f1", "x1")} would return estimates (and optionally
+pairwise comparisons) for the effect of an increase of 1 unit in \code{x1}
+for each level of \code{f1} (excluding \code{NA} if \code{f1} has \code{NA}
+values).  Calling \code{nauf_pmmeans} with  \code{vars = c("f1", "x1", "x2")}
+would return the effect of the \emph{interaction term only} for each level
+of \code{f1}; that is, the effect estimates would not include the main
+effects of \code{x1} and \code{x2}.
 }
 \examples{
 \dontrun{
@@ -144,25 +164,25 @@ rg <- nauf_grid(mod)
 groups <- list()
 
 groups$f2 <- list(list(f1 = "A", f2 = c("C", "D")))
-f2_pmm <- nauf_pmmeans(rg, facs = "f2", keep_group = groups$f2)
+f2_pmm <- nauf_pmmeans(rg, vars = "f2", keep_group = groups$f2)
 
 # for the case where f2 = NA is similar in interpretation to f2 = C
 groups$f1 <- list(
   A = list(f1 = "A", f2 = "C"),
   B = list(f1 = "B", f2 = NA))
-f1_pmm <- nauf_pmmeans(rg, facs = "f1", keep_group = groups$f1)
+f1_pmm <- nauf_pmmeans(rg, vars = "f1", keep_group = groups$f1)
 
 # for the case where f2 = NA is not similar to f2 = C or f2 = D
 groups$f1 <- list(
   A = list(f1 = "A", f2 = c("C", "D")),
   B = list(f1 = "B", f2 = NA))
-f1_pmm <- nauf_pmmeans(rg, facs = "f1", keep_group = groups$f1)
+f1_pmm <- nauf_pmmeans(rg, vars = "f1", keep_group = groups$f1)
 
 # to compare all three possible groups
 groups$f1_f2 <- list(
   A = list(f1 = "A", f2 = c("C", "D")),
   B = list(f1 = "B", f2 = NA)
-f1_f2_pmm <- nauf_pmmeans(rg, facs = c("f1", "f2"),
+f1_f2_pmm <- nauf_pmmeans(rg, vars = c("f1", "f2"),
   keep_group = groups$f1_f2)
 }
 
