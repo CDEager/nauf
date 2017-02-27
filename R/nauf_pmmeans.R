@@ -23,7 +23,7 @@
 #' if factor \code{f1} has levels \code{A} and \code{B}, and factor \code{f2}
 #' is \code{NA} when \code{f1 = A}, and takes values \code{C} and \code{D}
 #' when \code{f1 = B}, the reference grid will still contain the combinations
-#' \code{f1 = A, f2 = C}, \code{f1 = A, f2 = D}, and \code{f1 = B, f2 = NA},
+#' \code{f1 = A, f2 = C}; \code{f1 = A, f2 = D}; and \code{f1 = B, f2 = NA},
 #' even though these combinations are not possible.  This is because it is
 #' impossible to know without the researcher's knowledge which combinations
 #' make sense.  In many cases, this is inconsequential for the computation
@@ -46,6 +46,7 @@
 #'
 #' @seealso \code{\link{nauf_pmmeans}}
 #'
+#' @importFrom utils combn
 #' @export
 nauf_grid <- function(mod) {
   if (!is.nauf(mod) || !inherits(mod, "lm")) {
@@ -126,7 +127,7 @@ nauf_grid <- function(mod) {
 #'
 #' \code{nauf_pmmeans} computes predicted marginal means (also called
 #' least-squares means, a term which is less generally applicable) for a factor
-#' or an interaction involving factors in a model fit with \code{nauf_reg},
+#' or an interaction involving factors in a model fit with \code{\link{nauf_reg}},
 #' and optionally pairwise comparisons of these group means.  There are several
 #' subsetting arguments which allow for the predictions to be generated over
 #' only the relevant subset of the reference grid created by
@@ -198,7 +199,7 @@ nauf_grid <- function(mod) {
 #' to compare the groups \code{f1 = A, f2 = C} and \code{f1 = B, f2 = NA}.
 #' This is most easily accomplished by using the \code{drop_group} argument:
 #' \code{drop_group = list(list(f1 = "B", f2 = c("C", "D")))}.  This doesn't
-#' technically drop the non-existen groups \code{f1 = A, f2 = NA}, but this
+#' technically drop the non-existent groups \code{f1 = A, f2 = NA}, but this
 #' won't affect the end result in this case because of the way \code{NA} values
 #' are coded.  To explicitly drop this group (or similar groups when you aren't
 #' sure whether leaving them in affects the outcome), you can do
@@ -463,7 +464,7 @@ nauf_pmmeans <- function(object, vars, keep_level = NULL, drop_level = NULL,
   class(res) <- c("lsm.list", "list")
 
   if (pairwise & sum(k) > 1) {
-    combs <- combn(length(est), 2)
+    combs <- utils::combn(length(est), 2)
     contr <- as.list(as.data.frame(apply(combs, 2,
       function(x) est[[x[1]]] - est[[x[2]]])))
     names(contr) <- apply(combs, 2,

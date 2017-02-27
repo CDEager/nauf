@@ -37,7 +37,7 @@ factors which are not actually possible given the data set.  For example,
 if factor \code{f1} has levels \code{A} and \code{B}, and factor \code{f2}
 is \code{NA} when \code{f1 = A}, and takes values \code{C} and \code{D}
 when \code{f1 = B}, the reference grid will still contain the combinations
-\code{f1 = A, f2 = C}, \code{f1 = A, f2 = D}, and \code{f1 = B, f2 = NA},
+\code{f1 = A, f2 = C}; \code{f1 = A, f2 = D}; and \code{f1 = B, f2 = NA},
 even though these combinations are not possible.  This is because it is
 impossible to know without the researcher's knowledge which combinations
 make sense.  In many cases, this is inconsequential for the computation

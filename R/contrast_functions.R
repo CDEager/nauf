@@ -5,7 +5,7 @@
 #' with the levels of the factor rather than with number (e.g. if a factor
 #' \code{f1} has levels \code{A}, \code{B}, and \code{C}, then rather than
 #' creating contrast columns \code{f11} and \code{f12}, it creates columns
-#' \code{f1A} and \code{f1B}.
+#' \code{f1A} and \code{f1B}).
 #'
 #' First, \code{x} is coerced to character, and its unique non-\code{NA} values
 #' are sorted alphabetically.  If there are two unique values, and they are
@@ -28,7 +28,7 @@
 #' all of the dummy variables, averaging over the effect of the factor rather
 #' than causing the \code{NAs} to be coded as the base level as would occur
 #' with treatment contrasts (in sociolinguistics this is often referred to as
-#' factor slashing).  In the \code{nauf} package, all unordered factors
+#' factor).  In the \code{nauf} package, all unordered factors
 #' are automatically coded with named sum contrasts (as are any variables not
 #' coded as unordered factors, but which have only two unique values; e.g.
 #' logicals, variables coded as integer \code{0 / 1}, etc.).  See
@@ -38,7 +38,7 @@
 #'   which can be coerced to character with \code{\link[base]{as.character}}.
 #' @param return_contr A logical. If \code{TRUE} (the default), a contrast
 #'   matrix is returned. If \code{FALSE}, \code{x} is converted to an unordered
-#'   factor with the contrast matrix applied.
+#'   factor with the contrast matrix applied, and the factor is returned.
 #'
 #' @return If \code{return_contr = TRUE}, a contrast matrix obtained from
 #'   \code{\link[stats]{contr.sum}} with named columns rather than numbered
@@ -120,8 +120,9 @@ named_contr_sum <- function(x, return_contr = TRUE) {
 #' interaction are subsetted.  Then a table of all their unique combinations in
 #' \code{x} is made, excluding any combination which contains \code{NAs}.
 #' Then levels which are not used in the no-\code{NA} subset are dropped.
-#' If any of the factors has only one remaining level or if there are any
-#' zeros in the full contingency table of the factors, then a warning is issued
+#' Then, if any level in a factor is collinear with a level in another factor,
+#' the level is dropped.  If after doing this, there are still empty cells
+#' in the full contingency table of the factors, a warning is issued
 #' indicating that there is collinearity in the interaction term (the term
 #' shouldn't be included and will cause \code{NA} regression coefficients).
 #' The levels for each factor which are applicable in the interaction are
@@ -136,122 +137,83 @@ named_contr_sum <- function(x, return_contr = TRUE) {
 #'
 #' This function is implemented in \code{\link{nauf_model_frame}}, and is
 #' necessary in cases where \code{NA} values are collinear with non-\code{NA}
-#' values in other unordered factors.  For example, consider a linguistic
-#' study where participants speak one of three different dialects,
-#' which we will denote \code{A}, \code{B}, and \code{C}.  Suppose that in
-#' dialects \code{A} and \code{B}, some speakers are bilingual in the (same)
-#' second language while others are monolingual, but in dialect \code{C}, all
-#' speakers are monolingual.  In this case, we can code two factors.  The
-#' factor \code{dialect} has levels \code{A}, \code{B}, and \code{C}.  The
-#' factor \code{bilingual} has levels \code{TRUE} and \code{FALSE}, with all
-#' observations pertaining to \code{dialect C} coded as \code{NA}, since the
-#' the factor is not contrastive within the group (i.e. being monolingual in
-#' \code{dialect C} is different from being monolingual in the other two).
-#' Using \code{\link{named_contr_sum}}, we assign the following contrasts (in
-#' the \code{bilingual} table, the \code{NA} row is shown here to be explicit;
-#' it is not a part of the contrast matrix returned by the function because
-#' the \code{\link[stats]{contrasts}} requires the number of rows to be one
-#' more than the number of columns; the \code{NAs} are set to zero by
-#' \code{\link{nauf_model_matrix}}):
+#' values in other unordered factors.  For example, if factor \code{f1}
+#' has levels \code{A}, \code{B}, and \code{C}, and factor \code{f2} has
+#' levels \code{D} and \code{E} when \code{f1} is \code{A} or \code{B}, but
+#' \code{f2} is always \code{NA} when \code{f1} is \code{C}, then the main
+#' effects for these factors are automatically assigned the following contrasts.
 #'
-#' Contrasts for main effect of \code{dialect}
-#' \tabular{rr}{
-#'     \tab A \tab B\cr
-#'   A \tab  1 \tab  0\cr
-#'   B \tab  0 \tab  1\cr
-#'   C \tab -1 \tab -1
+#' Main effect contrasts for \code{f1}.
+#' \tabular{lrr}{
+#' f1 \tab  f1A \tab  f1B \cr
+#' A  \tab  1   \tab    0 \cr
+#' B  \tab  0   \tab    1 \cr
+#' C  \tab -1   \tab   -1
 #' }
 #'
-#' Contrasts for main effect of \code{bilingual}
-#' \tabular{r}{
-#'         \tab TRUE\cr
-#'   TRUE  \tab  1\cr
-#'   FALSE \tab -1\cr
-#'   NA    \tab  0
+#' Main effect contrasts for \code{f2}.
+#' \tabular{lr}{
+#' f2 \tab  f2D \cr
+#' D  \tab    1 \cr
+#' E  \tab   -1 \cr
+#' NA \tab    0
 #' }
 #'
-#' This setup allows the regression coefficient \code{bilingualTRUE} to
-#' only apply when either \code{dialectA} or \code{dialectB} is \code{1},
-#' and to always be multiplied by \code{0} when \code{dialectA} and
-#' \code{dialectB} are \code{-1} (i.e. for \code{dialect C}).  In the regression
-#' output, the predicted grand mean for each dialect is obtained by applying
-#' the contrast coding to the \code{dialect} coefficients.  That is, we have:
-#'
-#' \code{
-#'   mean(A) = (Intercept) + dialectA
-#'   mean(B) = (Intercept) + dialectB
-#'   mean(C) = (Intercept) - dialectA - dialectB
-#' }
-#'
-#' For dialects \code{A} and \code{B}, this estimate averages over the effect
-#' of \code{bilingual}, and the estimates for the sub-groups can be obtained by:
-#'
-#' \code{
-#'   mean(A:TRUE)  = mean(A) + bilingualTRUE
-#'   mean(A:FALSE) = mean(A) - bilingualTRUE
-#'   mean(B:TRUE)  = mean(B) + bilingualTRUE
-#'   mean(B:FALSE) = mean(B) - bilingualTRUE
-#' }
-#'
+#' This setup allows the regression coefficient \code{f2D} to
+#' only apply when \code{f1} is either \code{A} or \code{B}, provided that
+#' whenever \code{f1} is \code{C}, \code{f2} is \code{NA}.
 #' Provided that all covariates have been put on unit scale (see
 #' \code{\link[base]{scale}}) and orthogonal polynomial contrasts have been set
 #' for all ordered factors (see \code{\link[stats]{contr.poly}}), both of which
 #' are good ideas for most regressions anyway, then these types of contrasts
 #' also result in the intercept being the corrected mean, and the output is
-#' easier to interpret.  An additional (and more important) advantage to
-#' implementing \code{NA} values, however, comes when factors such as the ones
-#' in this example interact.  Assume now that we are interested in the
-#' interaction \code{dialect * bilingual}, rather than just the main effects.
-#' Coding the observations from dialect \code{C} as \code{bilingual = FALSE}
-#' yields a rank-deficient matrix (i.e. there are collinear columns).  If we
-#' simply multiply the contrasts for the main effects outlined above in the
-#' interaction (which is what the default for \code{link[stats]{model.matrix}}
-#' does), the result is not collinear; hoever, it is still undesirable:
+#' easier to interpret.  If we are interested in the
+#' interaction \code{f1 * f2}, rather than just the main effects, then merely
+#' multiplying the main effect contrasts to obtain interaction contrasts
+#' yields the following undesirable contrasts.
 #'
-#' Undesirable contrasts for \code{dialect:bilingual} interaction
+#' Undesirable contrasts for \code{f1:f2} interaction.
 #' \tabular{llrr}{
-#'    \tab  \tab dialectA:bilingualTRUE \tab dialectB:bilingualTRUE\cr
-#'   A \tab TRUE  \tab  1 \tab  0\cr
-#'   A \tab FALSE \tab -1 \tab  0\cr
-#'   B \tab TRUE  \tab  0 \tab  1\cr
-#'   B \tab FALSE \tab  0 \tab -1\cr
-#'   C \tab NA    \tab  0 \tab  0
+#' f1 \tab f2 \tab f1A:f2D \tab f1B:f2D \cr
+#' A  \tab D  \tab       1 \tab       0 \cr
+#' A  \tab E  \tab      -1 \tab       0 \cr
+#' B  \tab D  \tab       0 \tab       1 \cr
+#' B  \tab E  \tab       0 \tab      -1 \cr
+#' C  \tab NA \tab       0 \tab       0
 #' }
-#'
 #'
 #' These contrasts are undesirable because the same interaction term could be
 #' expressed with one column with some releveling, and in cases more complicated
 #' than this one, there could also be collinearity.  So, instead, we should use
 #' the following contrasts:
 #'
-#' \tabular{llr}{
-#'    \tab  \tab dialectA:bilingualTRUE\cr
-#'   A \tab TRUE  \tab  1\cr
-#'   A \tab FALSE \tab -1\cr
-#'   B \tab TRUE  \tab -1\cr
-#'   B \tab FALSE \tab  1\cr
-#'   C \tab NA    \tab  0
+#' Contrasts for \code{f1:f2} as implemented in \code{nauf}.
+#' \tabular{llrr}{
+#' f1 \tab f2 \tab f1A:f2D \cr
+#' A  \tab D  \tab       1 \cr
+#' A  \tab E  \tab      -1 \cr
+#' B  \tab D  \tab      -1 \cr
+#' B  \tab E  \tab       1 \cr
+#' C  \tab NA \tab       0
 #' }
 #'
-#' Determining these contrasts manually can be tedious (especially as the number
-#' of factors and levels grows), hence \code{nauf_interaction}.
 #' For this example \code{nauf_interaction} determines that \code{C} is
 #' redundant in the interaction term, and so it drops it from the levels
-#' of \code{dialect}, while keeping \code{bilingual} the same.  In this case,
+#' of \code{f1}, while keeping \code{f2} the same.  In this case,
 #' \code{nauf_interaction} would return a list with an element \code{levels}
-#' which has sub-elements \code{dialect} and \code{bilingual}, each of which is
-#' a character vector (\code{c("A", "B")} and \code{c("TRUE", "FALSE")},
+#' which has sub-elements \code{f1} and \code{f2}, each of which is
+#' a character vector (\code{c("A", "B")} and \code{c("D", "E")},
 #' respectively), along with a second element \code{changed = TRUE} to indicate
 #' that at least one level was dropped from at least one factor.  See
 #' \code{\link{nauf_model_matrix}} for implementation of interaction contrasts
-#' which don't match main effect contrasts, and how this effects interpretation
-#' of the regression output.  See the examples section for code
+#' which don't match main effect contrasts. See the examples section for code
 #' implementing this example.
 #'
 #' @param x A data.frame.
 #' @param cols A vector specifying columns in \code{x} involved in an
-#'   interaction.  At least two must be unordered factors.  Defaults to
-#'   all columns in \code{x}.
+#'   interaction.  At least two must be unordered factors, and at least one must
+#'   be an unordered factor with \code{NA} values.  Defaults to all columns in
+#'   \code{x}.
 #'
 #' @return A list with two elements.  The first, \code{levels}, is a named list
 #'   with one entry for each unordered factor in \code{cols}.  Each entry is a
@@ -260,7 +222,7 @@ named_contr_sum <- function(x, return_contr = TRUE) {
 #'   is a logical indicating whether or not \code{levels} is the same as the
 #'   levels in the main effects.
 #'
-#' @seealso \code{\link{named_sum_contr}} for the contrasts that \code{nauf}
+#' @seealso \code{\link{named_contr_sum}} for the contrasts that \code{nauf}
 #'   assigns to unordered factors,
 #'   \code{\link{nauf_model_frame}} for automatic assignment of unordered factor
 #'   contrasts, and \code{\link{nauf_model_matrix}} for the treatment of
@@ -268,9 +230,9 @@ named_contr_sum <- function(x, return_contr = TRUE) {
 #'
 #' @examples
 #' dat <- data.frame(
-#'   dialect = c("A", "A", "B", "B", "C"),
-#'   bilingual = c(TRUE, FALSE, TRUE, FALSE, NA))
-#' nauf_interaction(dat)  # drops dialect C
+#'   f1 = c("A", "A", "B", "B", "C"),
+#'   f2 = c("D", "E", "D", "E", NA))
+#' nauf_interaction(dat)  # drops C from f1
 #'
 #' dat <- as.data.frame(lapply(dat, function(n) rep(n, 10)))
 #' dat$x <- rnorm(nrow(dat))
@@ -278,8 +240,8 @@ named_contr_sum <- function(x, return_contr = TRUE) {
 #' nauf_interaction(dat)  # ignores x and o; same result as above
 #'
 #' \dontrun{
-#' nauf_interaction(dat, "dialect")  # error; only one column
-#' nauf_interaction(dat, c("dialect", "x"))  # error; only one unordered factor
+#' nauf_interaction(dat, "f1")  # error; only one column
+#' nauf_interaction(dat, c("f1", "x"))  # error; only one unordered factor
 #' }
 #'
 #' @export
@@ -372,8 +334,9 @@ nauf_interaction <- function(x, cols = colnames(x)) {
 #'   \code{ccna} is a named list with an element for each combination of
 #'   unordered factors which required a change in factor contrasts from the
 #'   main effects, with an entry for each of the factors containing the
-#'   contrasts applied to any term involving only those unordered factors
-#'   (but possibly also ordered factors and covariates).
+#'   contrasts applied to any term involving those unordered factors (and
+#'   possibly also ordered factors and covariates), but no other unordered
+#'   factors.
 #'
 #' @examples
 #' \dontrun{

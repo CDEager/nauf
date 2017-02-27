@@ -23,8 +23,9 @@ A list with two elements: \code{mefc} (main effect factor contrasts)
   \code{ccna} is a named list with an element for each combination of
   unordered factors which required a change in factor contrasts from the
   main effects, with an entry for each of the factors containing the
-  contrasts applied to any term involving only those unordered factors
-  (but possibly also ordered factors and covariates).
+  contrasts applied to any term involving those unordered factors (and
+  possibly also ordered factors and covariates), but no other unordered
+  factors.
 }
 \description{
 \code{nauf_contrasts} lists all factor contrasts in a model fit with

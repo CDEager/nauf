@@ -8,6 +8,12 @@ Description: nauf allows not applicable values (as opposed to values missing at
     random) in unordered factors to be modeled with already-existing regression
     fitting functions through the use of sum contrasts and setting NA values to
     zero in the model matrix.
+Depends: R (>= 3.3.2)
+Imports:
+    utils,
+    methods,
+    MASS (>= 7.3-45),
+    lsmeans (>= 2.25)
 License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true

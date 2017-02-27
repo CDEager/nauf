@@ -9,45 +9,47 @@
 #' unordered factors, and indicates that the factor is simply not meaningful
 #' for an observation, or that while the observation may technically be
 #' definable by one of the factor levels, the interpretation of its belonging
-#' to that group isn't the same.
-#'
-#' For example, in a linguistic study examining
-#' three dialects of the same language, where two dialects have both monolingual
-#' and bilingual speakers, but the third has only monolingual speakers, a binary
-#' factor \code{bilingual} with levels \code{FALSE} and \code{TRUE} doesn't
-#' apply to the third dialect.  While you could code all observations from
-#' the third dialect as \code{FALSE}, the meaning would not be the same,
-#' since in the first two dialects \code{FALSE} means
-#' \emph{monolingual as opposed to bilingual}, while in the third it does not
-#' have this meaning.  In this case, the factor could be coded as \code{NA}
-#' for observations from the third dialect, and the tools in the \code{nauf}
-#' package could be used to include them in a regression.  They are included
-#' by using sum contrasts for unordered factors, allowing \code{NA} values
-#' to pass to the model matrix, and then setting all \code{NA} values to zero
-#' (in sociolinguistics this is called factor slashing).  The treatment of
-#' unordered factors interacting with these \code{NA} values is more complex
-#' and can often require contrast changes (see \code{\link{nauf_interaction}}).
+#' to that group isn't the same.  For imbalanced observational data, coding
+#' as \code{NA} may also be used to control for a factor which is only
+#' contrastive within a subset of the data due to the sampling scheme.  The
+#' \code{nauf} package provides functions to implement these values
+#' automatically; the user simply needs to code the relevant observations as
+#' \code{NA}.
 #'
 #' The \code{nauf} package works by implementing new methods for the generics
-#' \code{model.frame} and \code{model.matrix} from the \code{stats} package, and
+#' \code{model.frame} and \code{model.matrix} from the \code{stats} package,
 #' ensuring that these generics are used by already existing regression fitting
-#' functions.
+#' functions. All unordered factors are coded with sum contrasts using
+#' \code{\link{named_contr_sum}}, which uses the contrasts returned by
+#' \code{\link[stats]{contr.sum}}, but names the dummy variables rather than
+#' numbering them so the output is more easily interpreted.  These contrasts
+#' are assigned ignoring \code{NA} values, and then in the model matrix
+#' all \code{NA} values are set to zero.  Interaction terms
+#' which involve more than one unordered factor, with at least one of these
+#' unordered factors having \code{NA} values, may require different contrasts
+#' to be used in the interaction term than in the main effects, as determined
+#' with \code{\link{nauf_interaction}}.  A list of the contrast matrices used
+#' in a regression can be obtained with \code{\link{nauf_contrasts}}.
 #'
-#' The main function, \code{\link{nauf_reg}}, is a wrapper function that assigns
+#' The function \code{\link{nauf_reg}}, is a wrapper function that assigns
 #' the formula for a regression an extra (first) class attribute of
 #' \code{\link[=nauf-class]{nauf}}, and then calls an appropriate regression
-#' fitting function from the \code{stats} or \code{MASS} package, causing these
+#' fitting function from the \code{stats} or \code{MASS} packages, causing these
 #' functions to use the \code{nauf} generics for \code{model.frame} and
 #' \code{model.matrix} (see \code{\link{nauf_model_frame}} and
 #' \code{\link{nauf_model_matrix}}).  Currently, any regression which can be
 #' fit with the functions \code{\link[stats]{lm}}, \code{\link[stats]{glm}},
 #' and \code{\link[MASS]{glm.nb}} can be fit using \code{\link{nauf_reg}} to
-#' allow \code{NA} values in the unordered factors.  For the treatment of
-#' unordered factors, see \code{\link{named_contr_sum}},
-#' \code{\link{nauf_interaction}}, and \code{\link{nauf_contrasts}}.
+#' allow \code{NA} values in the unordered factors.  The functions
+#' \code{\link{nauf_grid}} and \code{\link{nauf_pmmeans}} interface with
+#' \code{link[lsmeans]{ref.grid}} and \code{\link[lsmeans]{lsmeans}} to
+#' obtain predicted marginal means (also called least-squares means) and
+#' pairwise comparisons for factors, interactions between factors, and
+#' interactions between factors and covariates, allowing for the estimates
+#' to be generated for only the relevant subsets of the data.
 #'
 #' @docType package
-#' @name foo
+#' @name nauf-package
 #'
 #' @import stats
 #' @import MASS

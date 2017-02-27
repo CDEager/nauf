@@ -51,7 +51,7 @@ An object of class \code{lsm.list} which inherits from \code{nauf}
 \description{
 \code{nauf_pmmeans} computes predicted marginal means (also called
 least-squares means, a term which is less generally applicable) for a factor
-or an interaction involving factors in a model fit with \code{nauf_reg},
+or an interaction involving factors in a model fit with \code{\link{nauf_reg}},
 and optionally pairwise comparisons of these group means.  There are several
 subsetting arguments which allow for the predictions to be generated over
 only the relevant subset of the reference grid created by
@@ -124,7 +124,7 @@ because \code{f1 = B, f2 = D} is not possible, then it would make sense
 to compare the groups \code{f1 = A, f2 = C} and \code{f1 = B, f2 = NA}.
 This is most easily accomplished by using the \code{drop_group} argument:
 \code{drop_group = list(list(f1 = "B", f2 = c("C", "D")))}.  This doesn't
-technically drop the non-existen groups \code{f1 = A, f2 = NA}, but this
+technically drop the non-existent groups \code{f1 = A, f2 = NA}, but this
 won't affect the end result in this case because of the way \code{NA} values
 are coded.  To explicitly drop this group (or similar groups when you aren't
 sure whether leaving them in affects the outcome), you can do

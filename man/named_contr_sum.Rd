@@ -12,7 +12,7 @@ which can be coerced to character with \code{\link[base]{as.character}}.}
 
 \item{return_contr}{A logical. If \code{TRUE} (the default), a contrast
 matrix is returned. If \code{FALSE}, \code{x} is converted to an unordered
-factor with the contrast matrix applied.}
+factor with the contrast matrix applied, and the factor is returned.}
 }
 \value{
 If \code{return_contr = TRUE}, a contrast matrix obtained from
@@ -25,7 +25,7 @@ If \code{return_contr = TRUE}, a contrast matrix obtained from
 with the levels of the factor rather than with number (e.g. if a factor
 \code{f1} has levels \code{A}, \code{B}, and \code{C}, then rather than
 creating contrast columns \code{f11} and \code{f12}, it creates columns
-\code{f1A} and \code{f1B}.
+\code{f1A} and \code{f1B}).
 }
 \details{
 First, \code{x} is coerced to character, and its unique non-\code{NA} values
@@ -49,7 +49,7 @@ in a factor since in the model matrix the \code{NAs} can be set to zero for
 all of the dummy variables, averaging over the effect of the factor rather
 than causing the \code{NAs} to be coded as the base level as would occur
 with treatment contrasts (in sociolinguistics this is often referred to as
-factor slashing).  In the \code{nauf} package, all unordered factors
+factor).  In the \code{nauf} package, all unordered factors
 are automatically coded with named sum contrasts (as are any variables not
 coded as unordered factors, but which have only two unique values; e.g.
 logicals, variables coded as integer \code{0 / 1}, etc.).  See

@@ -1,11 +1,6 @@
 # nauf
 An R package for fitting regressions with not applicable values in unordered factors
 
-## Under Construction
-This package is still under construction.  I will make an initial release
-when I have finished the documentation and unit tests for basic (fixed effects
-only) regressions using nauf.
-
 ## Package Description
 The *nauf* package provides tools for fitting regressions where
 unordered factors may have NA values in addition to their
@@ -15,51 +10,52 @@ than "not available" or "missing at random".  The concept applies only to
 unordered factors, and indicates that the factor is simply not meaningful
 for an observation, or that while the observation may technically be
 definable by one of the factor levels, the interpretation of its belonging
-to that group isn't the same.
- 
-For example, in a linguistic study examining
-three dialects of the same language, where two dialects have both monolingual
-and bilingual speakers, but the third has only monolingual speakers, a binary
-factor *bilingual* with levels *FALSE* and *TRUE* doesn't
-apply to the third dialect.  While you could code all observations from
-the third dialect as *FALSE*, the meaning would not be the same,
-since in the first two dialects *FALSE* means
-*monolingual as opposed to bilingual*, while in the third it does not
-have this meaning.  In this case, the factor could be coded as *NA*
-for observations from the third dialect, and the tools in the *nauf*
-package could be used to include them in a regression.  They are included
-by using sum contrasts for unordered factors, allowing *NA* values
-to pass to the model matrix, and then setting all *NA* values to zero
-(in sociolinguistics this is called factor slashing).  The treatment of
-unordered factors interacting with these *NA* values is more complex
-and can often require contrast changes.
+to that group isn't the same.  For imbalanced observational data, coding
+as NA may also be used to control for a factor which is only
+contrastive within a subset of the data due to the sampling scheme.  The
+*nauf* package provides functions to implement these values
+automatically; the user simply needs to code the relevant observations as
+NA.
 
 The *nauf* package works by implementing new methods for the generics
-*model.frame* and *model.matrix* from the *stats* package, and
+*model.frame* and *model.matrix* from the *stats* package,
 ensuring that these generics are used by already existing regression fitting
-functions (i.e. there is as little interference with the actual model fitting
-procedures as possible, further allowing already existing generics like
-*predict*, *summary*, etc. to be seemlessly applied to the fitted model objects).
+functions. All unordered factors are coded with sum contrasts using
+*named_contr_sum*, which uses the contrasts returned by
+*contr.sum*, but names the dummy variables rather than
+numbering them so the output is more easily interpreted.  These contrasts
+are assigned ignoring NA values, and then in the model matrix
+all NA values are set to zero.  Interaction terms
+which involve more than one unordered factor, with at least one of these
+unordered factors having NA values, may require different contrasts
+to be used in the interaction term than in the main effects, as determined
+with *nauf_interaction*.  A list of the contrast matrices used
+in a regression can be obtained with *nauf_contrasts*.
 
-The main function, *nauf_reg*, is a wrapper function that assigns
+The function *nauf_reg*, is a wrapper function that assigns
 the formula for a regression an extra (first) class attribute of
 *nauf*, and then calls an appropriate regression
-fitting function from the *stats* or *MASS* package, causing these
+fitting function from the *stats* or *MASS* packages, causing these
 functions to use the *nauf* generics for *model.frame* and
-*model.matrix* (see nauf_model_frame and nauf_model_matrix in the R folder).
-Currently, any regression which can be fit with the functions *lm*, *glm*,
-and *glm.nb* can be fit using *nauf_reg* to allow *NA* values in the unordered
-factors.  For the treatment of unordered factors, see *named_contr_sum*,
-*nauf_interaction*, and *nauf_contrasts* in the *contrast_functions.R* file.
+*model.matrix* (see *nauf_model_frame* and
+*nauf_model_matrix*).  Currently, any regression which can be
+fit with the functions *lm*, *glm*,
+and *glm.nb* can be fit using *nauf_reg* to
+allow NA values in the unordered factors.  The functions
+*nauf_grid* and *nauf_pmmeans* interface with
+*ref.grid* and *lsmeans* to
+obtain predicted marginal means (also called least-squares means) and
+pairwise comparisons for factors, interactions between factors, and
+interactions between factors and covariates, allowing for the estimates
+to be generated for only the relevant subsets of the data.
 
 ## Future Development
-After getting the initial package for fixed-effects-only models up and running,
-the next step is to implement *nauf* methods in *lme4*, allowing the fixed
-effects to be coded as described above, and also allowing for random effects
-grouping factors to be coded as *NA* (i.e. have the random effects structure
+In a future release, *nauf* methods will be implemented for *lme4*, allowing the
+fixed effects to be coded as described above, and also allowing for random effects
+grouping factors to be coded as NA (i.e. have the random effects structure
 apply only to a subset of the data while still including all of the data
 in the same regression).  There are many tools in the *nlme* package for fitting
-more complex random effects structures, but my goal here is to make these
-automated so that all the user has to do is code factors as *NA* when they are
-not applicable, and the rest simply follows. Once the *lme4* interfacing is
-working, I then plan to implement it into *rstanarm*.
+more complex random effects structures, but the goal here is to make these
+automated so that all the user has to do is code factors as NA when they are
+not applicable, and the rest simply follows.  Bayesian regression functionality
+will also be implemented for *rstanarm*.

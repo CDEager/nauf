@@ -27,7 +27,7 @@ A model matrix with unordered factor \code{NAs} set to zero.  It
 with \code{\link{nauf_reg}}, constructs the model matrix specified in
 a model frame built with \code{\link{nauf_model_frame}}, or constructs
 a model matrix after calling \code{\link{nauf_model_frame}}, depending
-on the value of \code{object} and {code{data}}.  See 'Details'.
+on the value of \code{object} and \code{data}.  See 'Details'.
 }
 \details{
 Exactly what happens depends on the value of the arguments \code{object}
