@@ -13,9 +13,9 @@
 #' The \code{nauf_on} function adds \code{nauf} as the first
 #' \code{\link[base]{class}} attribute to \code{object} if \code{object}
 #' \code{\link[base]{inherits}} from \code{\link[stats]{formula}},
-#' \code{\link[base]{data.frame}}, \code{list}, or \code{\link[stats]{lm}}
-#' and is not an S4 object.  If the object does not meet these critera, it is
-#' returned unaltered and a warning is issued.
+#' \code{\link[base]{data.frame}}, \code{list}, \code{\link[stats]{lm}}, or
+#' \code{call} and is not an S4 object.  If the object does not meet these
+#' critera, it is returned unaltered and a warning is issued.
 #'
 #' The \code{nauf_off} function removes \code{nauf} from the the class
 #' of \code{object} if it is there and then returns the object.
@@ -40,7 +40,7 @@ is.nauf <- function(object) {
 #' @export
 nauf_on <- function(object) {
   if (!isS4(object) && inherits(object, c("formula", "lm", "data.frame",
-  "list"))) {
+  "list", "call"))) {
     cl <- class(object)
     cl <- unique(c("nauf", cl))
     class(object) <- cl

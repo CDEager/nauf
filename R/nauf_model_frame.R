@@ -97,7 +97,7 @@ model.frame.nauf <- function(formula, data = NULL, na.action = "na.pass",
   if ("ccna" %in% names(attributes(formula))) {
     formula <- nauf_off(formula)
     mf <- stats::model.frame(formula, data, na.action = "na.pass",
-      drop.unused.levels = TRUE, xlev = NULL, ...)
+      drop.unused.levels = FALSE, xlev = NULL, ...)
     mefc <- attr(formula, "mefc")
     for (j in names(mefc)) {
       mf[, j] <- factor(mf[, j], ordered = mefc[[j]]$ordered,
@@ -110,7 +110,7 @@ model.frame.nauf <- function(formula, data = NULL, na.action = "na.pass",
     attr(formula, "terms") <- NULL
     class(formula) <- "formula"
     mf <- stats::model.frame(formula, data, na.action = "na.pass",
-      drop.unused.levels = TRUE, xlev = NULL, ...)
+      drop.unused.levels = FALSE, xlev = NULL, ...)
     if (stats::is.empty.model(mf)) {
       stop("model is empty")
     }
@@ -151,7 +151,13 @@ model.frame.nauf <- function(formula, data = NULL, na.action = "na.pass",
     for (j in v[of]) {
       # if you don't do this then the attributes aren't equal
       # in testing for the ordered factors
-      if (is.null(attr(mf[, j], "contrasts"))) contrasts(mf[, j]) <- ofc
+      if (is.null(attr(mf[, j], "contrasts"))) {
+        contrasts(mf[, j]) <- ofc
+      } else if (any(!(xtabs(~ mf[, j])))) {
+        mf[, j] <- droplevels(mf[, j])
+        contrasts(mf[, j]) <- ofc
+        warning("Dropping levels from ordered factor ", j)
+      }
       attr(mf[, j], "contrasts") <- contrasts(mf[, j])
       rownames(attr(mf[, j], "contrasts")) <- levels(mf[, j])
       mefc[[j]] <- list(ordered = TRUE, levels = levels(mf[, j]),

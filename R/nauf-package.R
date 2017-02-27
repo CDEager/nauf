@@ -55,5 +55,6 @@
 #' @import MASS
 #' @import methods
 #' @import lsmeans
+#' @import lme4
 NULL
 
