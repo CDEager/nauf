@@ -42,7 +42,8 @@
 #'   whose \code{\link[stats]{terms}} attribute inherits from
 #'   \code{\link[=nauf-class]{nauf}} and has three additional attributes:
 #'   \code{mefc} (main effect factor contrasts) is a named list with an element
-#'   for each factor in the model, containing its contrast matrix; \code{ccna}
+#'   for each factor in the model, containing its contrast matrix, levels,
+#'   and a logical indicating whether the factor is ordered or not; \code{ccna}
 #'   (contrasts changed due to \code{NA} values) is a named list with an entry
 #'   for each unordered factor interaction which requires contrasts to be
 #'   changed from those applied to the main effects, containing a named list

@@ -12,7 +12,7 @@ nauf_model_matrix(object = NULL, data = NULL, ...)
 \arguments{
 \item{object}{A model frame fit by \code{\link{nauf_model_frame}}, a
 regression model fit by \code{\link{nauf_reg}}, a
-\code{link[stats]{formula}}, or \code{NULL}.  See 'Details'.}
+\code{\link[stats]{formula}}, or \code{NULL}.  See 'Details'.}
 
 \item{data}{A data.frame or \code{NULL}.  See 'Details'.}
 

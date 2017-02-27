@@ -1,7 +1,7 @@
 Package: nauf
 Type: Package
 Title: Not Applicable Unordered Factors
-Version: 0.0.0-999
+Version: 0.1.0
 Authors@R: person("Christopher D.", "Eager",
     email = "eagerstats@gmail.com", role = c("aut","cre"))
 Description: nauf allows not applicable values (as opposed to values missing at

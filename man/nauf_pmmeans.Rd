@@ -12,7 +12,7 @@ nauf_pmmeans(object, vars, keep_level = NULL, drop_level = NULL,
 reference grid created with \code{\link{nauf_grid}}.}
 
 \item{vars}{A character vector specifying the names of variables included
-in the model for which estimates are to be estimated for the full
+in the model for which estimates are to be generated for the full
 interaction term.  At least one must be a factor.  See 'Details'.}
 
 \item{keep_level}{A named list of character vectors specifying the levels

@@ -28,7 +28,7 @@
 #' all of the dummy variables, averaging over the effect of the factor rather
 #' than causing the \code{NAs} to be coded as the base level as would occur
 #' with treatment contrasts (in sociolinguistics this is often referred to as
-#' factor).  In the \code{nauf} package, all unordered factors
+#' slashing).  In the \code{nauf} package, all unordered factors
 #' are automatically coded with named sum contrasts (as are any variables not
 #' coded as unordered factors, but which have only two unique values; e.g.
 #' logicals, variables coded as integer \code{0 / 1}, etc.).  See
@@ -198,7 +198,7 @@ named_contr_sum <- function(x, return_contr = TRUE) {
 #' }
 #'
 #' For this example \code{nauf_interaction} determines that \code{C} is
-#' redundant in the interaction term, and so it drops it from the levels
+#' not applicable in the interaction term, and so it drops it from the levels
 #' of \code{f1}, while keeping \code{f2} the same.  In this case,
 #' \code{nauf_interaction} would return a list with an element \code{levels}
 #' which has sub-elements \code{f1} and \code{f2}, each of which is

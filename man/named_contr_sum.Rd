@@ -49,7 +49,7 @@ in a factor since in the model matrix the \code{NAs} can be set to zero for
 all of the dummy variables, averaging over the effect of the factor rather
 than causing the \code{NAs} to be coded as the base level as would occur
 with treatment contrasts (in sociolinguistics this is often referred to as
-factor).  In the \code{nauf} package, all unordered factors
+slashing).  In the \code{nauf} package, all unordered factors
 are automatically coded with named sum contrasts (as are any variables not
 coded as unordered factors, but which have only two unique values; e.g.
 logicals, variables coded as integer \code{0 / 1}, etc.).  See

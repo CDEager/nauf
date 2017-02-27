@@ -233,7 +233,7 @@ nauf_grid <- function(mod) {
 #' @param object A regression model fit with \code{\link{nauf_reg}} or a
 #'   reference grid created with \code{\link{nauf_grid}}.
 #' @param vars A character vector specifying the names of variables included
-#'   in the model for which estimates are to be estimated for the full
+#'   in the model for which estimates are to be generated for the full
 #'   interaction term.  At least one must be a factor.  See 'Details'.
 #' @param keep_level A named list of character vectors specifying the levels
 #'   of factors which should be considered in the reference grid. See 'Details'.

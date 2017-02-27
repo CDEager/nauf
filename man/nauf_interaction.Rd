@@ -111,7 +111,7 @@ C  \tab NA \tab       0
 }
 
 For this example \code{nauf_interaction} determines that \code{C} is
-redundant in the interaction term, and so it drops it from the levels
+not applicable in the interaction term, and so it drops it from the levels
 of \code{f1}, while keeping \code{f2} the same.  In this case,
 \code{nauf_interaction} would return a list with an element \code{levels}
 which has sub-elements \code{f1} and \code{f2}, each of which is

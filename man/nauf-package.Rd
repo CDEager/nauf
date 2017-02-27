@@ -47,7 +47,7 @@ fit with the functions \code{\link[stats]{lm}}, \code{\link[stats]{glm}},
 and \code{\link[MASS]{glm.nb}} can be fit using \code{\link{nauf_reg}} to
 allow \code{NA} values in the unordered factors.  The functions
 \code{\link{nauf_grid}} and \code{\link{nauf_pmmeans}} interface with
-\code{link[lsmeans]{ref.grid}} and \code{\link[lsmeans]{lsmeans}} to
+\code{\link[lsmeans]{ref.grid}} and \code{\link[lsmeans]{lsmeans}} to
 obtain predicted marginal means (also called least-squares means) and
 pairwise comparisons for factors, interactions between factors, and
 interactions between factors and covariates, allowing for the estimates

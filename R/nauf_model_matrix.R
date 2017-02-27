@@ -45,7 +45,7 @@
 #'
 #' @param object A model frame fit by \code{\link{nauf_model_frame}}, a
 #'   regression model fit by \code{\link{nauf_reg}}, a
-#'   \code{link[stats]{formula}}, or \code{NULL}.  See 'Details'.
+#'   \code{\link[stats]{formula}}, or \code{NULL}.  See 'Details'.
 #' @param data A data.frame or \code{NULL}.  See 'Details'.
 #' @param ... Additional arguments to pass to \code{\link{nauf_model_frame}}
 #'
