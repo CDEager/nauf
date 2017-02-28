@@ -68,8 +68,13 @@
 #' @export
 nauf_reg <- function(formula, data, family = gaussian, ...) {
   mc <- match.call()
-  mc$model <- TRUE
-  mc$x <- TRUE
+  
+  mixed <- !is.null(lme4::findbars(formula))
+  
+  if (!mixed) {
+    mc$model <- TRUE
+    mc$x <- TRUE
+  }
   mc$contrasts <- NULL
   mc$na.action <- "na.pass"
 
@@ -82,17 +87,35 @@ nauf_reg <- function(formula, data, family = gaussian, ...) {
       stop("'family' not recognized")
     }
     if (family$family == "gaussian" && family$link == "identity") {
-      mce[[1]] <- quote(stats::lm)
+      if (mixed) {
+        mce[[1]] <- quote(nauf:::nauf_lmer)
+      } else {
+        mce[[1]] <- quote(stats::lm)
+      }
       f <- which(names(mce) == "family")
       if (length(f)) mce <- mce[-which(names(mce) == "family")]
     } else {
-      mce[[1]] <- quote(stats::glm)
+      if (mixed) {
+        mce[[1]] <- quote(nauf:::nauf_glmer)
+      } else {
+        mce[[1]] <- quote(stats::glm)
+      }
     }
   } else if (is.character(family)) {
     if (family == "gaussian") {
-      mce[[1]] <- quote(stats::lm)
+      if (mixed) {
+        mce[[1]] <- quote(nauf:::nauf_lmer)
+      } else {
+        mce[[1]] <- quote(stats::lm)
+      }
+      f <- which(names(mce) == "family")
+      if (length(f)) mce <- mce[-which(names(mce) == "family")]
     } else if (family == "negbin") {
-      mce[[1]] <- quote(MASS::glm.nb)
+      if (mixed) {
+        mce[[1]] <- quote(nauf:::nauf_glmer_nb)
+      } else {
+        mce[[1]] <- quote(MASS::glm.nb)
+      }
       mce$family <- NULL
     } else {
       stop("'family' not recognized")
@@ -102,8 +125,12 @@ nauf_reg <- function(formula, data, family = gaussian, ...) {
   }
 
   mod <- eval(mce, parent.frame())
-  mod$call <- mc
-
-  return(nauf_on(mod))
+  if (mixed) {
+    mod@call <- mc
+    return(mod)
+  } else {
+    mod$call <- mc
+    return(nauf_on(mod))
+  }
 }
 

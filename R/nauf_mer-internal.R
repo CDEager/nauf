@@ -165,7 +165,7 @@ nauf_lFormula <- function(formula, data = NULL, REML = TRUE,
   lme4:::checkCtrlLevels(cstr, control[[cstr]])
   denv <- lme4:::checkFormulaData(formula, data,
     checkLHS = control$check.formula.LHS == "stop")
-  formula <- as.formula(formula, env = denv)
+  formula <- stats::as.formula(formula, env = denv)
   formula[[length(formula)]] <- lme4::expandDoubleVerts(lme4:::RHSForm(formula))
   mc$formula <- formula
 
@@ -203,7 +203,7 @@ nauf_lFormula <- function(formula, data = NULL, REML = TRUE,
   fixedform[[length(fixedform)]] <- lme4::nobars(lme4:::RHSForm(fixedform))
   mf$formula <- fixedform
   fixedfr <- eval(mf, parent.frame())
-  attr(attr(fr,"terms"), "predvars.fixed") <- attr(attr(fixedfr,"terms"),
+  attr(attr(fr,"terms"), "predvars.fixed") <- attr(attr(fixedfr, "terms"),
     "predvars")
 
   ranform <- formula
@@ -211,9 +211,9 @@ nauf_lFormula <- function(formula, data = NULL, REML = TRUE,
     lme4:::reOnly(formula)))
   mf$formula <- ranform
   ranfr <- eval(mf, parent.frame())
-  attr(attr(fr,"terms"), "predvars.random") <- attr(terms(ranfr), "predvars")
+  attr(attr(fr, "terms"), "predvars.random") <- attr(terms(ranfr), "predvars")
 
-  X <- nauf_model_matrix(nobars(formula), data)
+  X <- nauf_model_matrix(lme4::nobars(formula), data)
   if (is.null(rankX.chk <- control[["check.rankX"]])) {
     rankX.chk <- eval(formals(lmerControl)[["check.rankX"]])[[1]]
   }
@@ -247,7 +247,7 @@ nauf_lmer <- function(formula, data = NULL, REML = TRUE,
   }
   if (!is.null(list(...)[["family"]])) {
     warning("calling lmer with 'family' is deprecated; please use glmer() instead")
-    mc[[1]] <- quote(nauf::nauf_glmer)
+    mc[[1]] <- quote(nauf:::nauf_glmer)
     if (missCtrl) 
       mc$control <- lme4::glmerControl()
     return(eval(mc, parent.frame(1L)))
@@ -274,5 +274,225 @@ nauf_lmer <- function(formula, data = NULL, REML = TRUE,
     lbound = environment(devfun)$lower)
   return(lme4::mkMerMod(environment(devfun), opt, lmod$reTrms, fr = nauf_off(lmod$fr), 
     mc = mcout, lme4conv = cc))
+}
+
+
+nauf_glFormula <- function(formula, data = NULL, family = gaussian,
+                      subset, weights, na.action, offset,
+                      contrasts = NULL, start, mustart, etastart,
+                      control = lme4::glmerControl(), ...) {
+  # code taken from lme4::glFormula and altered as little as possible
+  # to implement nauf methods. drop.unused.levels is ignored
+
+  control <- control$checkControl
+  mf <- mc <- match.call()
+
+  if (is.character(family))
+    family <- get(family, mode = "function", envir = parent.frame(2))
+  if (is.function(family)) family <- family()
+  if (isTRUE(all.equal(family, gaussian()))) {
+    mc[[1]] <- quote(nauf:::nauf_lFormula)
+    mc["family"] <- NULL
+    return(eval(mc, parent.frame()))
+  }
+  if (family$family %in% c("quasibinomial", "quasipoisson", "quasi")) {
+    stop('"quasi" families cannot be used in glmer')
+  }
+  
+  ignoreArgs <- c("start","verbose","devFunOnly","optimizer", "control", "nAGQ")
+  l... <- list(...)
+  l... <- l...[!names(l...) %in% ignoreArgs]
+  do.call(lme4:::checkArgs, c(list("glmer"), l...))
+
+  cstr <- "check.formula.LHS"
+  lme4:::checkCtrlLevels(cstr, control[[cstr]])
+
+  denv <- lme4:::checkFormulaData(formula, data,
+    checkLHS = control$check.formula.LHS == "stop")
+  mc$formula <- formula <- stats::as.formula(formula, env = denv)
+
+  m <- match(c("data", "subset", "weights", "na.action", "offset",
+    "mustart", "etastart"), names(mf), 0L)
+  mf <- mf[c(1L, m)]
+  mf$drop.unused.levels <- TRUE
+  mf[[1L]] <- quote(nauf_model_frame)
+  fr.form <- lme4::subbars(formula)
+  environment(fr.form) <- environment(formula)
+  for (i in c("weights", "offset")) {
+    if (!eval(bquote(missing(x=.(i))))) {
+      assign(i, get(i, parent.frame()), environment(fr.form))
+    }
+  }
+  mf$formula <- fr.form
+  fr <- eval(mf, parent.frame())
+  attr(fr,"formula") <- formula
+  attr(fr,"offset") <- mf$offset
+  if (!missing(start) && is.list(start)) {
+      attr(fr,"start") <- start$fixef
+  }
+  n <- nrow(fr)
+  
+  reTrms <- nauf_mkReTrms(lme4::findbars(lme4:::RHSForm(formula)), fr)
+  wmsgNlev <- lme4:::checkNlevels(reTrms$flist, n = n, control, allow.n = TRUE)
+  wmsgZdims <- lme4:::checkZdims(reTrms$Ztlist, n = n, control, allow.n = TRUE)
+  wmsgZrank <- lme4:::checkZrank(reTrms$Zt, n = n, control, nonSmall = 1e6, allow.n = TRUE)
+
+  fixedform <- formula
+  fixedform[[length(fixedform)]] <- lme4::nobars(lme4:::RHSForm(fixedform))
+  mf$formula <- fixedform
+  fixedfr <- eval(mf, parent.frame())
+  attr(attr(fr,"terms"),"predvars.fixed") <- attr(attr(fixedfr, "terms"),
+    "predvars")
+
+  ranform <- formula
+  ranform[[length(ranform)]] <- lme4::subbars(lme4:::RHSForm(
+    lme4:::reOnly(formula)))
+  mf$formula <- ranform
+  ranfr <- eval(mf, parent.frame())
+  attr(attr(fr, "terms"), "predvars.random") <- attr(terms(ranfr), "predvars")
+
+  X <- nauf_model_matrix(lme4::nobars(formula), data)
+  if (is.null(rankX.chk <- control[["check.rankX"]])) {
+    rankX.chk <- eval(formals(lmerControl)[["check.rankX"]])[[1]]
+  }
+  X <- lme4:::chkRank.drop.cols(X, kind = rankX.chk, tol = 1e-7)
+  if(is.null(scaleX.chk <- control[["check.scaleX"]])) {
+    scaleX.chk <- eval(formals(lmerControl)[["check.scaleX"]])[[1]]
+  }
+  X <- lme4:::checkScaleX(X, kind = scaleX.chk)
+
+  return(list(fr = fr, X = X, reTrms = reTrms, family = family, formula = formula,
+    wmsgs = c(Nlev = wmsgNlev, Zdims = wmsgZdims, Zrank = wmsgZrank)))
+}
+
+
+nauf_glmer <- function(formula, data = NULL, family = gaussian,
+                       control = lme4::glmerControl(), start = NULL,
+                       verbose = 0L, nAGQ = 1L, subset, weights, na.action, 
+                       offset, contrasts = NULL, mustart, etastart,
+                       devFunOnly = FALSE, ...) {
+  # code taken from lme4::glmer and altered as little as possible
+  # to implement nauf methods. drop.unused.levels is ignored
+  if (!inherits(control, "glmerControl")) {
+    if (!is.list(control)) {
+      stop("'control' is not a list; use glmerControl()")
+    }
+    msg <- "Use control=glmerControl(..) instead of passing a list"
+    if (length(cl <- class(control))) {
+      msg <- paste(msg, "of class", dQuote(cl[1]))
+    }
+    warning(msg, immediate. = TRUE)
+    control <- do.call(lme4::glmerControl, control)
+  }
+  mc <- mcout <- match.call()
+  if (is.character(family)) {
+    family <- get(family, mode = "function", envir = parent.frame(2))
+  }
+  if (is.function(family)) {
+    family <- family()
+  }
+  if (isTRUE(all.equal(family, gaussian()))) {
+      warning("calling glmer() with family=gaussian (identity link) as a shortcut to lmer() is deprecated;", 
+          " please call lmer() directly")
+      mc[[1]] <- quote(nauf:::nauf_lmer)
+      mc["family"] <- NULL
+      return(eval(mc, parent.frame()))
+  }
+  mc[[1]] <- quote(nauf:::nauf_glFormula)
+  glmod <- eval(mc, parent.frame(1L))
+  mcout$formula <- glmod$formula
+  glmod$formula <- NULL
+  nAGQinit <- if (control$nAGQ0initStep) {
+    0L
+  } else {
+    1L
+  }
+  devfun <- do.call(lme4::mkGlmerDevfun, c(glmod, list(verbose = verbose, 
+    control = control, nAGQ = nAGQinit)))
+  if (nAGQ == 0 && devFunOnly) {
+    return(devfun)
+  }
+  if (is.list(start)) {
+    start.bad <- setdiff(names(start), c("theta", "fixef"))
+    if (length(start.bad) > 0) {
+      stop(sprintf("bad name(s) for start vector (%s); should be %s and/or %s", 
+        paste(start.bad, collapse = ", "), shQuote("theta"), 
+        shQuote("fixef")), call. = FALSE)
+    }
+    if (!is.null(start$fixef) && nAGQ == 0) {
+      stop("should not specify both start$fixef and nAGQ==0")
+    }
+  }
+  if (control$nAGQ0initStep) {
+    opt <- lme4::optimizeGlmer(devfun, optimizer = control$optimizer[[1]], 
+      restart_edge = if (nAGQ == 0) 
+        control$restart_edge
+      else FALSE, boundary.tol = if (nAGQ == 0) 
+        control$boundary.tol
+      else 0, control = control$optCtrl, start = start, 
+      nAGQ = 0, verbose = verbose, calc.derivs = FALSE)
+  }
+  if (nAGQ > 0L) {
+    start <- lme4:::updateStart(start, theta = opt$par)
+    devfun <- lme4::updateGlmerDevfun(devfun, glmod$reTrms, nAGQ = nAGQ)
+    if (devFunOnly) {
+      return(devfun)
+    }
+    opt <- lme4::optimizeGlmer(devfun, optimizer = control$optimizer[[2]], 
+      restart_edge = control$restart_edge, boundary.tol = control$boundary.tol, 
+      control = control$optCtrl, start = start, nAGQ = nAGQ, 
+      verbose = verbose, stage = 2, calc.derivs = control$calc.derivs, 
+      use.last.params = control$use.last.params)
+  }
+  cc <- if (!control$calc.derivs) {
+    NULL
+  } else {
+    if (verbose > 10) {
+      cat("checking convergence\n")
+    }
+    lme4:::checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv, 
+      lbound = environment(devfun)$lower)
+  }
+  return(lme4::mkMerMod(environment(devfun), opt, glmod$reTrms,
+    fr = nauf_off(glmod$fr), mc = mcout, lme4conv = cc))
+}
+
+
+nauf_glmer_nb <- function(..., interval = log(th) + c(-3, 3),
+                     tol = 5e-5, verbose = FALSE, nb.control = NULL,
+                     initCtrl = list(limit = 20, eps = 2 * tol, trace = verbose)) {
+  dotE <- as.list(substitute(E(...))[-1])
+
+  mc <- match.call()
+  mc[[1]] <- quote(nauf_glmer)
+  mc$family <- quote(stats::poisson)
+  mc$verbose <- (verbose >= 2)
+  g0 <- eval(mc, parent.frame(1L))
+
+  th <- lme4:::est_theta(g0, limit = initCtrl$limit,
+    eps = initCtrl$eps, trace = initCtrl$trace)
+  
+  if (verbose) cat("th := est_theta(glmer(..)) =", format(th))
+
+  mc$family <- bquote(MASS::negative.binomial(theta=.(th)))
+  g1 <- eval(mc, parent.frame(1L))
+
+  if (verbose) cat(" --> dev.= -2*logLik(.) =", format(-2 * logLik(g1)),"\n")
+  if ("data" %in% names(g1@call)) {
+    if (!is.null(dotE[["data"]])) {
+      g1@call[["data"]] <- dotE[["data"]]
+    }
+  } else {
+    warning("no 'data = *' in glmer.nb() call ... Not much is guaranteed")
+  }
+  other.args <- c("verbose", "control")
+  for (a in other.args) {
+    if (a %in% names(g1@call)) {
+      g1@call[[a]] <- dotE[[a]]
+    }
+  }
+  
+  return(lme4:::optTheta(g1, interval = interval, tol = tol, verbose = verbose,
+    control = c(eval.parent(g1@call$control), nb.control)))
 }
 
