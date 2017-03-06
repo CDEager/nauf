@@ -1,4 +1,278 @@
 
+
+### is
+
+is.nauf.terms <- function(object) {
+  return(inherits(object, "nauf.terms"))
+}
+
+
+is.nauf.frame <- function(object) {
+  return(inherits(object, "nauf.frame"))
+}
+
+
+is.nauf.glm <- function(object) {
+  return(inherits(object, "nauf.glm"))
+}
+
+
+is.nauf.lmerMod <- function(object) {
+  return(inherits(object, "nauf.lmerMod"))
+}
+
+
+is.nauf.glmerMod <- function(object) {
+  return(inherits(object, "nauf.glmerMod"))
+}
+
+
+is.nauf.merMod <- function(object) {
+  return(is.nauf.lmerMod(object) || is.nauf.glmerMod(object))
+}
+
+
+is.nauf.mod <- function(object) {
+  return(is.nauf.merMod(object) || is.nauf.glm(object))
+}
+
+
+is.nauf <- function(object) {
+  return(is.nauf.mod(object) || is.nauf.frame(object) || is.nauf.terms(object))
+}
+
+
+is.mixed <- function(object) {
+  if (is.nauf.frame(object)) {
+    formula <- object@nauf$formula
+  } else if (is.nauf.mod(object)) {
+    formula <- model.frame(object)@nauf$formula
+  } else if (is.nauf.terms(object)) {
+    formula <- attr(object, "nauf")$formula
+  } else if (inherits(object, "formula")) {
+    formula <- object
+  } else {
+    stop("'object' must be a formula or a nauf object")
+  }
+  return(!is.null(lme4::findbars(formula)))
+}
+
+
+### formula
+
+formula.nauf.frame <- function(object, fixed.only = TRUE, random.only = FALSE,
+                               response = TRUE, ...) {
+  formula <- object@nauf$formula
+  if (is.mixed(formula)) {
+    ## based on formula.merMod
+    if (missing(fixed.only) && random.only) {
+      fixed.only <- FALSE
+    }
+    if (fixed.only && random.only) {
+      stop("can't specify 'only fixed' and 'only random' terms")
+    }
+    
+    if (fixed.only) {
+        formula <- lme4:::getFixedFormula(formula)
+    }
+    if (random.only) {
+        formula <- lme4:::reOnly(formula, response = TRUE)
+    }
+  }
+  
+  if (!response) {
+    formula <- stats::delete.response(stats::terms(formula))
+    attributes(formula) <- NULL
+  }
+  
+  return(formula)
+}
+setMethod("formula", "nauf.frame", formula.nauf.frame)
+
+
+formula.nauf.glm <- function(object, response = TRUE, ...) {
+  return(formula(object$model, response = response, ...))
+}
+
+
+formula.nauf.lmerMod <- function(object, fixed.only = TRUE, random.only = FALSE,
+                                 reseponse = TRUE, ...) {
+  if (missing(fixed.only) && random.only) {
+    fixed.only <- FALSE
+  }
+  if (fixed.only && random.only) {
+    stop("can't specify 'only fixed' and 'only random' terms")
+  }
+  return(formula(object@frame, fixed.only, random.only, response))
+}
+setMethod("formula", "nauf.lmerMod", formula.nauf.lmerMod)
+
+
+formula.nauf.glmerMod <- function(object, fixed.only = TRUE, random.only = FALSE,
+                                 reseponse = TRUE, ...) {
+  if (missing(fixed.only) && random.only) {
+    fixed.only <- FALSE
+  }
+  if (fixed.only && random.only) {
+    stop("can't specify 'only fixed' and 'only random' terms")
+  }
+  return(formula(object@frame, fixed.only, random.only, response))
+}
+setMethod("formula", "nauf.glmerMod", formula.nauf.glmerMod)
+
+
+### terms
+
+terms.nauf.frame <- function(object, fixed.only = TRUE, random.only = FALSE,
+                             response = TRUE, ...) {
+  if (!is.mixed(object)) {
+    mt <- attr(object, "terms")
+  } else {
+    ## based on lme4:::terms.merMod
+    if (missing(fixed.only) && random.only) {
+      fixed.only <- FALSE
+    }
+    if (fixed.only && random.only) {
+      stop("can't specify 'only fixed' and 'only random' terms")
+    }
+    
+    if (fixed.only) {
+      mt <- stats::terms.formula(formula(object, fixed.only = TRUE))
+      attr(mt, "predvars") <- object@nauf$vars$predvars.fixed
+    }
+    if (random.only) {
+      mt <- stats::terms.formula(lme4::subbars(formula(object,
+        random.only = TRUE)))
+      attr(mt, "predvars") <- object@nauf$vars$predvars.random
+    }
+  }
+  if (!response) mt <- stats::delete.response(mt)
+  return(nauf.terms(mt, object@nauf))
+}
+setMethod("terms", "nauf.frame", terms.nauf.frame)
+
+
+terms.nauf.glm <- function(object, response = TRUE, ...) {
+  mt <- object$terms
+  if (!response) mt <- stats::delete.response(mt)
+  return(nauf.terms(mt))
+}
+
+
+terms.nauf.lmerMod <- function(object, fixed.only = TRUE, random.only = FALSE,
+                               response = TRUE, ...) {
+  if (missing(fixed.only) && random.only) {
+    fixed.only <- FALSE
+  }
+  if (fixed.only && random.only) {
+    stop("can't specify 'only fixed' and 'only random' terms")
+  }
+  return(terms(object@frame, fixed.only, random.only, response))
+}
+setMethod("terms", "nauf.lmerMod", terms.nauf.lmerMod)
+
+
+terms.nauf.glmerMod <- function(object, fixed.only = TRUE, random.only = FALSE,
+                                response = TRUE, ...) {
+  if (missing(fixed.only) && random.only) {
+    fixed.only <- FALSE
+  }
+  if (fixed.only && random.only) {
+    stop("can't specify 'only fixed' and 'only random' terms")
+  }
+  return(terms(object@frame, fixed.only, random.only, response))
+}
+setMethod("terms", "nauf.glmerMod", terms.nauf.glmerMod)
+
+
+### model.frame
+
+model.frame.nauf.frame <- function(object, ...) {
+  return(object)
+}
+
+
+model.frame.nauf.glm <- function(object, ...) {
+  return(object$model)
+}
+
+
+### model.matrix
+
+model.matrix.nauf.terms <- function(object, data = NULL, ...) {
+  if (!is.nauf.frame(data)) {
+    stop("'data' must be a nauf.frame")
+  }
+  return(model.matrix(data, ...))
+}
+
+
+model.matrix.nauf.frame <- function(object, type = "fixed", ...) {
+  if (!(type %in% c("fixed", "random", "both"))) {
+    stop("'type' should be fixed, random, or both")
+  }
+  if (type != "fixed" && !is.mixed(object)) {
+    stop("'type' can only be 'fixed' for nauf.glm models")
+  }
+  
+  if (type != "random") {
+    x <- nauf_mm(object)
+    if (type == "fixed") return(x)
+  }
+  
+  if (type != "fixed") {
+    re <- nauf_mkReTrms(object)
+    for (i in 1:length(re$Ztlist)) {
+      re$Ztlist[[i]] <- Matrix::t(re$Ztlist[[i]])
+      colnames(re$Ztlist[[i]]) <- paste(colnames(re$Ztlist[[i]]),
+        re$cnms[[i]], sep = ":")
+    }
+    z <- do.call(Matrix::cbind, args = re$Ztlist)
+    if (type == "random") return(z)
+  }
+  
+  return(Matrix::cbind(x, z))
+}
+setMethod("model.matrix", "nauf.frame", model.matrix.nauf.frame)
+
+
+model.matrix.nauf.glm <- function(object, ...) {
+  x <- object$x
+  if (!is.null(x)) return(x)
+  return(model.matrix(object$model))
+}
+
+
+### as.data.frame
+
+as.data.frame.nauf.frame <- function(object, data_only = FALSE, ...) {
+  if (data_only) {
+    object <- as.data.frame(x = slot(object, ".Data"),
+      row.names = slot(object, "row.names"), col.names = slot(object, "names")))
+  }
+  return(object)
+}
+
+
+### ref.grid
+
+ref.grid.nauf.glm <- function(object, ...) {
+  return(nauf.grid(object))
+}
+
+
+ref.grid.nauf.lmerMod <- function(object, ...) {
+  return(nauf.grid(object))
+}
+setMethod("ref.grid", "nauf.lmerMod", ref.grid.nauf.lmerMod)
+
+ref.grid.nauf.glmerMod <- function(object, ...) {
+  return(nauf.grid(object))
+}
+setMethod("ref.grid", "nauf.glmerMod", ref.grid.nauf.glmerMod)
+
+### pmmeans
+
 #' Create a reference grid with \code{NA} unordered factors.
 #'
 #' \code{nauf_grid} creates a reference grid for a model fit with
@@ -48,79 +322,6 @@
 #'
 #' @importFrom utils combn
 #' @export
-nauf_grid <- function(mod) {
-  if (!is.nauf(mod) || !inherits(mod, "lm")) {
-    stop("must supply a nauf model")
-  }
-
-  asgn <- attr(nauf_model_matrix(mod), "assign")
-  mtnr <- stats::delete.response(mod$terms)
-  dc <- attr(mtnr, "dataClasses")
-  cn <- attr(mod$terms, "factors")
-  cn <- rownames(cn)[rowSums(cn) > 0]
-  dc <- dc[names(dc) %in% cn]
-  lvs <- xlvs <- mod$xlevels
-  hasna <- attr(mod$terms, "hasna")
-  dat <- mod$model
-  for (n in names(hasna)[hasna]) {
-    lvs[[n]] <- c(lvs[[n]], NA)
-    dat[, n] <- addNA(dat[, n])
-  }
-  for (n in names(dc)[dc == "numeric"]) {
-    lvs[[n]] <- mean(dat[, n])
-  }
-  g <- expand.grid(lvs)
-  counts <- data.frame(xtabs(~ ., dat[, names(lvs)[sapply(lvs, length) > 1]]))
-  g[, ncol(g) + 1] <- counts$Freq
-  colnames(g)[ncol(g)] <- ".wgt."
-
-  mf <- nauf_on(g)
-  attr(mf, "terms") <- mtnr
-  mefc <- attr(mtnr, "mefc")
-  for (f in names(mefc)) {
-    contrasts(mf[, f]) <- mefc[[f]]$contrasts
-  }
-  mm <- nauf_model_matrix(mf)
-  summ <- summary(mod)
-
-  rgargs <- list(
-    model.info = list(
-      call = mod$call,
-      terms = mod$terms,
-      xlev = mod$xlevels),
-    roles = list(
-      predictors = all.vars(mtnr),
-      responses = character(),
-      multresp = character()),
-    grid = g,
-    levels = lvs,
-    matlevs = list(),
-    linfct = mm,
-    bhat = summ$coefficients[, 1],
-    nbasis = matrix(),
-    V = summ$cov,
-    dffun = function(k, dfargs) dfargs$df,
-    dfargs = list(df = mod$df),
-    misc = list(
-      estName = "prediction",
-      estType = "prediction",
-      infer = c(FALSE, FALSE),
-      level = 0.95,
-      adjust = "none",
-      famSize = ncol(g) - 1,
-      avgd.over = character(),
-      assign = asgn),
-    post.beta = matrix())
-
-  d <- data.frame(y = 1:5, x = c(2,5,3,6,1))
-  rg <- lm(y ~ x, d)
-  rg <- lsmeans::ref.grid(rg, data = d)
-  for (i in names(rgargs)) {
-    slot(rg, i) <- rgargs[[i]]
-  }
-
-  return(rg)
-}
 
 
 #' Predicted marginal means with \code{NA} unordered factor values.
@@ -297,17 +498,21 @@ nauf_grid <- function(mod) {
 #' @seealso \code{\link{nauf_grid}}
 #'
 #' @export
-nauf_pmmeans <- function(object, vars, keep_level = NULL, drop_level = NULL,
+pmmeans.nauf.grid <- function(object, vars, keep_level = NULL, drop_level = NULL,
                          keep_group = NULL, drop_group = NULL,
-                         pairwise = TRUE) {
+                         pairwise = TRUE, ...) {
 
+  # TODO: Add ... warning, fix for poly()
+  if (!is.nauf.grid(object)) stop("must supply a nauf.grid")
+  object <- object$ref.grid
+  
   if (inherits(object, "ref.grid")) {
     if (is.nauf(object@model.info$terms)) {
       rg <- object
     } else {
       stop("must supply a ref.grid or model object fit with nauf functions")
     }
-  } else if (is.nauf(object) && inherits(object, "lm")) {
+  } else if (is.nauf_mod(object)) {
     rg <- nauf_grid(object)
   } else {
     stop("must supply a ref.grid or model object fit with nauf functions")
@@ -486,4 +691,251 @@ nauf_pmmeans <- function(object, vars, keep_level = NULL, drop_level = NULL,
 
   return(nauf_on(res))
 }
+
+
+pmmeans.nauf.glm <- function(object, ...) {
+  object <- nauf.grid(object)
+  return(pmmeans(object, ...))
+}
+
+
+pmmeans.nauf.lmerMod <- function(object, ...) {
+  object <- nauf.grid(object)
+  return(pmmeans(object, ...))
+}
+setMethod("pmmeans", "nauf.lmerMod", pmmeans.nauf.lmerMod)
+
+
+pmmeans.nauf.glmerMod <- function(object, ...) {
+  object <- nauf.grid(object)
+  return(pmmeans(object, ...))
+}
+setMethod("pmmeans", "nauf.glmerMod", pmmeans.nauf.glmerMod)
+
+
+### lsmeans
+
+lsmeans.nauf.grid <- function(object, ...) {
+  return(pmmeans(object, ...))
+}
+
+
+lsmeans.nauf.glm <- function(object, ...) {
+  return(pmmeans(object, ...))
+}
+
+
+lsmeans.nauf.lmerMod <- function(object, ...) {
+  return(pmmeans(object, ...))
+}
+setMethod("lsmeans", "nauf.lmerMod", lsmeans.nauf.lmerMod)
+
+
+lsmeans.nauf.glmerMod <- function(object, ...) {
+  return(pmmeans(object, ...))
+}
+setMethod("lsmeans", "nauf.glmerMod", lsmeans.nauf.glmerMod)
+
+
+### predict
+
+predict.nauf.merMod <- function(object, newdata = NULL, newparams = NULL,
+                                re.form = NULL, ReForm, REForm, REform,
+                                terms = NULL, type = c("link", "response"), 
+                                allow.new.levels = FALSE,
+                                na.action = na.pass, ...) {
+  # adapted from lme4:::predict.merMod
+  
+  vars <- object@frame@nauf$vars
+  
+  re.form <- lme4:::reFormHack(re.form, ReForm, REForm, REform)
+  if (length(list(...)) > 0) warning("unused arguments ignored")
+  type <- match.arg(type)
+  if (!is.null(terms)) {
+    stop("terms functionality for predict not yet implemented")
+  }
+  if (!is.null(newparams)) {
+    object <- lme4:::setParams(object, newparams)
+  }
+  if ((is.null(newdata) && is.null(re.form) && is.null(newparams))) {
+    if (isLMM(object) || isNLMM(object)) {
+      pred <- na.omit(fitted(object))
+    } else {
+      pred <- switch(type, response = object@resp$mu, link = object@resp$eta)
+      if (is.null(nm <- rownames(model.frame(object)))) {
+        nm <- seq_along(pred)
+      }
+      names(pred) <- nm
+    }
+    fit.na.action <- NULL
+  } else {
+    X <- lme4::getME(object, "X")
+    X.col.dropped <- attr(X, "col.dropped")
+    if (is.null(newdata)) {
+      fit.na.action <- attr(object@frame, "na.action")
+      offset <- model.offset(model.frame(object))
+      if (is.null(offset)) offset <- 0
+    } else {
+      RHS <- formula(substitute(~R, list(R = lme4:::RHSForm(formula(object, 
+          fixed.only = TRUE)))))
+      Terms <- terms(object, fixed.only = TRUE)
+      class(Terms) <- c("terms", "formula")
+      
+      ################################################
+      # mf <- model.frame(object, fixed.only = TRUE)
+      # isFac <- vapply(mf, is.factor, FUN.VALUE = TRUE)
+      # isFac[attr(Terms, "response")] <- FALSE
+      # if (length(isFac) == 0) {
+      #   orig_levs <- NULL
+      # } else {
+      #   orig_levs <- lapply(mf[isFac], levels)
+      # }
+      ################################################
+      
+      mfnew <- stats::model.frame(stats::delete.response(Terms), newdata, 
+        na.action = "na.pass")
+      for (v in names(vars$uf)) {
+        mfnew[, v] <- factor(mfnew[, v], ordered = FALSE,
+          levels = vars$uf[[v]][[1]])
+        contrasts(mfnew[, v]) <- named_contr_sum(levels(mfnew[, v]),
+          sumcoef = object@frame@nauf$sumcoef)
+      }
+      for (v in names(vars$of)) {
+        mfnew[, v] <- factor(mfnew[, v], ordered = TRUE,
+          levels = vars$of[[v]]$levels)
+        contrasts(mfnew[, v]) <- vars$of[[v]]$contrasts
+      }
+      
+      mfnew <- new("nauf.frame", mfnew, nauf = object@nauf)
+      mfnew@nauf$formula <- RHS
+      attr(mfnew, "na.action") <- "na.pass"
+      X <- model.matrix(mfnew)
+      
+      ##### TODO: check that this section works properly (it should)
+      offset <- 0
+      tt <- terms(object)
+      if (!is.null(off.num <- attr(tt, "offset"))) {
+        for (i in off.num) offset <- offset + eval(attr(tt, 
+          "variables")[[i + 1]], newdata)
+      }
+      fit.na.action <- attr(mfnew, "na.action")
+      if (is.numeric(X.col.dropped) && length(X.col.dropped) > 0) {
+        X <- X[, -X.col.dropped, drop = FALSE]
+      }
+    }
+    
+    pred <- drop(X %*% fixef(object))
+    pred <- pred + offset
+    
+    if (!lme4:::noReForm(re.form)) {
+      if (is.null(re.form)) {
+        re.form <- lme4:::reOnly(formula(object))
+      }
+      #### TODO: make nauf_mkNewReTrms
+      newRE <- nauf_mkNewReTrms(object, newdata, re.form, na.action = na.action, 
+        allow.new.levels = allow.new.levels)
+      pred <- pred + base::drop(methods::as(newRE$b %*% newRE$Zt, "matrix"))
+    }
+    
+    if (isGLMM(object) && type == "response") {
+        pred <- object@resp$family$linkinv(pred)
+    }
+  }
+  
+  ### TODO: make sure this section isn't necessary given that nauf
+  ###       is not implemented for na.exclude
+  # old.fit.na.action <- "na.pass"
+  # if (!is.null(fit.na.action) || (!is.null(fit.na.action <- old.fit.na.action))) {
+  #   if (!missing(na.action)) {
+  #     class(fit.na.action) <- class(attr(na.action(NA), 
+  #         "na.action"))
+  #   }
+  #   pred <- napredict(fit.na.action, pred)
+  # }
+  
+  return(pred)
+}
+
+
+### TODO: implement nauf methods
+nauf_mkNewReTrms <- function(object, newdata, re.form = NULL,
+                             na.action = na.pass, allow.new.levels = FALSE) {
+    if (is.null(newdata)) {
+        rfd <- mfnew <- model.frame(object)
+    }
+    else {
+        mfnew <- model.frame(delete.response(terms(object, fixed.only = TRUE)), 
+            newdata, na.action = na.action)
+        old <- FALSE
+        if (old) {
+            rfd <- na.action(newdata)
+            if (is.null(attr(rfd, "na.action"))) 
+                attr(rfd, "na.action") <- na.action
+        }
+        else {
+            newdata.NA <- newdata
+            if (!is.null(fixed.na.action <- attr(mfnew, "na.action"))) {
+                newdata.NA <- newdata.NA[-fixed.na.action, ]
+            }
+            tt <- delete.response(terms(object, random.only = TRUE))
+            rfd <- model.frame(tt, newdata.NA, na.action = na.pass)
+            if (!is.null(fixed.na.action)) 
+                attr(rfd, "na.action") <- fixed.na.action
+        }
+    }
+    if (inherits(re.form, "formula")) {
+        if (length(fit.na.action <- attr(mfnew, "na.action")) > 
+            0) {
+            newdata <- newdata[-fit.na.action, ]
+        }
+        ReTrms <- mkReTrms(findbars(re.form[[2]]), rfd)
+        ReTrms <- within(ReTrms, Lambdat@x <- unname(getME(object, 
+            "theta")[Lind]))
+        if (!allow.new.levels && any(vapply(ReTrms$flist, anyNA, 
+            NA))) 
+            stop("NAs are not allowed in prediction data", " for grouping variables unless allow.new.levels is TRUE")
+        ns.re <- names(re <- ranef(object))
+        nRnms <- names(Rcnms <- ReTrms$cnms)
+        if (!all(nRnms %in% ns.re)) 
+            stop("grouping factors specified in re.form that were not present in original model")
+        new_levels <- lapply(ReTrms$flist, function(x) levels(factor(x)))
+        re_x <- Map(function(r, n) levelfun(r, n, allow.new.levels = allow.new.levels), 
+            re[names(new_levels)], new_levels)
+        re_new <- lapply(seq_along(nRnms), function(i) {
+            rname <- nRnms[i]
+            if (!all(Rcnms[[i]] %in% names(re[[rname]]))) 
+                stop("random effects specified in re.form that were not present in original model")
+            re_x[[rname]][, Rcnms[[i]]]
+        })
+        re_new <- unlist(lapply(re_new, t))
+    }
+    Zt <- ReTrms$Zt
+    attr(Zt, "na.action") <- attr(re_new, "na.action") <- attr(mfnew, 
+        "na.action")
+    list(Zt = Zt, b = re_new, Lambdat = ReTrms$Lambdat)
+}
+
+
+predict.nauf.lmerMod <- function(object, newdata = NULL, newparams = NULL,
+                                re.form = NULL, ReForm, REForm, REform,
+                                terms = NULL, type = c("link", "response"), 
+                                allow.new.levels = FALSE,
+                                na.action = na.pass, ...) {
+  mc <- match.call()
+  mc[[1]] <- quote(nauf:::predict.nauf.merMod)
+  return(eval(mc, parent.frame()))
+}
+setMethod("predict", "nauf.lmerMod", predict.nauf.lmerMod)
+
+
+predict.nauf.glmerMod <- function(object, newdata = NULL, newparams = NULL,
+                                re.form = NULL, ReForm, REForm, REform,
+                                terms = NULL, type = c("link", "response"), 
+                                allow.new.levels = FALSE,
+                                na.action = na.pass, ...) {
+  mc <- match.call()
+  mc[[1]] <- quote(nauf:::predict.nauf.merMod)
+  return(eval(mc, parent.frame()))
+}
+setMethod("predict", "nauf.glmerMod", predict.nauf.glmerMod)
 

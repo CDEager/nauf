@@ -1,4 +1,5 @@
 
+
 #' Get the model matrix for a model with unordered factor \code{NA} values.
 #'
 #' \code{nauf_model_matrix} extracts the model matrix from a regression fit
@@ -65,68 +66,74 @@
 #' }
 #'
 #' @export
-nauf_model_matrix <- function(object = NULL, data = NULL, ...) {
-  if (is.nauf(object) & (is.data.frame(object) | inherits(object, "lm"))) {
-    return(model.matrix(object))
-  } else if (is.nauf(data) & is.data.frame(data)) {
-    return(model.matrix(data))
-  } else if ("formula" %in% class(object) & is.data.frame(data)) {
-    return(model.matrix(nauf_model_frame(formula = object, data = data, ...)))
+nauf_model.matrix <- function(object = NULL, data = NULL, ...) {
+  if (is.nauf.frame(object)) {
+    return(nauf_mm(object))
+  } else if (is.nauf.frame(data)) {
+    return(nauf_mm(data))
+  } else if (inherits(object, "formula") && is.data.frame(data)) {
+    return(nauf_mm(nauf_model_frame(formula = object, data = data, ...)))
   }
-  stop("either 'object' must be a formula and 'data' a ",
-    "data.frame, or one of the two must be a model frame created ",
-    "by nauf_model_frame.")
+  stop("Expected 'object' or 'data' to be a nauf.frame or 'object' to be a\n",
+    "   formula and 'data' to be a data.frame")
 }
 
 
-#' @describeIn nauf_model_matrix S3 method for class 'nauf'
-#'
-#' @export
-model.matrix.nauf <- function(object = NULL, data = NULL, ...) {
-  if (is.nauf(object) & inherits(object, "lm")) {
-    return(object$x)
-  } else if (is.data.frame(object) & is.nauf(object)) {
-    mf <- object
-  } else if (is.data.frame(data) & is.nauf(data)) {
-    mf <- data
+nauf_mm <- function(nmf, ccn = 1) {
+  mf <- as.data.frame(nmf, data_only = TRUE)
+  attr(mf, "na.action") <- "na.pass"
+  mt <- nmf@nauf
+  sumcoef <- mt$sumcoef
+  vars <- mt$vars
+  cc <- vars$cc[[ccn]]
+  ufc <- vars$uf
+
+  if (ccn == 1) {
+    f <- stats::delete.response(stats::terms(lme4::nobars(mt$formula)))
   } else {
-    stop("must supply a data.frame or regression model which ",
-      "inherits from nauf")
+    f <- vars$bars[[ccn - 1]]$effects$terms
+    ccmain <- names(ufc)[names(ufc) %in% names(cc)]
+    if (length(ccmain)) {
+      torm <- which(names(cc) %in% ccmain)
+      for (j in ccmain) {
+        cj <- cc[[j]]
+        lvs <- ufc[[j]][[cj]]
+        mf[, j] <- factor(mf[, j], ordered = FALSE, levels = lvs)
+        contr <- named_contr_sum(lvs, sumcoef)
+        colnames(contr) <- paste(".c", cj, ".", colnames(contr), sep = "")
+        contrasts(mf[, j]) <- contr
+      }
+      cc <- cc[-torm]
+    }
   }
 
-  mf <- nauf_off(mf)
-  if (is.null((mt <- attr(mf, "terms")))) {
-    stop("'mf' must be a model frame created by nauf_model_frame")
-  }
-  mt <- nauf_off(mt)
-  mta <- attributes(mt)
-  if (is.null((ccna <- mta$ccna))) {
-    stop("'mf' must be a model frame created by nauf_model_frame")
-  }
+  mm <- stats::model.matrix(f, mf)
 
-  mm <- stats::model.matrix(mt, mf)
-
-  if (length(ccna)) {
-    # TODO (CDEager): this entire section could be made more efficient
+  if (length(cc)) {
     mmlist <- list()
     cnms <- character()
     asgn <- attr(mm, "assign")
-    asgn_ccna <- sort(unique(unlist(lapply(ccna, function(n) n$assign))))
-    mmrm <- which(asgn %in% asgn_ccna)
+    asgn_cc <- sort(unique(unlist(lapply(cc, function(n) n$assign))))
+    mmrm <- which(asgn %in% asgn_cc)
     asgn <- asgn[-mmrm]
     if (length(asgn)) {
       mmlist[[1]] <- mm[, -mmrm, drop = FALSE]
       cnms <- colnames(mmlist[[1]])
     }
-    fmat <- mta$factors
+    fmat <- attr(f, "factors")
 
-    for (i in ccna) {
+    for (i in cc) {
       uf <- names(i$factors)
       mfi <- mf
       for (u in uf) {
-        mfi[, u] <- factor(mfi[, u], ordered = FALSE,
-          levels = i$factors[[u]]$levels)
-        mfi[, u] <- named_contr_sum(mfi[, u], FALSE)
+        cj <- i$factors[[u]]
+        lvs <- varlist$uf[[u]][[cj]]
+        mfi[, u] <- factor(mfi[, u], ordered = FALSE, levels = lvs)
+        contr <- named_contr_sum(lvs, sumcoef)
+        if (cj > 1) {
+          colnames(contr) <- paste(".c", cj, ".", colnames(contr), sep = "")
+        }
+        contrasts(mfi[, u]) <- contr
       }
 
       imat <- fmat[, i$assign, drop = FALSE]
@@ -147,17 +154,7 @@ model.matrix.nauf <- function(object = NULL, data = NULL, ...) {
       asgn_mmi <- asgn_mmi[keep]
       asgn_mmi <- as.numeric(factor(asgn_mmi))
       asgn <- c(asgn, i$assign[asgn_mmi])
-
-      cnmsi <- colnames(mmi)
-      sep <- "_"
-      new_cnmsi <- paste("ccna", cnmsi, sep = sep)
-      # this while-loop shouldn't really ever be needed
-      while (any(new_cnmsi %in% cnms)) {
-        sep <- paste(sep, "_", sep = "")
-        new_cnmsi <- paste("ccna", cnmsi, sep = sep)
-      }
-      colnames(mmi) <- new_cnmsi
-      cnms <- c(cnms, new_cnmsi)
+      cnms <- c(cnms, colnames(mmi))
 
       mmlist[[length(mmlist) + 1]] <- mmi
     }

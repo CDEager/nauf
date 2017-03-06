@@ -1,4 +1,5 @@
 
+## TODO: add information about which function was called
 #' Run a regression on data with \code{NA} values in the unordered factors
 #'
 #' \code{nauf_reg} calls either \code{\link[stats]{lm}},
@@ -67,70 +68,23 @@
 #'
 #' @export
 nauf_reg <- function(formula, data, family = gaussian, ...) {
-  mc <- match.call()
+  mcout <- mc <- match.call()
   
-  mixed <- !is.null(lme4::findbars(formula))
+  mc[[1]] <- get_regfunc(formula, family)
   
-  if (!mixed) {
-    mc$model <- TRUE
-    mc$x <- TRUE
+  if (isTRUE(all.equal(mc[[1]], quote(nauf::nauf_lm))) ||
+  isTRUE(all.equal(mc[[1]], quote(nauf::nauf_lmer)))) {
+    mc["family"] <- NULL
   }
-  mc$contrasts <- NULL
-  mc$na.action <- "na.pass"
-
-  mce <- mc
-  mce$formula <- call("nauf_on", formula)
-
-  if (is.function(family)) {
-    family <- family()
-    if (is.null(family$family)) {
-      stop("'family' not recognized")
-    }
-    if (family$family == "gaussian" && family$link == "identity") {
-      if (mixed) {
-        mce[[1]] <- quote(nauf:::nauf_lmer)
-      } else {
-        mce[[1]] <- quote(stats::lm)
-      }
-      f <- which(names(mce) == "family")
-      if (length(f)) mce <- mce[-which(names(mce) == "family")]
-    } else {
-      if (mixed) {
-        mce[[1]] <- quote(nauf:::nauf_glmer)
-      } else {
-        mce[[1]] <- quote(stats::glm)
-      }
-    }
-  } else if (is.character(family)) {
-    if (family == "gaussian") {
-      if (mixed) {
-        mce[[1]] <- quote(nauf:::nauf_lmer)
-      } else {
-        mce[[1]] <- quote(stats::lm)
-      }
-      f <- which(names(mce) == "family")
-      if (length(f)) mce <- mce[-which(names(mce) == "family")]
-    } else if (family == "negbin") {
-      if (mixed) {
-        mce[[1]] <- quote(nauf:::nauf_glmer_nb)
-      } else {
-        mce[[1]] <- quote(MASS::glm.nb)
-      }
-      mce$family <- NULL
-    } else {
-      stop("'family' not recognized")
-    }
+  
+  mod <- eval(mc, parent.frame())
+  
+  if (is.mixed(mod)) {
+    mod@call <- mcout
   } else {
-    stop("'family' not recognized")
+    mod$call <- mcout
   }
-
-  mod <- eval(mce, parent.frame())
-  if (mixed) {
-    mod@call <- mc
-    return(mod)
-  } else {
-    mod$call <- mc
-    return(nauf_on(mod))
-  }
+  
+  return(mod)
 }
 
