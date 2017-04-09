@@ -1,14 +1,14 @@
 Package: nauf
 Type: Package
-Title: Not Applicable Unordered Factors
+Title: Regression with Not Applicable Unordered Factors in R
 Version: 0.1.0-9000
 Authors@R: person("Christopher D.", "Eager",
     email = "eagerstats@gmail.com", role = c("aut","cre"))
-Description: nauf allows not applicable values (as opposed to values missing at
+Description: Allows not applicable values (as opposed to values missing at
     random) in unordered factors to be modeled with already-existing regression
     fitting functions through the use of sum contrasts and setting NA values to
     zero in the model matrix.
-Depends: R (>= 3.3.2)
+Depends: R (>= 3.3.3)
 Imports:
     utils,
     methods,

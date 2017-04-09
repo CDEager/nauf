@@ -1,107 +1,4 @@
 
-#' Create named sum contrasts for a factor.
-#'
-#' \code{named_contr_sum} creates sum contrasts for a factor which are named
-#' with the levels of the factor rather than with number (e.g. if a factor
-#' \code{f1} has levels \code{A}, \code{B}, and \code{C}, then rather than
-#' creating contrast columns \code{f11} and \code{f12}, it creates columns
-#' \code{f1A} and \code{f1B}).  The absolute value of the non-zero elements
-#' of the matrix can also be specified.
-#'
-#' First, \code{x} is coerced to character, and its unique non-\code{NA} values
-#' are sorted alphabetically.  If there are two unique values, and they are
-#' equal to (ignoring case) "F" and "T", "FALSE" and "TRUE", "N" and "Y",
-#' "NO" and "YES", or "0" and "1", then their order is reversed (this makes it
-#' so the positive level gets the dummy coefficient rather than the negative
-#' level, which has a more intuitive interpretation).  Then
-#' \code{\link[stats]{contr.sum}} is called, and the column names of the
-#' resulting contrast matrix are set using the character vector of unique values
-#' (excluding the final element that gets coded as \code{-1} for all dummy
-#' variables).  This entire matrix is then multiplied by \code{sumcoef}; with
-#' the default value of \code{1}, this does not change the matrix; if, for
-#' example, \code{sumcoef = 0.5}, then rather than each column containing
-#' \code{-1, 0, 1}, each column would contain \code{-0.5, 0, 0.5}.
-#' If \code{return_contr = TRUE}, then this contrast matrix is
-#' returned.  If \code{return_contr = FALSE}, then \code{x} is converted to an
-#' unordered factor with the named sum contrats and returned. \code{NA} is never
-#' assigned as a level in the contrast matrix or in the factor returned by the
-#' function, but \code{NA} values in \code{x} are not removed in the factor
-#' returned when \code{return_contr = FALSE}. See the examples.
-#'
-#' @param x A factor or vector, with at least two unique non-\code{NA} values,
-#'   which can be coerced to character with \code{\link[base]{as.character}}.
-#' @param sumcoef A positive number indicating by which the entire contrast
-#'   matrix returned by \code{\link[stats]{contr.sum}} is multiplied.  See
-#'   'Details'.
-#' @param return_contr A logical. If \code{TRUE} (the default), a contrast
-#'   matrix is returned. If \code{FALSE}, \code{x} is converted to an unordered
-#'   factor with the contrast matrix applied, and the factor is returned.
-#'
-#' @return If \code{return_contr = TRUE}, a contrast matrix obtained from
-#'   \code{\link[stats]{contr.sum}} with named columns rather than numbered
-#'   columns.  If \code{return_contr = FALSE}, then \code{x} is returned
-#'   as an unordered factor with the named sum contrasts applied.
-#'
-#' @seealso \code{\link{nauf_interaction}} for interactions involving unordered
-#'   factors where at least one has \code{NA} values,
-#'   \code{\link{nauf_model_frame}} for automatic assignment of unordered factor
-#'   contrasts, and \code{\link{nauf_model_matrix}} for the treatment of
-#'   \code{NAs} in regressions.
-#'
-#' @examples
-#' f <- factor(rep(c("a", "b", "c", NA), 2), levels = c("b", "c", "a"))
-#' f <- addNA(f)
-#' levels(f)  # NA listed as factor
-#' contrasts(f)  # NA included in contrast matrix
-#' named_contr_sum(f)  # named sum contrasts (NA dropped; levels alphabetized)
-#' named_contr_sum(levels(f))  # same output
-#' named_contr_sum(f, FALSE)  # f (values unchanged) with named sum contrasts
-#'
-#' f <- c(TRUE, FALSE, FALSE, TRUE)
-#' class(f)  # logical
-#' named_contr_sum(f)  # TRUE gets the dummy variable
-#' f <- named_contr_sum(f, FALSE)
-#' class(f)  # factor
-#'
-#' named_contr_sum(letters[1:5])  # character argument
-#' named_contr_sum(rep(letters[1:5], 2), FALSE)  # creates factor
-#'
-#' named_contr_sum(c(1, 6, 3))  # numeric argument
-#' named_contr_sum(rep(c(1, 6, 3), 2), FALSE)  # creates factor
-#'
-#' # ordered factors are converted to unordered factors, so use with caution
-#' f <- factor(rep(1:3, 2), ordered = TRUE)
-#' is.ordered(f)
-#' f
-#' f <- named_contr_sum(f, FALSE)
-#' is.ordered(f)
-#' f
-#'
-#' \dontrun{
-#' # error from stats::contr.sum because only one unique non-NA value
-#' named_contr_sum(5)
-#' named_contr_sum(rep(c("a", NA), 3), FALSE)
-#' }
-#'
-#' @export
-named_contr_sum <- function(x, sumcoef = 1, return_contr = TRUE) {
-  if (length(dim(x))) stop("'x' must be a vector or factor")
-  if (!is.scalar(sumcoef, 1)) {
-    stop("'sumcoef' must be a single positive number")
-  }
-  
-  x <- as.character(x)
-  n <- length(lvs <- reorder_ft(sort(unique(x))))
-  contr <- stats::contr.sum(lvs) * sumcoef
-  colnames(contr) <- lvs[-n]
-
-  if (return_contr) return(contr)
-
-  x <- factor(x, ordered = FALSE, levels = lvs)
-  contrasts(x) <- contr
-  return(x)
-}
-
 
 #' Unordered factor interactions involving \code{NAs}.
 #'
@@ -237,8 +134,6 @@ named_contr_sum <- function(x, sumcoef = 1, return_contr = TRUE) {
 #' nauf_interaction(dat, "f1")  # error; only one column
 #' nauf_interaction(dat, c("f1", "x"))  # error; only one unordered factor
 #' }
-#'
-#' @export
 nauf_interaction <- function(x, cols = colnames(x)) {
   if (!is.data.frame(x)) stop("'x' must be a data.frame'")
   if (!is.character(cols)) {
@@ -263,9 +158,7 @@ nauf_interaction <- function(x, cols = colnames(x)) {
   # remove any unique combination which involves NAs
   x <- unique(x)
   x <- droplevels(x[!rowna(x), , drop = FALSE])
-  if (!nrow(x)) {
-    stop("No unique applicable combinations in ", nm)
-  }
+  if (!nrow(x)) stop("No unique applicable combinations in ", nm)
   
   # remove levels which are redundant
   # e.g. f1 in [a, b, c], f2 in [d, e, f, g]
@@ -276,6 +169,7 @@ nauf_interaction <- function(x, cols = colnames(x)) {
   #    but we still need to drop [d, g] from f2
   if (empty_cells(x)) {
     torm <- vector("list", ncol(x))
+    
     for (j in 1:length(torm)) {
       for (i in levels(x[, j])) {
         check <- droplevels(x[x[, j] == i, -j, drop = FALSE])
@@ -284,15 +178,13 @@ nauf_interaction <- function(x, cols = colnames(x)) {
         }
       }
     }
+    
     for (j in 1:length(torm)) {
-      if (length(torm[[j]])) {
-        x[x[, j] %in% torm[[j]], j] <- NA
-      }
+      x[x[, j] %in% torm[[j]], j] <- NA
     }
-    x <- droplevels(x[!rowna(x), , drop = FALSE])
-    if (!nrow(x)) {
-      stop("No unique applicable combinations in ", nm)
-    }
+    
+    x <- unique(droplevels(x[!rowna(x), , drop = FALSE]))
+    if (!nrow(x)) stop("No unique applicable combinations in ", nm)
   }
   
   ilvs <- lapply(x, function(n) reorder_ft(sort(levels(n))))
@@ -309,117 +201,4 @@ nauf_interaction <- function(x, cols = colnames(x)) {
 
   return(list(levels = ilvs, changed = changed))
 }
-
-
-#' Contrasts for a model fit with \code{\link{nauf_reg}}.
-#'
-#' \code{nauf_contrasts} lists all factor contrasts in a model fit with
-#' \code{\link{nauf_reg}}, including changes in contrasts for interactions
-#' involving \code{NAs}.
-#'
-#' @param object A model fit using \code{\link{nauf_reg}}, a model frame made
-#'   by \code{\link{nauf_model_frame}}, or the \code{terms} object from either
-#'   of these.
-#'
-#' @return A list with two elements: \code{mefc} (main effect factor contrasts)
-#'   and \code{ccna} (contrast changes due to \code{NAs}).
-#'
-#'   \code{mefc} is a list with two elements \code{unordered} and \code{ordered},
-#'   each of which is a named list with an entry for each unordered or ordered
-#'   factor in the regression which contains the contrasts applied to the main
-#'   effect.
-#'
-#'   \code{ccna} is a named list with an element for each combination of
-#'   unordered factors which required a change in factor contrasts from the
-#'   main effects, with an entry for each of the factors containing the
-#'   contrasts applied to any term involving those unordered factors (and
-#'   possibly also ordered factors and covariates), but no other unordered
-#'   factors.
-#'
-#' @examples
-#' \dontrun{
-#' m <- nauf_reg(y ~ f1 * f2 * (f3 + x1 + x2), data = mydata)
-#' nauf_contrasts(m)
-#' }
-#'
-#' @export
-nauf_contrasts <- function(object) {
-  if (is.nauf.terms(object)) {
-    vars <- attr(object, "nauf")$vars
-  } else {
-    mf <- model.frame(object)
-    if (!is.nauf.frame(object)) {
-      stop("must supply a nauf.terms, nauf.frame, or nauf model")
-    }
-    vars <- mf@nauf$vars
-  }
-  hasna <- vars$hasna
-  uf <- mf@nauf$vars$uf
-  of <- mf@nauf$vars$of
-  
-  contr <- list()
-  for (v in names(uf)) {
-    lvs <- uf[[v]][[1]]
-    v.contr <- named_contr_sum(lvs)
-    if (length(uf[[v]]) > 1) {
-      for (cj in 2:length(uf[[v]])) {
-        vcj.contr <- named_contr_sum(uf[[v]][[cj]])
-        cnms <- paste(".c", cj, ".", colnames(vcj.contr), sep = "")
-        colnames(vcj.contr) <- cnms
-        z <- matrix(0, nrow(v.contr), ncol(vcj.contr))
-        rownames(z) <- rownames(v.contr)
-        colnames(z) <- colnames(vcj.contr)
-        z[rownames(vcj.contr), ] <- vcj.contr
-        v.contr <- cbind(v.cont, z)
-      }
-    }
-    if (hasna[v]) {
-      v.contr <- rbind(v.contr, 0)
-      rownames(v.contr) <- c(rownames(v.contr), NA)
-    }
-    contr[[v]] <- v.contr
-  }
-  for (v in names(of)) {
-    contr[[v]] <- of[[v]]$contrasts
-  }
-  
-  if (!length(contr)) return(NULL)
-  return(contr)
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

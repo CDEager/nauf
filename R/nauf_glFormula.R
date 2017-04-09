@@ -1,113 +1,117 @@
 
 
-#' @export
-nauf_glmer.nb <- function(..., interval = log(th) + c(-3, 3), tol = 5e-05,
-                          verbose = FALSE, nb.control = NULL,
-                          initCtrl = list(limit = 20, eps = 2 * tol,
-                          trace = verbose)) {
-  dotE <- as.list(substitute(E(...))[-1])
-  mc <- match.call()
-  
-  mc[[1]] <- quote(nauf::nauf_glmer)
-  mc$family <- quote(poisson)
-  mc$verbose <- (verbose >= 2)
-  g0 <- eval(mc, parent.frame(1L))
-  th <- lme4:::est_theta(g0, limit = initCtrl$limit, eps = initCtrl$eps, 
-    trace = initCtrl$trace)
-  if (verbose) cat("th := est_theta(glmer(..)) =", format(th))
-  
-  mc$family <- bquote(MASS::negative.binomial(theta = .(th)))
-  g1 <- eval(mc, parent.frame(1L))
-  if (verbose) {
-    cat(" --> dev.= -2*logLik(.) =",
-      format(-2 * lme4:::logLik.merMod(g1)), "\n")
-  }
-  if ("data" %in% names(g1@call)) {
-    if (!is.null(dotE[["data"]])) {
-      g1@call[["data"]] <- dotE[["data"]]
-    }
-  } else {
-    warning("no 'data = *' in glmer.nb() call ... Not much is guaranteed")
-  }
-  
-  other.args <- c("verbose", "control")
-  for (a in other.args) {
-    if (a %in% names(g1@call)) {
-      g1@call[[a]] <- dotE[[a]]
-    }
-  }
-  
-  return(nauf.glmerMod(lme4:::optTheta(g1, interval = interval, tol = tol,
-    verbose = verbose, control = c(eval.parent(g1@call$control), nb.control))))
-}
-
-
-#' @export
 nauf_lFormula <- function(formula, data = NULL, REML = TRUE, subset, weights, 
-                          na.action, offset, contrasts = NULL,
-                          control = lme4::lmerControl(), ...) {
+                          na.action = na.pass, offset, contrasts = NULL,
+                          control = lme4::lmerControl(), ncs_scale = NULL,
+                          ...) {
+  # based on lme4::lFormula
   control <- control$checkControl
   mf <- mc <- match.call()
+  
+  if (!is.null(contrasts)) warning("Ignoring 'contrasts'; must be NULL")
+  if (!isTRUE(all.equal(na.action, na.pass))) {
+    warning("Ignoring 'na.action'; must be na.pass")
+  }
   
   ignoreArgs <- c("start", "verbose", "devFunOnly", "control")
   l... <- list(...)
   l... <- l...[!names(l...) %in% ignoreArgs]
-  do.call(lme4:::checkArgs, c(list("lmer"), l...))
+  do.call(lme4_checkArgs, c(list("lmer"), l...))
+  
   if (!is.null(list(...)[["family"]])) {
-    mc[[1]] <- quote(nauf:::nauf_glFormula)
+    mc[[1]] <- quote(nauf::nauf_glFormula)
     if (missing(control)) mc[["control"]] <- lme4::glmerControl()
     return(eval(mc, parent.frame()))
   }
   
   cstr <- "check.formula.LHS"
-  lme4:::checkCtrlLevels(cstr, control[[cstr]])
-  formula[[length(formula)]] <- lme4::expandDoubleVerts(
-    formula[[length(formula)]])
+  lme4_checkCtrlLevels(cstr, control[[cstr]])
+  denv <- lme4_checkFormulaData(formula, data,
+    checkLHS = control$check.formula.LHS == "stop")
+  formula <- stats::as.formula(formula, env = denv)
+  lme4_RHSForm(formula) <- lme4::expandDoubleVerts(lme4_RHSForm(formula))
   mc$formula <- formula
-  
-  m <- match(c("data", "subset", "weights", "na.action", "offset"),
+  m <- match(c("data", "subset", "weights", "offset", "ncs_scale"),
     names(mf), 0L)
   mf <- mf[c(1L, m)]
   mf$drop.unused.levels <- TRUE
-  mf[[1L]] <- quote(nauf:::nauf_model.frame)
+  mf$na.action <- na.pass
+  mf[[1L]] <- quote(nauf::nauf_model.frame)
+  
+  fr.form <- lme4::subbars(formula)
+  environment(fr.form) <- environment(formula)
+  for (i in c("weights", "offset")) {
+    if (!eval(bquote(missing(x = .(i))))) {
+      assign(i, get(i, parent.frame()), environment(fr.form))
+    }
+  }
+  mf$formula <- formula
   fr <- eval(mf, parent.frame())
+  attr(fr, "formula") <- formula
+  attr(fr, "offset") <- mf$offset
+  n <- nrow(fr)
+  
+  reTrms <- nauf_mkReTrms(fr)
+  wmsgNlev <- lme4_checkNlevels(reTrms$flist, n = n, control)
+  wmsgZdims <- lme4_checkZdims(reTrms$Ztlist, n = n, control, allow.n = FALSE)
+  if (anyNA(reTrms$Zt)) {
+    stop("NA in Z (random-effects model matrix): ", "please use ", 
+      shQuote("na.action='na.omit'"), " or ", shQuote("na.action='na.exclude'"))
+  }
+  wmsgZrank <- lme4_checkZrank(reTrms$Zt, n = n, control, nonSmall = 1e+06)
+  
+  mf[[1L]] <- quote(stats::model.frame)
+  fixedform <- formula
+  lme4_RHSForm(fixedform) <- lme4::nobars(lme4_RHSForm(fixedform))
+  mf$formula <- fixedform
+  fixedfr <- eval(mf, parent.frame())
+  attr(attr(fr, "terms"), "predvars.fixed") <- attr(attr(fixedfr,
+    "terms"), "predvars")
+    
+  ranform <- formula
+  lme4_RHSForm(ranform) <- lme4::subbars(lme4_RHSForm(lme4_reOnly(formula)))
+  mf$formula <- ranform
+  ranfr <- eval(mf, parent.frame())
+  attr(attr(fr, "terms"), "predvars.random") <- attr(terms(ranfr), 
+    "predvars")
   
   X <- nauf_model.matrix(fr)
   if (is.null(rankX.chk <- control[["check.rankX"]])) {
     rankX.chk <- eval(formals(lme4::lmerControl)[["check.rankX"]])[[1]]
   }
-  X <- lme4:::chkRank.drop.cols(X, kind = rankX.chk, tol = 1e-07)
+  X <- lme4_chkRank.drop.cols(X, kind = rankX.chk, tol = 1e-07)
   if (is.null(scaleX.chk <- control[["check.scaleX"]])) {
     scaleX.chk <- eval(formals(lme4::lmerControl)[["check.scaleX"]])[[1]]
   }
-  X <- lme4:::checkScaleX(X, kind = scaleX.chk)
-  
-  reTrms <- nauf_mkReTrms(fr)
-  n <- nrow(fr)
-  wmsgNlev <- lme4:::checkNlevels(reTrms$flist, n = n, control)
-  wmsgZdims <- lme4:::checkZdims(reTrms$Ztlist, n = n, control, allow.n = FALSE)
-  if (anyNA(reTrms$Zt)) {
-    stop("NA in Z (random-effects model matrix): ", "please use ", 
-      shQuote("na.action='na.omit'"), " or ", shQuote("na.action='na.exclude'"))
-  }
-  wmsgZrank <- lme4:::checkZrank(reTrms$Zt, n = n, control, nonSmall = 1e+06)
+  X <- lme4_checkScaleX(X, kind = scaleX.chk)
   
   return(list(fr = fr, X = X, reTrms = reTrms, REML = REML, formula = formula, 
     wmsgs = c(Nlev = wmsgNlev, Zdims = wmsgZdims, Zrank = wmsgZrank)))
 }
 
 
-#' @export
 nauf_glFormula <- function(formula, data = NULL, family = gaussian, subset,
-                           weights, na.action, offset, contrasts = NULL,
-                           mustart, etastart, control = lme4::glmerControl(),
+                           weights, na.action = na.pass, offset,
+                           contrasts = NULL, mustart, etastart,
+                           control = lme4::glmerControl(), ncs_scale = NULL,
                            ...) {
+  # based on lme4::glFormula
   control <- control$checkControl
   mf <- mc <- match.call()
   
-  family <- get_family(family)
-  if (isTRUE(all.equal(family, gaussian()))) {
-    mc[[1]] <- quote(nauf:::nauf_lFormula)
+  if (!is.null(contrasts)) warning("Ignoring 'contrasts'; must be NULL")
+  if (!isTRUE(all.equal(na.action, na.pass))) {
+    warning("Ignoring 'na.action'; must be na.pass")
+  }
+  
+  if (is.character(family)) {
+    family <- get(family, mode = "function", envir = parent.frame(2))
+  }
+  if (is.function(family)) {
+    family <- family()
+  }
+  if (isTRUE(all.equal(family, stats::gaussian()))) {
+    mc[[1]] <- quote(nauf::nauf_lFormula)
     mc["family"] <- NULL
     return(eval(mc, parent.frame()))
   }
@@ -115,47 +119,68 @@ nauf_glFormula <- function(formula, data = NULL, family = gaussian, subset,
     stop("\"quasi\" families cannot be used in glmer")
   }
   
-  ignoreArgs <- c("start", "verbose", "devFunOnly", "optimizer",
-    "control", "nAGQ")
+  ignoreArgs <- c("start", "verbose", "devFunOnly", "optimizer", "control",
+    "nAGQ")
   l... <- list(...)
   l... <- l...[!names(l...) %in% ignoreArgs]
-  do.call(lme4:::checkArgs, c(list("glmer"), l...))
-  
+  do.call(lme4_checkArgs, c(list("glmer"), l...))
+
   cstr <- "check.formula.LHS"
-  lme4:::checkCtrlLevels(cstr, control[[cstr]])
-  formula[[length(formula)]] <- lme4::expandDoubleVerts(
-    formula[[length(formula)]])
-  mc$formula <- formula
-  
-  m <- match(c("data", "subset", "weights", "na.action", "offset", "mustart",
-    "etastart"), names(mf), 0L)
+  lme4_checkCtrlLevels(cstr, control[[cstr]])
+  denv <- lme4_checkFormulaData(formula, data,
+    checkLHS = control$check.formula.LHS == "stop")
+  mc$formula <- formula <- stats::as.formula(formula, env = denv)
+  m <- match(c("data", "subset", "weights", "offset", "ncs_scale",
+    "mustart", "etastart"), names(mf), 0L)
   mf <- mf[c(1L, m)]
   mf$drop.unused.levels <- TRUE
-  mf[[1L]] <- quote(nauf:::nauf_model.frame)
+  mf$na.action <- na.pass
+  mf[[1L]] <- quote(nauf::nauf_model.frame)
+    
+  fr.form <- lme4::subbars(formula)
+  environment(fr.form) <- environment(formula)
+  for (i in c("weights", "offset")) {
+    if (!eval(bquote(missing(x = .(i))))) {
+      assign(i, get(i, parent.frame()), environment(fr.form))
+    }
+  }
+  mf$formula <- formula
   fr <- eval(mf, parent.frame())
+  attr(fr, "formula") <- formula
+  attr(fr, "offset") <- mf$offset
+  n <- nrow(fr)
   
+  reTrms <- nauf_mkReTrms(fr)
+  wmsgNlev <- lme4_checkNlevels(reTrms$flist, n = n, control, allow.n = TRUE)
+  wmsgZdims <- lme4_checkZdims(reTrms$Ztlist, n = n, control, allow.n = TRUE)
+  wmsgZrank <- lme4_checkZrank(reTrms$Zt, n = n, control, nonSmall = 1e+06, 
+    allow.n = TRUE)
+        
+  mf[[1L]] <- quote(stats::model.frame)
+  fixedform <- formula
+  lme4_RHSForm(fixedform) <- lme4::nobars(lme4_RHSForm(fixedform))
+  mf$formula <- fixedform
+  fixedfr <- eval(mf, parent.frame())
+  attr(attr(fr, "terms"), "predvars.fixed") <- attr(attr(fixedfr,
+    "terms"), "predvars")
+
+  ranform <- formula
+  lme4_RHSForm(ranform) <- lme4::subbars(lme4_RHSForm(lme4_reOnly(formula)))
+  mf$formula <- ranform
+  ranfr <- eval(mf, parent.frame())
+  attr(attr(fr, "terms"), "predvars.random") <- attr(terms(ranfr), "predvars")
+
   X <- nauf_model.matrix(fr)
   if (is.null(rankX.chk <- control[["check.rankX"]])) {
     rankX.chk <- eval(formals(lme4::lmerControl)[["check.rankX"]])[[1]]
   }
-  X <- lme4:::chkRank.drop.cols(X, kind = rankX.chk, tol = 1e-07)
+  X <- lme4_chkRank.drop.cols(X, kind = rankX.chk, tol = 1e-07)
   if (is.null(scaleX.chk <- control[["check.scaleX"]])) {
     scaleX.chk <- eval(formals(lme4::lmerControl)[["check.scaleX"]])[[1]]
   }
-  X <- lme4:::checkScaleX(X, kind = scaleX.chk)
+  X <- lme4_checkScaleX(X, kind = scaleX.chk)
   
-  reTrms <- nauf_mkReTrms(fr)
-  n <- nrow(fr)
-  wmsgNlev <- lme4:::checkNlevels(reTrms$flist, n = n, control)
-  wmsgZdims <- lme4:::checkZdims(reTrms$Ztlist, n = n, control, allow.n = FALSE)
-  if (anyNA(reTrms$Zt)) {
-    stop("NA in Z (random-effects model matrix): ", "please use ", 
-      shQuote("na.action='na.omit'"), " or ", shQuote("na.action='na.exclude'"))
-  }
-  wmsgZrank <- lme4:::checkZrank(reTrms$Zt, n = n, control, nonSmall = 1e+06)
-  
-  return(list(fr = fr, X = X, reTrms = reTrms, family = family,
-    formula = formula, wmsgs = c(Nlev = wmsgNlev, Zdims = wmsgZdims,
-    Zrank = wmsgZrank)))
+  return(list(fr = fr, X = X, reTrms = reTrms, family = family, formula = formula, 
+    wmsgs = c(Nlev = wmsgNlev, Zdims = wmsgZdims, Zrank = wmsgZrank)))
 }
 
