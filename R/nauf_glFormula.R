@@ -1,5 +1,6 @@
 
 
+#' @export
 nauf_lFormula <- function(formula, data = NULL, REML = TRUE, subset, weights, 
                           na.action = na.pass, offset, contrasts = NULL,
                           control = lme4::lmerControl(), ncs_scale = NULL,
@@ -90,6 +91,7 @@ nauf_lFormula <- function(formula, data = NULL, REML = TRUE, subset, weights,
 }
 
 
+#' @export
 nauf_glFormula <- function(formula, data = NULL, family = gaussian, subset,
                            weights, na.action = na.pass, offset,
                            contrasts = NULL, mustart, etastart,

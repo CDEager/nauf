@@ -66,7 +66,7 @@ nauf_mm <- function(mf, ccn = 1) {
       mfi <- mf
       for (u in uf) {
         cj <- i$factors[u]
-        lvs <- varlist$uf[[u]][[cj]]
+        lvs <- ufc[[u]][[cj]]
         mfi[, u] <- factor(mfi[, u], ordered = FALSE, levels = lvs)
         contr <- named_contr_sum(lvs, ncs)
         if (cj > 1) {

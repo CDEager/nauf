@@ -10,13 +10,13 @@ Description: Allows not applicable values (as opposed to values missing at
     zero in the model matrix.
 Depends: R (>= 3.3.3)
 Imports:
-    utils,
     methods,
     MASS (>= 7.3-45),
     lsmeans (>= 2.25),
     stringr (>= 1.1.0),
     Matrix (>= 1.2-7.1),
-    lme4 (>= 1.1-12)
+    lme4 (>= 1.1-12),
+    standardize (>= 0.1.0)
 License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true

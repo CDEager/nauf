@@ -145,25 +145,32 @@ model.frame.nauf.terms <- function(formula, data = NULL, subset = NULL,
                                    na.action = na.pass,
                                    drop.unused.levels = TRUE, xlev = NULL,
                                    ncs_scale = NULL, ...) {
+  mc <- match.call()
   info <- attr(formula, "nauf.info")
-  ncs <- info$ncs_scale
   class(formula) <- c("terms", "formula")
-  
-  mf <- stats::model.frame(formula, data, subset, na.action = na.pass,
-    drop.unused.levels = TRUE, xlev = NULL, ...)
+  ncs <- info$ncs_scale
+  mc[[1]] <- quote(stats::model.frame)
+  mc$formula <- formula
+  mc$na.action <- na.pass
+  mc$drop.unused.levels <- TRUE
+  mc$xlev <- NULL
+  mc["ncs_scale"] <- NULL
+  mf <- eval(mc, parent.frame())
   attr(attr(mf, "terms"), "nauf.info") <- info
   class(attr(mf, "terms")) <- c("nauf.terms", "terms", "formula")
+  attr(mf, "formula") <- stats::formula(attr(mf, "terms"))
+  class(attr(mf, "formula")) <- c("nauf.formula", "formula")
   class(mf) <- c("data.frame", "nauf.frame")
     
   for (j in colnames(mf)) {
-    if (j in names(info$uf)) {
+    if (j %in% names(info$uf)) {
       mf[[j]] <- standardize::fac_and_contr(mf[[j]], ordered = FALSE,
         levels = info$uf[[j]][[1]],
         contrasts = named_contr_sum(info$uf[[j]][[1]], ncs))
-    } else if (j in names(info$of)) {
+    } else if (j %in% names(info$of)) {
       mf[[j]] <- standardize::fac_and_contr(mf[[j]], ordered = TRUE,
         levels = info$of[[j]]$levels, contrasts = info$of[[j]]$contrasts)
-    } else if (j in names(info$groups)) {
+    } else if (j %in% names(info$groups)) {
       mf[[j]] <- factor(mf[[j]], levels = info$groups[[j]])
     }
   }
@@ -177,7 +184,7 @@ model.frame.nauf.terms <- function(formula, data = NULL, subset = NULL,
 #' @export
 model.matrix.nauf.terms <- function(object, data = environment(object),
                                     contrasts.arg = NULL, xlev = NULL, ...) {
-  if (!inherits(data, "nauf.frame")) {
+  if (!is.nauf.frame(data)) {
     data <- model.frame(object, data)
   }
   return(nauf_mm(data))
@@ -224,7 +231,7 @@ predict_nauf_merMod <- function(object, newdata = NULL, newparams = NULL,
     }
     
   } else {
-    X <- getME(object, "X")
+    X <- lme4::getME(object, "X")
     X.col.dropped <- attr(X, "col.dropped")
     if (is.null(newdata)) {
       offset <- model.offset(model.frame(object))
@@ -238,7 +245,9 @@ predict_nauf_merMod <- function(object, newdata = NULL, newparams = NULL,
           formula(object, fixed.only = TRUE)))))
         Terms <- terms(object, fixed.only = TRUE)
       }
-      mfnew <- model.frame(stats::delete.response(Terms), newdata)
+      mfnew <- suppressWarnings(model.frame(stats::delete.response(Terms),
+        newdata))
+      attr(mfnew, "formula") <- attr(object@frame, "formula")
       X <- nauf_mm(mfnew)
       offset <- 0
       tt <- terms(object)
@@ -252,14 +261,14 @@ predict_nauf_merMod <- function(object, newdata = NULL, newparams = NULL,
       }
     }
 
-    pred <- drop(X %*% fixef(object))
+    pred <- drop(X %*% lme4::fixef(object))
     pred <- pred + offset
     
     if (is.null(re.form)) {
       lvs <- lapply(object@flist, levels)
-      Zt <- nauf_mkReTrms(mfnew, lvs)$Zt
-      b <- lme4::getME(object, "b")
-      pred <- pred + base::drop(as(b %*% Zt, "matrix"))
+      z <- Matrix::t(nauf_mkReTrms(mfnew, lvs)$Zt)
+      b <- as.vector(lme4::getME(object, "b"))
+      pred <- pred + base::drop(as(z %*% b, "matrix"))
     }
     
     if (lme4_isGLMM(object) && type == "response") {

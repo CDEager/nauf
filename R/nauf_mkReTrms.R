@@ -1,5 +1,6 @@
 
 
+#' @importFrom Matrix rBind t sparseMatrix drop0 diag KhatriRao
 nauf_mkReTrms <- function(fr, lvs = NULL) {
   # based on lme4::mkReTrms
   if (!inherits(fr, "nauf.frame")) {

@@ -1,5 +1,11 @@
 
 
+is.nauf.model <- function(object) {
+  return(is.nauf.glm(object) || is.nauf.lmerMod(object) ||
+    is.nauf.glmerMod(object))
+}
+
+
 # convert effects or group from ranef bar to formula
 barform <- function(x, n) {
   return(eval(substitute(~ foo, list(foo = x[[n]]))))

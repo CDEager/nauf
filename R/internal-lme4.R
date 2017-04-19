@@ -38,7 +38,7 @@ lme4_RHSForm <- function(form, as.form = FALSE) {
 }
 
 
-lme4_`RHSForm<-` <- function(formula, value) {
+`lme4_RHSForm<-` <- function(formula, value) {
   formula[[length(formula)]] <- value
   formula
 }
@@ -142,9 +142,21 @@ lme4_checkCtrlLevels <- function(cstr, val, smallOK = FALSE) {
 }
 
 
+lme4_missDataFun <- function(d) {
+  ff <- sys.frames()
+  ex <- substitute(d)
+  ii <- rev(seq_along(ff))
+  for (i in ii) {
+    ex <- eval(substitute(substitute(x, env = sys.frames()[[n]]), 
+      env = list(x = ex, n = i)))
+  }
+  return(is.symbol(ex) && !exists(deparse(ex)))
+}
+
+
 lme4_checkFormulaData <- function(formula, data, checkLHS = TRUE,
                                   debug = FALSE) {
-  nonexist.data <- missDataFun(data)
+  nonexist.data <- lme4_missDataFun(data)
   wd <- tryCatch(eval(data), error = identity)
   if (wrong.data <- inherits(wd, "simpleError")) {
     wrong.data.msg <- wd$message
@@ -278,6 +290,7 @@ lme4_checkZdims <- function(Ztlist, n, ctrl, allow.n = FALSE) {
 }
 
 
+#' @importFrom Matrix rankMatrix t
 lme4_checkZrank <- function(Zt, n, ctrl, nonSmall = 1e+06, allow.n = FALSE) {
   stopifnot(is.list(ctrl), is.numeric(n), is.numeric(nonSmall))
   cstr <- "check.nobs.vs.rankZ"
@@ -547,7 +560,8 @@ lme4_est_theta <- function(object, limit = 20, eps = .Machine$double.eps^0.25,
 lme4_setNBdisp <- function(object, theta) {
   rr <- object@resp
   newresp <- do.call(lme4::glmResp$new, c(lapply(
-    stats::setNames(nm = glmNB.to.change), rr$field),
+    stats::setNames(nm = c("mu", "offset", "sqrtXwt", "sqrtrwt", "weights",
+    "wtres", "y", "eta", "n")), rr$field),
     list(family = MASS::negative.binomial(theta = theta))))
   newresp$setOffset(rr$offset)
   newresp$updateMu(rr$eta - rr$offset)

@@ -24,17 +24,18 @@ nauf_contrasts <- function(object) {
     v.contr <- lapply(uf[[v]], standardize::named_contr_sum, scale = ncs)
     if (length(uf[[v]]) > 1) {
       for (cj in 2:length(uf[[v]])) {
-        colnames(v.contr[[cj]]) <- paste(".c", cj, ".",
-          colnames(v.contr[[cj]]), sep = "")
+        colnames(v.contr[[cj]]) <- paste0(".c", cj, ".",
+          colnames(v.contr[[cj]]))
         z <- matrix(0, nrow(v.contr[[1]]), ncol(v.contr[[cj]]),
           dimnames = list(rownames(v.contr[[1]]), colnames(v.contr[[cj]])))
         z[rownames(v.contr[[cj]]), ] <- v.contr[[cj]]
+        v.contr[[cj]] <- z
       }
     }
     v.contr <- do.call(cbind, args = v.contr)
     if (hasna[v]) {
       v.contr <- rbind(v.contr, 0)
-      rownames(v.contr) <- c(rownames(v.contr), NA)
+      rownames(v.contr)[nrow(v.contr)] <- NA
     }
     contr[[v]] <- v.contr
   }

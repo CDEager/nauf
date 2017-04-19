@@ -178,7 +178,6 @@ nauf_glm <- function(formula, family = gaussian, data = NULL, weights, subset,
   fit$model <- mf
   fit$na.action <- attr(mf, "na.action")
   fit$x <- X
-  fit$y <- NULL
   fit <- c(fit, list(call = call, formula = formula, terms = mt, data = data,
     offset = offset, control = control, method = method, contrasts = NULL,
     xlevels = .getXlevels(mt, mf)))

@@ -1,4 +1,4 @@
-context("nauf_reg")
+context("nauf_glm")
 
 set.seed(1)
 dat <- rbind(
@@ -11,9 +11,10 @@ dat$x <- stats::rnorm(nrow(dat))
 dat$z <- stats::rnorm(nrow(dat))
 b <- stats::rnorm(36)
 e <- stats::rnorm(nrow(dat))
+dat$y <- 0
 
-form <- ~ f1 * f2 * (o + x + poly(z, 2))
-mm <- nauf_model_matrix(form, dat)
+form <- y ~ f1 * f2 * (o + x + poly(z, 2))
+mm <- nauf_model.matrix(form, dat)
 dat$mod <- as.vector(mm %*% b)
 dat$gau <- dat$mod + e
 dat$bin <- stats::rbinom(nrow(dat), 1, stats::plogis(dat$mod / 2))
@@ -21,61 +22,64 @@ dat$poi <- stats::rpois(nrow(dat), exp((dat$mod + 8) / 5))
 dat$ngb <- stats::rnbinom(nrow(dat), size = 15,
   prob = stats::plogis(dat$mod / 2))
 
-m_gau <- nauf_reg(gau ~ f1 * f2 * (o + x + poly(z, 2)), dat)
-m_bin <- nauf_reg(bin ~ f1 * f2 * (o + x + poly(z, 2)), dat, family = binomial)
-m_poi <- nauf_reg(poi ~ f1 * f2 * (o + x + poly(z, 2)), dat, family = poisson)
-m_ngb <- nauf_reg(ngb ~ f1 * f2 * (o + x + poly(z, 2)), dat, family = "negbin")
+m_gau <- nauf_lm(gau ~ f1 * f2 * (o + x + poly(z, 2)), dat)
+m_bin <- nauf_glm(bin ~ f1 * f2 * (o + x + poly(z, 2)), dat, family = binomial)
+m_poi <- nauf_glm(poi ~ f1 * f2 * (o + x + poly(z, 2)), dat, family = poisson)
+m_ngb <- nauf_glm.nb(ngb ~ f1 * f2 * (o + x + poly(z, 2)), dat)
 
 test_that("linear works", {
-  expect_silent(nauf_reg(gau ~ f1 * f2 * (o + x + poly(z, 2)), dat))
+  expect_silent(nauf_lm(gau ~ f1 * f2 * (o + x + poly(z, 2)), dat))
   expect_equal(names(coef(m_gau)), colnames(mm))
   expect_equal(anova(m_gau)[c(1, 6), 1], c(3, 1))
   expect_equal(m_gau$x, mm)
   expect_equal(predict(m_gau, newdata = dat), m_gau$fitted)
-  expect_equal(m_gau$model, nauf_model_frame(
+  expect_equal(m_gau$model, nauf_model.frame(
     gau ~ f1 * f2 * (o + x + poly(z, 2)), dat))
   expect_equal(model.frame(m_gau), m_gau$model)
   expect_equal(model.matrix(m_gau), m_gau$x)
+  expect_equal(is.nauf.glm(m_gau), TRUE)
 })
 
 test_that("binomial works", {
-  expect_silent(nauf_reg(bin ~ f1 * f2 * (o + x + poly(z, 2)),
+  expect_silent(nauf_glm(bin ~ f1 * f2 * (o + x + poly(z, 2)),
     dat, family = binomial))
   expect_equal(names(coef(m_bin)), colnames(mm))
   expect_equal(anova(m_bin)[c(2, 7), 1], c(3, 1))
   expect_equal(m_bin$x, mm)
   expect_equal(predict(m_bin, newdata = dat), qlogis(m_bin$fitted))
-  expect_equal(m_bin$model, nauf_model_frame(
+  expect_equal(m_bin$model, nauf_model.frame(
     bin ~ f1 * f2 * (o + x + poly(z, 2)), dat))
   expect_equal(model.frame(m_bin), m_bin$model)
   expect_equal(model.matrix(m_bin), m_bin$x)
+  expect_equal(is.nauf.glm(m_bin), TRUE)
 })
 
 test_that("poisson works", {
-  expect_silent(nauf_reg(poi ~ f1 * f2 * (o + x + poly(z, 2)),
+  expect_silent(nauf_glm(poi ~ f1 * f2 * (o + x + poly(z, 2)),
     dat, family = poisson))
   expect_equal(names(coef(m_poi)), colnames(mm))
   expect_equal(anova(m_poi)[c(2, 7), 1], c(3, 1))
   expect_equal(m_poi$x, mm)
   expect_equal(predict(m_poi, newdata = dat), log(m_poi$fitted))
-  expect_equal(m_poi$model, nauf_model_frame(
+  expect_equal(m_poi$model, nauf_model.frame(
     poi ~ f1 * f2 * (o + x + poly(z, 2)), dat))
   expect_equal(model.frame(m_poi), m_poi$model)
   expect_equal(model.matrix(m_poi), m_poi$x)
+  expect_equal(is.nauf.glm(m_poi), TRUE)
 })
 
 test_that("negbin works", {
-  expect_silent(nauf_reg(ngb ~ f1 * f2 * (o + x + poly(z, 2)),
-    dat, family = "negbin"))
+  expect_silent(nauf_glm.nb(ngb ~ f1 * f2 * (o + x + poly(z, 2)), dat))
   expect_equal(names(coef(m_ngb)), colnames(mm))
   expect_warning(expect_equal(anova(m_ngb)[c(2, 7), 1], c(3, 1)),
     "tests made without re-estimating 'theta'")
   expect_equal(m_ngb$x, mm)
   expect_equal(predict(m_ngb, newdata = dat), log(m_ngb$fitted))
-  expect_equal(m_ngb$model, nauf_model_frame(
+  expect_equal(m_ngb$model, nauf_model.frame(
     ngb ~ f1 * f2 * (o + x + poly(z, 2)), dat))
   expect_equal(model.frame(m_ngb), m_ngb$model)
   expect_equal(model.matrix(m_ngb), m_ngb$x)
+  expect_equal(is.nauf.glm(m_ngb), TRUE)
 })
 
 rm(list = ls())

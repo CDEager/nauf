@@ -37,7 +37,8 @@
 #' @import MASS
 #' @import methods
 #' @import lme4
-#' @import Matrix
 #' @import standardize
+#' @import stringr
+#' @importClassesFrom lme4 merMod lmerMod glmerMod
 NULL
 
