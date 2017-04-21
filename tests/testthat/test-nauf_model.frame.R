@@ -87,9 +87,11 @@ rownames(allcontr[[5]]) <- c("1", "2", "3")
 test_that("basic functionality works", {
   expect_equal((nmf1 <- nauf_model.frame(form1, dat, subset = dat$x < 2, offset = os,
     weights = w)), mf1)
-  expect_equal(nauf_contrasts(nmf1), allcontr)
+  expect_equal(nauf_contrasts(nmf1, TRUE), allcontr)
+  expect_equal(nauf_contrasts(nmf1), allcontr[-5])
 })
 
+mf2 <- mf1
 attr(attr(mf1, "terms"), "nauf.info")$ncs_scale <- 0.5
 for (j in c("f1", "f2", "f3", "f4")) {
   mf1[[j]] <- standardize::named_contr_sum(mf1[[j]], 0.5, FALSE)
@@ -105,7 +107,7 @@ test_that("standardized scale works", {
   expect_equal(nauf_model.frame(form1, dat, subset = dat$x < 2, offset = os,
     weights = w), mf1)
   expect_warning(expect_equal(nauf_model.frame(form1, dat, subset = dat$x < 2,
-    offset = os, weights = w, ncs_scale = 1), mf1))
+    offset = os, weights = w, ncs_scale = 1), mf2))
 })
 
 test_that("ignored argument warnings work", {

@@ -25,7 +25,7 @@ nauf_interaction <- function(x, cols = colnames(x)) {
   x <- unique(x)
   x <- droplevels(x[!rowna(x), , drop = FALSE])
   if (!nrow(x)) stop("No unique applicable combinations in ", nm)
-  
+
   # remove levels which are redundant
   # e.g. f1 in [a, b, c], f2 in [d, e, f, g]
   #    when f1 = a, f2 in [d, e, f]
@@ -35,7 +35,7 @@ nauf_interaction <- function(x, cols = colnames(x)) {
   #    but we still need to drop [d, g] from f2
   if (empty_cells(x)) {
     torm <- vector("list", ncol(x))
-    
+
     for (j in 1:length(torm)) {
       for (i in levels(x[, j])) {
         check <- droplevels(x[x[, j] == i, -j, drop = FALSE])
@@ -44,22 +44,22 @@ nauf_interaction <- function(x, cols = colnames(x)) {
         }
       }
     }
-    
+
     for (j in 1:length(torm)) {
       x[x[, j] %in% torm[[j]], j] <- NA
     }
-    
+
     x <- unique(droplevels(x[!rowna(x), , drop = FALSE]))
     if (!nrow(x)) stop("No unique applicable combinations in ", nm)
   }
-  
+
   ilvs <- lapply(x, function(n) reorder_ft(sort(levels(n))))
   changed <- !isTRUE(all.equal(mlvs, ilvs))
   if (any(unlist(lapply(x, nlevels)) < 2)) {
     stop("At least one factor in ", nm,
       " has only one level when NAs are removed")
   }
-  
+
   # there can still be collinearity, but in this case it isn't structural
   # so warning rather than error (i.e. a column will be dropped from
   # the model matrix if the interaction is included in a regression)

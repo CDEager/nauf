@@ -10,9 +10,9 @@ nauf_mkReTrms <- function(fr, lvs = NULL) {
   if (!length(bars)) {
     stop("No random effects terms specified in formula", call. = FALSE)
   }
-  stopifnot(is.list(bars), vapply(bars, is.language, NA), inherits(fr, 
+  stopifnot(is.list(bars), vapply(bars, is.language, NA), inherits(fr,
     "data.frame"))
-  
+
   names(bars) <- lme4_barnames(bars)
   term.names <- vapply(bars, lme4_safeDeparse, "")
   blist <- nauf_mkBlist(bars, fr, lvs)
@@ -23,7 +23,7 @@ nauf_mkReTrms <- function(fr, lvs = NULL) {
     nl <- nl[ord]
     term.names <- term.names[ord]
   }
-  
+
   Ztlist <- lapply(blist, `[[`, "sm")
   Zt <- do.call(Matrix::rBind, Ztlist)
   names(Ztlist) <- term.names
@@ -38,7 +38,7 @@ nauf_mkReTrms <- function(fr, lvs = NULL) {
   }
   boff <- cumsum(c(0L, nb))
   thoff <- cumsum(c(0L, nth))
-  
+
   Lambdat <- Matrix::t(do.call(Matrix::sparseMatrix, do.call(Matrix::rBind,
     lapply(seq_along(blist), function(i) {
       mm <- matrix(seq_len(nb[i]), ncol = nc[i], byrow = TRUE)
@@ -52,7 +52,7 @@ nauf_mkReTrms <- function(fr, lvs = NULL) {
     }))))
 
   thet <- numeric(sum(nth))
-  ll <- list(Zt = Matrix::drop0(Zt), theta = thet, Lind = as.integer(Lambdat@x), 
+  ll <- list(Zt = Matrix::drop0(Zt), theta = thet, Lind = as.integer(Lambdat@x),
     Gp = unname(c(0L, cumsum(nb))))
   ll$lower <- -Inf * (thet + 1)
   ll$lower[unique(Matrix::diag(Lambdat))] <- 0
@@ -73,40 +73,40 @@ nauf_mkReTrms <- function(fr, lvs = NULL) {
   ll$flist <- fl
   ll$cnms <- cnms
   ll$Ztlist <- Ztlist
-  
+
   return(ll)
 }
 
 
 nauf_mkBlist <- function (bars, fr, lvs) {
   blist <- list()
-  
+
   for (b in 1:length(bars)) {
     vars <- varnms(barform(bars[[b]], 3))
     ff <- interaction(fr[, vars, drop = FALSE])
-    
+
     if (is.null(lvs)) {
       ff <- droplevels(ff)
       if (all(is.na(ff))) {
         stop("Invalid grouping factor specification, ", deparse(bars[[b]][[3]]),
           call. = FALSE)
       }
-      
+
     } else {  # implies predict method with new data
       ff <- factor(ff, levels = lvs[[paste(vars, collapse = ":")]],
         ordered = FALSE)
     }
-    
+
     mm <- nauf_mm(fr, b + 1)
     sm <- Matrix::KhatriRao(Matrix::fac2sparse(ff, to = "d",
       drop.unused.levels = FALSE), t(mm))
     dimnames(sm) <- list(rep(levels(ff), each = ncol(mm)), rownames(mm))
-    
+
     blist[[b]] <- list(ff = ff, sm = sm, nl = nlevels(ff), cnms = colnames(mm))
   }
-  
+
   names(blist) <- names(bars)
-  
+
   return(blist)
 }
 

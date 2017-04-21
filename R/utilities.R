@@ -1,11 +1,5 @@
 
 
-is.nauf.model <- function(object) {
-  return(is.nauf.glm(object) || is.nauf.lmerMod(object) ||
-    is.nauf.glmerMod(object))
-}
-
-
 # convert effects or group from ranef bar to formula
 barform <- function(x, n) {
   return(eval(substitute(~ foo, list(foo = x[[n]]))))
@@ -82,30 +76,30 @@ get_family <- function(family) {
     }
     stop("'family' not recognized")
   }
-  
+
   if (isTRUE(all.equal(family, MASS::negative.binomial)) ||
   (is.character(family) && family %in% c("negbin", "nb", "negative.binomial",
   "negative binomial"))) {
     return("negbin")
   }
-  
+
 #  if (is.character(family) && family %in% c("ordinal", "ordered")) {
 #    return("ordinal")
 #  }
-  
+
   if (is.character(family)) {
     tryfunc <- tryCatch(family <- get(family, mode = "function",
       envir = parent.frame()), error = function(e) e)
     if (inherits(tryfunc, "error")) stop("'family' not recognized")
   }
-  
+
   if (is.function(family)) {
     family <- family()
     if (!is.null(family$family) && !is.null(family$link)) {
       return(family)
     }
   }
-  
+
   stop("'family' not recognized")
 }
 

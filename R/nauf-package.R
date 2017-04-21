@@ -1,34 +1,26 @@
 
 
-#' nauf: Add new title.
+#' nauf: Regression with Not Applicable Unordered Factors in R.
 #'
-#' Add Description
+#' It is often the case that a factor only makes sense in a subset of a dataset
+#' (i.e. for some observations a factor may simply not be meaningful), or that
+#' with observational datasets there are no observations in some levels of an
+#' interaction term.  The \code{nauf} package allows unordered factors to be
+#' coded as \code{NA} in the subsets of the data where they are not applicable
+#' or otherwise not contrastive.  Sum contrasts are used for all unordered
+#' factors, setting \code{NA} values to zero.  This allows all of the data to be
+#' modeled together without creating collinearity or making the output difficult
+#' to interpret.
 #'
-#' Add Details
-#'
-#' Documentation plan. Explain all of the nauf contrast methods in the doc for
-#' nauf_contrasts and do not export nauf_interaction. Explain the basic fixef
-#' functionality in the documentation for nauf.glm class.  For the nauf.glm
-#' functions, link to the nauf.glm class doc and to the functions they draw
-#' their code from.  Document nauf.lmerMod and nauf.glmerMod in one doc and
-#' reference same treatment as for fixef in nauf.glm, and add note about
-#' grouping factor NAs.  Documentation pages should be nauf-package,
-#' nauf-contrasts, nauf.glm-class, nauf.merMod-class, and a page for each
-#' regression fitting function.  Modular nauf lme4 functions should not be
-#' exported.  For generics, minimal documentation except for predict for
-#' nauf.merMod's since the functionality is restricted.
-#'
-#' @section TODO:
-#' \describe{
-#'   \item{lme4}{Finish implementation of lme4 functions with nauf methods and
-#'     add unit tests.}
-#'   \item{afex}{Implement nauf methods at least for the mixed function and
-#'     possibly some others.}
-#'   \item{lsmeans}{Implement nauf methods for ref.grid and pmmeans.  Only
-#'     relatively basic functionality will be supported.}
-#'   \item{documentation}{Update all documentation.}
-#'   \item{rstanarm}{Initial release on CRAN without rstanarm compatibility?}
-#' }
+#' For a detailed description of how \code{NA} values are treated, see
+#' \code{\link{nauf_contrasts}}.  These \code{nauf} contrasts are implemented
+#' automatically through \code{\link{nauf_model.frame}},
+#' \code{\link{nauf_model.matrix}} and \code{\link{nauf_glFormula}}.  There are
+#' currently three fixed effects model functions for which \code{nauf} contrasts
+#' have been implemented (\code{\link{nauf_lm}}, \code{\link{nauf_glm}}, and
+#' \code{\link{nauf_glm.nb}}) and three corresponding mixed effects model
+#' functions (\code{\link{nauf_lmer}}, \code{\link{nauf_glmer}}, and
+#' \code{\link{nauf_glmer.nb}}).
 #'
 #' @docType package
 #' @name nauf-package
