@@ -6,13 +6,13 @@
 \title{Class for \code{nauf} regression formulas.}
 \description{
 The \code{formula} attribute of a \code{\linkS4class{nauf.frame}} has the
-(S3) class \code{nauf.formula} to ensure that calls to 
-\code{\link[stats]{model.frame}} which use the formula call 
-\code{\link{nauf_model.frame}}.  There are currently no generic methods for 
+(S3) class \code{nauf.formula} to ensure that calls to
+\code{\link[stats]{model.frame}} which use the formula call
+\code{\link{nauf_model.frame}}.  There are currently no generic methods for
 \code{nauf.formula} objects meant for end user use.
 }
 \seealso{
-\code{\link{nauf_contrasts}}, \code{\link{nauf_model.frame}}, and 
+\code{\link{nauf_contrasts}}, \code{\link{nauf_model.frame}}, and
   \code{\link{is.nauf.formula}}.
 }
 

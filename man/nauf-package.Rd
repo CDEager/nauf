@@ -5,25 +5,25 @@
 \alias{nauf-package}
 \title{nauf: Regression with Not Applicable Unordered Factors in R.}
 \description{
-It is often the case that a factor only makes sense in a subset of a dataset 
-(i.e. for some observations a factor may simply not be meaningful), or that 
-with observational datasets there are no observations in some levels of an 
-interaction term.  The \code{nauf} package allows unordered factors to be 
-coded as \code{NA} in the subsets of the data where they are not applicable 
-or otherwise not contrastive.  Sum contrasts are used for all unordered 
-factors, setting \code{NA} values to zero.  This allows all of the data to be 
-modeled together without creating collinearity or making the output difficult 
+It is often the case that a factor only makes sense in a subset of a dataset
+(i.e. for some observations a factor may simply not be meaningful), or that
+with observational datasets there are no observations in some levels of an
+interaction term.  The \code{nauf} package allows unordered factors to be
+coded as \code{NA} in the subsets of the data where they are not applicable
+or otherwise not contrastive.  Sum contrasts are used for all unordered
+factors, setting \code{NA} values to zero.  This allows all of the data to be
+modeled together without creating collinearity or making the output difficult
 to interpret.
 }
 \details{
-For a detailed description of how \code{NA} values are treated, see 
-\code{\link{nauf_contrasts}}.  These \code{nauf} contrasts are implemented 
-automatically through \code{\link{nauf_model.frame}}, 
-\code{\link{nauf_model.matrix}} and \code{\link{nauf_glFormula}}.  There are 
-currently three fixed effects model functions for which \code{nauf} contrasts 
-have been implemented (\code{\link{nauf_lm}}, \code{\link{nauf_glm}}, and 
-\code{\link{nauf_glm.nb}}) and three corresponding mixed effects model 
-functions (\code{\link{nauf_lmer}}, \code{\link{nauf_glmer}}, and 
+For a detailed description of how \code{NA} values are treated, see
+\code{\link{nauf_contrasts}}.  These \code{nauf} contrasts are implemented
+automatically through \code{\link{nauf_model.frame}},
+\code{\link{nauf_model.matrix}} and \code{\link{nauf_glFormula}}.  There are
+currently three fixed effects model functions for which \code{nauf} contrasts
+have been implemented (\code{\link{nauf_lm}}, \code{\link{nauf_glm}}, and
+\code{\link{nauf_glm.nb}}) and three corresponding mixed effects model
+functions (\code{\link{nauf_lmer}}, \code{\link{nauf_glmer}}, and
 \code{\link{nauf_glmer.nb}}).
 }
 

@@ -55,7 +55,7 @@ formula.nauf.glmerMod <- function(x, fixed.only = FALSE, random.only = FALSE,
 ###### terms ######
 
 #' @export
-terms.nauf.lmerMod <- function(x, fixed.only = FALSE, random.only = FALSE,
+terms.nauf.lmerMod <- function(x, fixed.only = TRUE, random.only = FALSE,
                                ...) {
   # based on lme4_terms.merMod
   if (missing(fixed.only) && random.only) fixed.only <- FALSE
@@ -82,7 +82,7 @@ terms.nauf.lmerMod <- function(x, fixed.only = FALSE, random.only = FALSE,
 
 
 #' @export
-terms.nauf.glmerMod <- function(x, fixed.only = FALSE, random.only = FALSE,
+terms.nauf.glmerMod <- function(x, fixed.only = TRUE, random.only = FALSE,
                                 ...) {
   # based on lme4_terms.merMod
   if (missing(fixed.only) && random.only) fixed.only <- FALSE
@@ -332,4 +332,13 @@ predict.nauf.lmerMod <- function(object, newdata = NULL, newparams = NULL,
 
 
 ###### lsmeans ######
+
+
+###### print ######
+
+#' @export
+print.nauf.ref.grid <- function(x, ...) {
+  show(x$ref.grid)
+}
+
 

@@ -9,6 +9,7 @@
 \alias{is.nauf.lmerMod}
 \alias{is.nauf.merMod}
 \alias{is.nauf.model}
+\alias{is.nauf.ref.grid}
 \alias{is.nauf.terms}
 \title{Determine if an object inherits from a \code{nauf} class.}
 \usage{
@@ -27,12 +28,14 @@ is.nauf.glmerMod(object)
 is.nauf.merMod(object)
 
 is.nauf.model(object)
+
+is.nauf.ref.grid(object)
 }
 \arguments{
 \item{object}{Any R object.}
 }
 \description{
-The \code{is.nauf} functions return \code{TRUE} if \code{object} inherits 
+The \code{is.nauf} functions return \code{TRUE} if \code{object} inherits
 from the class (or one of the classes) implied in the name of the funciton
 and \code{FALSE} otherwise.
 }
@@ -45,11 +48,12 @@ The following inheritances will result in a value of \code{TRUE}:
   \item{is.nauf.glm}{\code{\linkS4class{nauf.glm}}.}
   \item{is.nauf.lmerMod}{\code{\linkS4class{nauf.lmerMod}}.}
   \item{is.nauf.glmerMod}{\code{\linkS4class{nauf.glmerMod}}.}
-  \item{is.nauf.merMod}{\code{\linkS4class{nauf.lmerMod}} or 
+  \item{is.nauf.merMod}{\code{\linkS4class{nauf.lmerMod}} or
     \code{\linkS4class{nauf.glmerMod}}.}
-  \item{is.nauf.model}{\code{\linkS4class{nauf.glm}}, 
-    \code{\linkS4class{nauf.lmerMod}}, or 
+  \item{is.nauf.model}{\code{\linkS4class{nauf.glm}},
+    \code{\linkS4class{nauf.lmerMod}}, or
     \code{\linkS4class{nauf.glmerMod}}.}
+  \item{is.nauf.ref.grid}{\linkS4class{nauf.ref.grid}.}
 }
 }
 

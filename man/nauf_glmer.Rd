@@ -22,52 +22,52 @@ nauf_glmer.nb(..., interval = log(th) + c(-3, 3), tol = 5e-05,
   * tol, trace = verbose))
 }
 \arguments{
-\item{formula, data, subset, weights, offset, control, start, devFunOnly}{For 
-\code{nauf_lmer}, see \code{\link[lme4]{lmer}}.  For \code{nauf_glmer}, see 
+\item{formula, data, subset, weights, offset, control, start, devFunOnly}{For
+\code{nauf_lmer}, see \code{\link[lme4]{lmer}}.  For \code{nauf_glmer}, see
 \code{\link[lme4]{glmer}}.}
 
-\item{family, etastart, mustart, nAGQ}{For \code{nauf_glmer}, see 
+\item{family, etastart, mustart, nAGQ}{For \code{nauf_glmer}, see
 \code{\link[lme4]{glmer}}.}
 
-\item{verbose, ...}{For \code{nauf_lmer}, see \code{\link[lme4]{lmer}}.  For 
-\code{nauf_glmer}, see \code{\link[lme4]{glmer}}.  For \code{nauf_glmer.nb}, 
-see \code{\link[lme4]{glmer.nb}}.  Note that many arguments that are passed 
-to \code{nauf_glmer} are passed to \code{nauf_glmer.nb} through \code{...}, 
+\item{verbose, ...}{For \code{nauf_lmer}, see \code{\link[lme4]{lmer}}.  For
+\code{nauf_glmer}, see \code{\link[lme4]{glmer}}.  For \code{nauf_glmer.nb},
+see \code{\link[lme4]{glmer.nb}}.  Note that many arguments that are passed
+to \code{nauf_glmer} are passed to \code{nauf_glmer.nb} through \code{...},
 including \code{ncs_scale}.}
 
-\item{na.action, contrasts}{Changes to the default values for these arguments 
+\item{na.action, contrasts}{Changes to the default values for these arguments
 are ignored with a warning.  See \code{\link{nauf_model.frame}}.}
 
-\item{ncs_scale}{A positive number to be passed as the \code{scale} argument 
-to \code{\link[standardize]{named_contr_sum}} for all unordered factors.  
-See \code{\link{nauf_model.frame}}.  For \code{nauf_glmer.nb}, 
+\item{ncs_scale}{A positive number to be passed as the \code{scale} argument
+to \code{\link[standardize]{named_contr_sum}} for all unordered factors.
+See \code{\link{nauf_model.frame}}.  For \code{nauf_glmer.nb},
 \code{ncs_scale} is passed through \code{...}.}
 
 \item{REML}{For \code{nauf_lmer}, see \code{\link[lme4]{lmer}}.}
 
-\item{interval, tol, nb.control, initCtrl}{For \code{nauf_glmer.nb}, see 
+\item{interval, tol, nb.control, initCtrl}{For \code{nauf_glmer.nb}, see
 \code{\link[lme4]{glmer.nb}}.}
 }
 \value{
-A fitted model of class \code{\linkS4class{nauf.lmerMod}} 
-  (\code{nauf_lmer}) or \code{\linkS4class{nauf.glmerMod}} (\code{nauf_glmer} 
+A fitted model of class \code{\linkS4class{nauf.lmerMod}}
+  (\code{nauf_lmer}) or \code{\linkS4class{nauf.glmerMod}} (\code{nauf_glmer}
   and \code{nauf_glmer.nb}).
 }
 \description{
-The mixed effects regression functions \code{nauf_lmer}, \code{nauf_glmer.nb}, 
-and \code{nauf_glmer} fit linear, negative binomial, and other generalized 
-linear mixed effects models, respectively, impelementing 
+The mixed effects regression functions \code{nauf_lmer}, \code{nauf_glmer.nb},
+and \code{nauf_glmer} fit linear, negative binomial, and other generalized
+linear mixed effects models, respectively, impelementing
 \code{\link{nauf_contrasts}}.
 }
 \details{
-\code{nauf_lmer}, \code{nauf_glmer}, and \code{nauf_glmer.nb} are based on 
-the \code{lme4} functions \code{\link[lme4]{lmer}}, \code{\link[lme4]{glmer}}, 
-and \code{\link[lme4]{glmer.nb}}, respectively, but implement 
-\code{\link{nauf_contrasts}}.  The \code{nauf} functions have all the same 
-arguments as the functions they are based on, but additionally 
-\code{ncs_scale}, which is passed to \code{\link{nauf_model.frame}}.  Other 
-than \code{ncs_scale}, the arguments have the same functions as they do in 
-the functions they are based on.  The default values for \code{na.action} and 
+\code{nauf_lmer}, \code{nauf_glmer}, and \code{nauf_glmer.nb} are based on
+the \code{lme4} functions \code{\link[lme4]{lmer}}, \code{\link[lme4]{glmer}},
+and \code{\link[lme4]{glmer.nb}}, respectively, but implement
+\code{\link{nauf_contrasts}}.  The \code{nauf} functions have all the same
+arguments as the functions they are based on, but additionally
+\code{ncs_scale}, which is passed to \code{\link{nauf_model.frame}}.  Other
+than \code{ncs_scale}, the arguments have the same functions as they do in
+the functions they are based on.  The default values for \code{na.action} and
 \code{contrasts} cannot be changed (see \code{\link{nauf_model.frame}}).
 }
 \examples{
@@ -92,9 +92,9 @@ negbin_model <- nauf_glmer.nb(svless_vdur$formula, svless_vdur$data)
 
 }
 \seealso{
-\code{\link{nauf_contrasts}} for a description of the contrasts 
-  applied to unordered factors; and \code{\link[lme4]{lmer}}, 
-  \code{\link[lme4]{glmer}}, and \code{\link[lme4]{glmer.nb}} for argument 
+\code{\link{nauf_contrasts}} for a description of the contrasts
+  applied to unordered factors; and \code{\link[lme4]{lmer}},
+  \code{\link[lme4]{glmer}}, and \code{\link[lme4]{glmer.nb}} for argument
   definitions.
 }
 

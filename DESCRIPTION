@@ -12,8 +12,10 @@ Depends:
     standardize (>= 0.1.1)
 Imports:
     methods,
+    utils,
+    pbkrtest (>= 0.4-7),
     MASS (>= 7.3-45),
-    lsmeans (>= 2.25),
+    lsmeans (>= 2.25-5),
     stringr (>= 1.1.0),
     Matrix (>= 1.2-7.1),
     lme4 (>= 1.1-12),

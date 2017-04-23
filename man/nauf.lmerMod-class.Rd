@@ -6,21 +6,21 @@
 \alias{nauf.lmerMod-class}
 \title{Class for fitted linear mixed effects models with \code{nauf} contrasts.}
 \description{
-A fitted mixed effects regression model returned by \code{\link{nauf_lmer}} 
-of S4 class \code{nauf.lmerMod}, which inherits from 
-\code{\linkS4class{lmerMod}}.  There is an S3 method for the 
+A fitted mixed effects regression model returned by \code{\link{nauf_lmer}}
+of S4 class \code{nauf.lmerMod}, which inherits from
+\code{\linkS4class{lmerMod}}.  There is an S3 method for the
 \code{\link[=predict.nauf.merMod]{predict}} function.
-Other than this, there are no generic methods for class \code{nauf.lmerMod} 
-meant for end user use, and generics from the \code{base}, \code{stats}, and 
-\code{lme4} packages such as \code{summary}, \code{anova}, etc. work just as 
-they would for models fit with \code{\link[lme4]{lmer}}.  If you encounter a 
-generic function in these packages which does not function properly, please 
+Other than this, there are no generic methods for class \code{nauf.lmerMod}
+meant for end user use, and generics from the \code{base}, \code{stats}, and
+\code{lme4} packages such as \code{summary}, \code{anova}, etc. work just as
+they would for models fit with \code{\link[lme4]{lmer}}.  If you encounter a
+generic function in these packages which does not function properly, please
 report the issue at \url{https://github.com/CDEager/nauf/issues}.
 }
 \section{Slots}{
 
 \describe{
-\item{\code{rsp,Gp,call,frame,flist,cnms,lower,theta,beta,u,devcomp,pp,optinfo}}{See 
+\item{\code{rsp,Gp,call,frame,flist,cnms,lower,theta,beta,u,devcomp,pp,optinfo}}{See
 \code{\linkS4class{merMod}}.}
 }}
 \seealso{

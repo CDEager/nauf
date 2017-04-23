@@ -19,6 +19,7 @@
 #'   \item{is.nauf.model}{\code{\linkS4class{nauf.glm}},
 #'     \code{\linkS4class{nauf.lmerMod}}, or
 #'     \code{\linkS4class{nauf.glmerMod}}.}
+#'   \item{is.nauf.ref.grid}{\linkS4class{nauf.ref.grid}.}
 #' }
 #'
 #' @param object Any R object.
@@ -80,5 +81,12 @@ is.nauf.merMod <- function(object) {
 #' @export
 is.nauf.model <- function(object) {
   return(inherits(object, c("nauf.glm", "nauf.lmerMod", "nauf.glmerMod")))
+}
+
+
+#' @rdname is.nauf
+#' @export
+is.nauf.ref.grid <- function(object) {
+  return(inherits(object, "nauf.ref.grid"))
 }
 

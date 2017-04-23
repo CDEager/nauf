@@ -24,28 +24,28 @@ nauf_glm.nb(formula, data = NULL, weights, subset, na.action = na.pass,
   init.theta, link = log)
 }
 \arguments{
-\item{formula, data, subset, weights, method, ...}{For \code{nauf_lm}, see 
-\code{\link[stats]{lm}}.  For \code{nauf_glm}, see 
-\code{\link[stats]{glm}}.  For \code{nauf_glm.nb}, see 
+\item{formula, data, subset, weights, method, ...}{For \code{nauf_lm}, see
+\code{\link[stats]{lm}}.  For \code{nauf_glm}, see
+\code{\link[stats]{glm}}.  For \code{nauf_glm.nb}, see
 \code{\link[MASS]{glm.nb}}.}
 
 \item{family}{For \code{nauf_glm}, see \code{\link[stats]{glm}}.}
 
-\item{na.action, contrasts}{Changes to the default values for these arguments 
+\item{na.action, contrasts}{Changes to the default values for these arguments
 are ignored with a warning.  See \code{\link{nauf_model.frame}}.}
 
-\item{offset}{For \code{nauf_lm}, see \code{\link[stats]{lm}}.  For 
+\item{offset}{For \code{nauf_lm}, see \code{\link[stats]{lm}}.  For
 \code{nauf_glm}, see \code{\link[stats]{glm}}.}
 
-\item{control, start, etastart, mustart}{For \code{nauf_glm}, see 
-\code{\link[stats]{glm}}.  For \code{nauf_glm.nb}, see 
+\item{control, start, etastart, mustart}{For \code{nauf_glm}, see
+\code{\link[stats]{glm}}.  For \code{nauf_glm.nb}, see
 \code{\link[MASS]{glm.nb}}.}
 
-\item{model, x, y}{Chages to the default values for these arguments are ignored 
+\item{model, x, y}{Chages to the default values for these arguments are ignored
 with a warning.  See 'Details'.}
 
-\item{ncs_scale}{A positive number to be passed as the \code{scale} argument 
-to \code{\link[standardize]{named_contr_sum}} for all unordered factors.  
+\item{ncs_scale}{A positive number to be passed as the \code{scale} argument
+to \code{\link[standardize]{named_contr_sum}} for all unordered factors.
 See \code{\link{nauf_model.frame}}.}
 
 \item{qr, singular.ok}{For \code{nauf_lm}, see \code{\link[stats]{lm}}.}
@@ -53,31 +53,31 @@ See \code{\link{nauf_model.frame}}.}
 \item{init.theta, link}{For \code{nauf_glm.nb}, see \code{\link[MASS]{glm.nb}}.}
 }
 \value{
-A fitted model of class \code{\linkS4class{nauf.glm}}.  For the 
-  elements contained in the object, and additional class attributes the model 
-  may contain, see \code{\link[stats]{lm}}, \code{\link[stats]{glm}}, and 
+A fitted model of class \code{\linkS4class{nauf.glm}}.  For the
+  elements contained in the object, and additional class attributes the model
+  may contain, see \code{\link[stats]{lm}}, \code{\link[stats]{glm}}, and
   \code{\link[MASS]{glm.nb}}.
 }
 \description{
-The fixed effects regression functions \code{nauf_lm}, \code{nauf_glm.nb}, 
-and \code{nauf_glm} fit linear, negative binomial, and other generalized 
+The fixed effects regression functions \code{nauf_lm}, \code{nauf_glm.nb},
+and \code{nauf_glm} fit linear, negative binomial, and other generalized
 linear models, respectively, impelementing \code{\link{nauf_contrasts}}.
 }
 \details{
-\code{nauf_lm} is based on \code{\link[stats]{lm}} in the 
-\code{stats} package, \code{nauf_glm} on \code{\link[stats]{glm}} in the 
+\code{nauf_lm} is based on \code{\link[stats]{lm}} in the
+\code{stats} package, \code{nauf_glm} on \code{\link[stats]{glm}} in the
 \code{stats} package, and \code{nauf_glm.nb} on \code{\link[MASS]{glm.nb}} in
-the \code{MASS} package; but implementing \code{\link{nauf_contrasts}}.  The 
-\code{nauf} functions have all the same arguments as the functions they are 
-based on, but additionally \code{ncs_scale}, which is passed to 
-\code{\link{nauf_model.frame}}.  Other than \code{ncs_scale}, the arguments 
-have the same functions as they do in the functions they are based on.  The 
-default values for \code{na.action}, \code{contrasts}, \code{model}, 
-\code{x}, and \code{y} cannot be changed.  For \code{na.action} and 
-\code{contrasts}, see \code{\link{nauf_model.frame}}.  Forcing \code{model}, 
-\code{x}, and \code{y} to be \code{TRUE} ensures that the fitted model 
-retains the model frame, model matrix, and response, respectively.  This is 
-necessary for some generic functions applied to the fitted model to work 
+the \code{MASS} package; but implementing \code{\link{nauf_contrasts}}.  The
+\code{nauf} functions have all the same arguments as the functions they are
+based on, but additionally \code{ncs_scale}, which is passed to
+\code{\link{nauf_model.frame}}.  Other than \code{ncs_scale}, the arguments
+have the same functions as they do in the functions they are based on.  The
+default values for \code{na.action}, \code{contrasts}, \code{model},
+\code{x}, and \code{y} cannot be changed.  For \code{na.action} and
+\code{contrasts}, see \code{\link{nauf_model.frame}}.  Forcing \code{model},
+\code{x}, and \code{y} to be \code{TRUE} ensures that the fitted model
+retains the model frame, model matrix, and response, respectively.  This is
+necessary for some generic functions applied to the fitted model to work
 properly.
 }
 \examples{
@@ -95,14 +95,14 @@ linear_model <- nauf_lm(sdat$formula, sdat$data)
 
 binomial_model <- nauf_glm(svless_fully_voiced$formula,
   svless_fully_voiced$data, family = binomial)
-  
+
 negbin_model <- nauf_glm.nb(svless_vdur$formula, svless_vdur$data)
 
 }
 \seealso{
-\code{\link{nauf_contrasts}} for a description of the contrasts 
-  applied to unordered factors; and \code{\link[stats]{lm}}, 
-  \code{\link[stats]{glm}}, and \code{\link[MASS]{glm.nb}} for argument 
+\code{\link{nauf_contrasts}} for a description of the contrasts
+  applied to unordered factors; and \code{\link[stats]{lm}},
+  \code{\link[stats]{glm}}, and \code{\link[MASS]{glm.nb}} for argument
   definitions.
 }
 

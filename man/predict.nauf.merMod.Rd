@@ -15,38 +15,38 @@
   "response"), allow.new.levels = FALSE, na.action = na.pass, ...)
 }
 \arguments{
-\item{object}{A \code{\linkS4class{nauf.lmerMod}} or 
+\item{object}{A \code{\linkS4class{nauf.lmerMod}} or
 \code{\linkS4class{nauf.glmerMod}}.}
 
 \item{newdata}{A data frame to make predictions on.}
 
-\item{newparams, terms, allow.new.levels}{Changes to default values are not 
+\item{newparams, terms, allow.new.levels}{Changes to default values are not
 currently supported and result in an error.}
 
-\item{re.form}{Formula for random effects to condition on.  Currently, only 
-\code{NULL} (the default, indicating conditioning on \emph{all} random 
-effects in the model) and \code{NA} or \code{~ 0} (indicating to use only 
-the fixed effects in the predictions) are supported (i.e. you cannot 
+\item{re.form}{Formula for random effects to condition on.  Currently, only
+\code{NULL} (the default, indicating conditioning on \emph{all} random
+effects in the model) and \code{NA} or \code{~ 0} (indicating to use only
+the fixed effects in the predictions) are supported (i.e. you cannot
 currently condition on a subset of the random effects).}
 
-\item{ReForm, REForm, REform}{Older versions of \code{re.form} in \code{lme4} 
+\item{ReForm, REForm, REform}{Older versions of \code{re.form} in \code{lme4}
 which are now deprecated.}
 
-\item{na.action}{Changes from default of \code{na.pass} are ignored with a 
+\item{na.action}{Changes from default of \code{na.pass} are ignored with a
 warning.}
 
-\item{...}{Additional parameters (currently unused and ignored with a 
+\item{...}{Additional parameters (currently unused and ignored with a
 warning).}
 }
 \value{
 A numeric vector of predicted values.
 }
 \description{
-The \code{\link[stats]{predict}} method for 
-\code{\linkS4class{nauf.glmerMod}} and \code{\linkS4class{nauf.lmerMod}} 
-objects (the results of \code{\link{nauf_glmer}}, \code{\link{nauf_glmer.nb}}, 
-and \code{\link{nauf_glmer}}).  It is based on 
-\code{\link[lme4]{predict.merMod}}, but currently some options are not 
+The \code{\link[stats]{predict}} method for
+\code{\linkS4class{nauf.glmerMod}} and \code{\linkS4class{nauf.lmerMod}}
+objects (the results of \code{\link{nauf_glmer}}, \code{\link{nauf_glmer.nb}},
+and \code{\link{nauf_glmer}}).  It is based on
+\code{\link[lme4]{predict.merMod}}, but currently some options are not
 supported for \code{nauf} models.
 }
 \examples{
@@ -65,8 +65,8 @@ isTRUE(all.equal(preds, preds_fe))  # FALSE
 
 }
 \seealso{
-\code{\link[lme4]{predict.merMod}}, \code{\link{nauf_lmer}}, 
-  \code{\link{nauf_glmer}}, \code{\link{nauf_glmer.nb}}, 
+\code{\link[lme4]{predict.merMod}}, \code{\link{nauf_lmer}},
+  \code{\link{nauf_glmer}}, \code{\link{nauf_glmer.nb}},
   \code{\linkS4class{nauf.lmerMod}}, and \code{\linkS4class{nauf.glmerMod}}.
 }
 

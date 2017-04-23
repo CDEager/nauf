@@ -5,17 +5,17 @@
 \alias{nauf.frame-class}
 \title{Class for model frames created with \code{nauf_model.frame}.}
 \description{
-A model frame created by \code{\link{nauf_model.frame}}.  It has a \code{formula} 
-attribute, which is a \code{\linkS4class{nauf.formula}}, and a \code{terms} 
-attribute, which is a \code{\linkS4class{nauf.terms}}.  The (S3) class 
-\code{nauf.frame} comes \emph{after} the \code{data.frame} class attribute so 
-that it can be included as the \code{frame} slot in a 
+A model frame created by \code{\link{nauf_model.frame}}.  It has a \code{formula}
+attribute, which is a \code{\linkS4class{nauf.formula}}, and a \code{terms}
+attribute, which is a \code{\linkS4class{nauf.terms}}.  The (S3) class
+\code{nauf.frame} comes \emph{after} the \code{data.frame} class attribute so
+that it can be included as the \code{frame} slot in a
 \code{\linkS4class{nauf.lmerMod}} or \code{\linkS4class{nauf.glmerMod}}.
-There are currently no generic methods for \code{nauf.frame} objects meant 
+There are currently no generic methods for \code{nauf.frame} objects meant
 for end user use.
 }
 \seealso{
-\code{\link{nauf_contrasts}}, \code{\link{nauf_model.frame}}, and 
+\code{\link{nauf_contrasts}}, \code{\link{nauf_model.frame}}, and
   code{\link{is.nauf.frame}}.
 }
 

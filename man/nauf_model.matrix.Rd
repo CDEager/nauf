@@ -7,42 +7,42 @@
 nauf_model.matrix(object = NULL, data = NULL, ...)
 }
 \arguments{
-\item{object}{A \code{\linkS4class{nauf.frame}} or a regression formula. 
+\item{object}{A \code{\linkS4class{nauf.frame}} or a regression formula.
 See 'Details'.}
 
-\item{data}{A \code{\linkS4class{nauf.frame}} or a \code{data.frame} 
-containing the variables in \code{object} if \code{object} is a regression 
+\item{data}{A \code{\linkS4class{nauf.frame}} or a \code{data.frame}
+containing the variables in \code{object} if \code{object} is a regression
 formula. See 'Details'.}
 
-\item{...}{Further arguments to be passed to \code{\link{nauf_model.frame}} 
-when \code{object} is a regression formula and \code{data} is a 
+\item{...}{Further arguments to be passed to \code{\link{nauf_model.frame}}
+when \code{object} is a regression formula and \code{data} is a
 \code{data.frame}. See 'Details'.}
 }
 \value{
-A fixed effects model matrix that implements 
-  \code{\link{nauf_contrasts}}.  Unlike the default 
-  \code{\link[stats]{model.matrix}} method, the model matrix does not have a 
-  \code{contrasts} attribute, since multiple sets of contrasts may be 
+A fixed effects model matrix that implements
+  \code{\link{nauf_contrasts}}.  Unlike the default
+  \code{\link[stats]{model.matrix}} method, the model matrix does not have a
+  \code{contrasts} attribute, since multiple sets of contrasts may be
   required for some unordered factors.
 }
 \description{
-\code{nauf_model.matrix} creates a model matrix which employs 
+\code{nauf_model.matrix} creates a model matrix which employs
 \code{\link{nauf_contrasts}} for unordered factors.
 }
 \details{
-Exactly what happens depends on the values of \code{object} and \code{data}.  
+Exactly what happens depends on the values of \code{object} and \code{data}.
 The following possibilities are evaluated in the order listed:
 \describe{
-  \item{object is a nauf.frame}{All arguments besides \code{object} are 
-    ignored, and the information in \code{object} is used to create the model 
+  \item{object is a nauf.frame}{All arguments besides \code{object} are
+    ignored, and the information in \code{object} is used to create the model
     matrix.}
-  \item{data is a nauf.frame}{All arguments besides \code{data} are ignored, 
+  \item{data is a nauf.frame}{All arguments besides \code{data} are ignored,
     and the information in \code{data} is used to create the model matrix.}
   \item{object is a formula and data is a data.frame}{
-    \code{\linkS4class{nauf.frame}} is called with \code{formula = object} 
-    and \code{data = data}, passing along any additional arguments in 
-    \code{...} (including \code{ncs_scale}).  Then the model matrix is 
-    created using the information in the resulting 
+    \code{\linkS4class{nauf.frame}} is called with \code{formula = object}
+    and \code{data = data}, passing along any additional arguments in
+    \code{...} (including \code{ncs_scale}).  Then the model matrix is
+    created using the information in the resulting
     \code{\linkS4class{nauf.frame}}.}
   \item{any other argument values}{An error is returned.}
 }
@@ -62,9 +62,9 @@ mm3 <- nauf_model.matrix(sdat$formula, sdat$data)
 
 }
 \seealso{
-\code{\link{nauf_contrasts}} for a description of the contrasts 
-  applied to unordered factors, \code{\link{nauf_model.frame}} for creating a 
-  model frame with \code{nauf} contrasts, and \code{\link{nauf_glFormula}} 
+\code{\link{nauf_contrasts}} for a description of the contrasts
+  applied to unordered factors, \code{\link{nauf_model.frame}} for creating a
+  model frame with \code{nauf} contrasts, and \code{\link{nauf_glFormula}}
   for obtaining both fixed effects and random effects model matrices.
 }
 

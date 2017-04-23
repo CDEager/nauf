@@ -1,5 +1,31 @@
 
 
+as_simplex <- function(x) {
+  return(x / sum(x))
+}
+
+
+list_mat_cols <- function(x) {
+  return(split(x, c(col(x))))
+}
+
+
+add_quotes <- function(x, collapse = " ") {
+  return(paste0("'", x, "'", collapse = collapse))
+}
+
+
+# d is a data.frame
+# lvs is a named list of ok levels
+# nms specifies the elements in d and lvs to compare
+# f is the function to apply to the rows of the logical matrix
+match_row <- function(d, lvs, nms = names(lvs), f = all) {
+  return(apply(sapply(nms, function(v) {
+    d[[v]] %in% lvs[[v]]
+  }), 1, f))
+}
+
+
 # convert effects or group from ranef bar to formula
 barform <- function(x, n) {
   return(eval(substitute(~ foo, list(foo = x[[n]]))))
@@ -69,34 +95,43 @@ is.scalar <- function(x, sgn = c(-1, 0, 1)) {
 
 # return family information
 #' @importFrom MASS negative.binomial
-get_family <- function(family) {
-  if (inherits(family, "family")) {
-    if (!is.null(family$family) && !is.null(family$link)) {
-      return(family)
+get_family <- function(object) {
+  if (is.nauf.glm(object)) {
+    if (!inherits(object, "glm")) return(gaussian())
+    return(get_family(object$family))
+  }
+  if (is.nauf.lmerMod(object)) return(gaussian())
+  if (is.nauf.glmerMod(object)) return(get_family(object@resp$family))
+  
+  if (inherits(object, "family")) {
+    if (!is.null(object$family) && !is.null(object$link)) {
+      return(object)
     }
     stop("'family' not recognized")
   }
+  
+  if (is.name(object)) object <- as.character(object)
 
-  if (isTRUE(all.equal(family, MASS::negative.binomial)) ||
-  (is.character(family) && family %in% c("negbin", "nb", "negative.binomial",
+  if (isTRUE(all.equal(object, MASS::negative.binomial)) ||
+  (is.character(object) && object %in% c("negbin", "nb", "negative.binomial",
   "negative binomial"))) {
     return("negbin")
   }
 
-#  if (is.character(family) && family %in% c("ordinal", "ordered")) {
+#  if (is.character(object) && object %in% c("ordinal", "ordered")) {
 #    return("ordinal")
 #  }
 
-  if (is.character(family)) {
-    tryfunc <- tryCatch(family <- get(family, mode = "function",
+  if (is.character(object)) {
+    tryfunc <- tryCatch(object <- get(object, mode = "function",
       envir = parent.frame()), error = function(e) e)
     if (inherits(tryfunc, "error")) stop("'family' not recognized")
   }
 
-  if (is.function(family)) {
-    family <- family()
-    if (!is.null(family$family) && !is.null(family$link)) {
-      return(family)
+  if (is.function(object)) {
+    object <- object()
+    if (!is.null(object$family) && !is.null(object$link)) {
+      return(object)
     }
   }
 

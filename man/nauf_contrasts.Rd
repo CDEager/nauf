@@ -51,7 +51,7 @@ Quechua, and so being monolingual in Valladolid does not mean the same
 thing as it does in Cuzco, where it indicates
 \emph{monolingual as opposed to bilingual}.  Lima has Spanish-Quechua
 bilingual speakers, but the research questions the dataset serves to answer
-are specific to monolingual speakers of Spanish in Lima.  If we leave the 
+are specific to monolingual speakers of Spanish in Lima.  If we leave the
 \code{ling} factor coded as is in the dataset and use
 \code{\link[standardize]{named_contr_sum}} to create the contrasts, we obtain
 the following:
@@ -133,7 +133,7 @@ introduced by the read speech items can be accounted for while still
 including all of the data in one model, and the same random effects for
 \code{speaker} can apply to all observations (both read and spontaneous),
 which will lead to a more accurate estimation of the fixed, speaker, and item
-effects since more information is available than if the read and spontaneous 
+effects since more information is available than if the read and spontaneous
 speech were analyzed in separate models.
 
 There are two situations in which unordered factors will need more than one set
@@ -288,10 +288,10 @@ unordered factors.  If \code{inc_ordered = TRUE}, then the contrast matrices
 for any ordered factors in \code{object} are also included.
 }
 \section{Note}{
- The argument \code{ncs_scale} changes what value is used for 
-  the sum contrast deviations.  The default value of \code{1} would give the 
-  contrast matrices above.  A value of \code{ncs_scale = 0.5}, for example, 
-  would result in replacing \code{1} with \code{0.5} and \code{-1} with 
+ The argument \code{ncs_scale} changes what value is used for
+  the sum contrast deviations.  The default value of \code{1} would give the
+  contrast matrices above.  A value of \code{ncs_scale = 0.5}, for example,
+  would result in replacing \code{1} with \code{0.5} and \code{-1} with
   \code{-0.5} in all of the contrast matrices.
 }
 \examples{
@@ -299,7 +299,7 @@ dat <- plosives
 dat$spont[dat$dialect == "Valladolid"] <- NA
 mf <- nauf_model.frame(intdiff ~ dialect * spont + (1 + dialect | item), dat)
 nauf_contrasts(mf)
-  
+
 }
 \seealso{
 \code{\link{nauf_model.frame}}, \code{\link{nauf_model.matrix}},

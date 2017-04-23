@@ -5,10 +5,10 @@
 \alias{nauf.terms-class}
 \title{Class for \code{terms} objects which contain information about \code{nauf} contrasts.}
 \description{
-When \code{\link{nauf_model.frame}} is called, a 
-\code{\linkS4class{nauf.frame}} is returned, and this object's \code{terms} 
-attribute has the (S3) class \code{nauf.terms}.  The \code{nauf.terms} object 
-has an attribute \code{nauf.info} which contains all of the information 
+When \code{\link{nauf_model.frame}} is called, a
+\code{\linkS4class{nauf.frame}} is returned, and this object's \code{terms}
+attribute has the (S3) class \code{nauf.terms}.  The \code{nauf.terms} object
+has an attribute \code{nauf.info} which contains all of the information
 necessary to implement \code{\link{nauf_contrasts}} in regression.
 }
 \details{
@@ -17,37 +17,37 @@ The \code{nauf.info} attribute is a list with the following elements:
   \item{resp}{The name of the response variable.}
   \item{groups}{A named list of random effects grouping factor levels.}
   \item{uf}{A named list with an elment for each unordered factor. Each of
-    these elements is a list of character vectors indicating the names of the 
-    levels that correspond to the elment's number's set of contrasts; i.e. 
-    the first element represents the main effect contrasts for the factor, 
-    the second element (if present) represents \code{.c2.} contrasts, and so 
+    these elements is a list of character vectors indicating the names of the
+    levels that correspond to the elment's number's set of contrasts; i.e.
+    the first element represents the main effect contrasts for the factor,
+    the second element (if present) represents \code{.c2.} contrasts, and so
     on (see \code{\link{nauf_contrasts}}).}
-  \item{of}{A named list with an element for each ordered factor containing 
+  \item{of}{A named list with an element for each ordered factor containing
     its levels and contrasts.}
-  \item{num}{A named list with an element for each numeric vector variable 
+  \item{num}{A named list with an element for each numeric vector variable
     containing the variables' means.}
-  \item{mat}{A named list with an element for each matrix variable containing 
+  \item{mat}{A named list with an element for each matrix variable containing
     the variables' colmun means.}
-  \item{extras}{A character vector giving the names of offsets, weights, 
+  \item{extras}{A character vector giving the names of offsets, weights,
     mustart, etc.}
-  \item{cc}{A list of contrast changes required as described in 
-    \code{\link{nauf_contrasts}}.  The first element is a list of the changes 
-    required for the fixed effects.  If the model has random effects, then 
-    there is an additional element for each element of the list returned by 
-    \code{\link[lme4]{findbars}}.  Each element of \code{cc} is a named list 
-    indicating which contrasts in the \code{uf} element of \code{nauf.info} 
+  \item{cc}{A list of contrast changes required as described in
+    \code{\link{nauf_contrasts}}.  The first element is a list of the changes
+    required for the fixed effects.  If the model has random effects, then
+    there is an additional element for each element of the list returned by
+    \code{\link[lme4]{findbars}}.  Each element of \code{cc} is a named list
+    indicating which contrasts in the \code{uf} element of \code{nauf.info}
     should be used.}
-  \item{hasna}{A named logical vector with an entry for each variable 
+  \item{hasna}{A named logical vector with an entry for each variable
     indicating whether nor not the variable contains \code{NA} values.}
-  \item{ncs_scale}{The \code{ncs_scale} argument from the call to 
+  \item{ncs_scale}{The \code{ncs_scale} argument from the call to
     \code{\link{nauf_model.frame}}.}
 }
 
-There are currently no generic methods for \code{nauf.terms} objects meant 
+There are currently no generic methods for \code{nauf.terms} objects meant
 for end user use.
 }
 \seealso{
-\code{\link{nauf_contrasts}}, \code{\link{nauf_model.frame}}, and 
+\code{\link{nauf_contrasts}}, \code{\link{nauf_model.frame}}, and
   \code{\link{is.nauf.terms}}.
 }
 

@@ -150,3 +150,15 @@ nauf.lmerMod <- setClass("nauf.lmerMod", contains = "lmerMod")
 #'   \code{\linkS4class{merMod}}.
 nauf.glmerMod <- setClass("nauf.glmerMod", contains = "glmerMod")
 
+
+#' Class for references grids for nauf models
+#'
+#' DESCRIPTION
+#'
+#' DETAILS
+#'
+#' @aliases nauf.ref.grid
+#' 
+#' @name nauf.ref.grid-class
+NULL
+

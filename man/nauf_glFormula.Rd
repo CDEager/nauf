@@ -18,40 +18,40 @@ nauf_lFormula(formula, data = NULL, REML = TRUE, subset, weights,
 \arguments{
 \item{formula, data, REML, subset, weights, offset, control, mustart, etastart, ...}{See \code{\link[lme4]{glFormula}}.}
 
-\item{na.action, contrasts}{Changes from default values are ignored.  See 
+\item{na.action, contrasts}{Changes from default values are ignored.  See
 \code{\link{nauf_model.frame}}.}
 
-\item{ncs_scale}{A positive number to be passed as the \code{scale} argument 
-to \code{\link[standardize]{named_contr_sum}} for all unordered factors.  
+\item{ncs_scale}{A positive number to be passed as the \code{scale} argument
+to \code{\link[standardize]{named_contr_sum}} for all unordered factors.
 See \code{\link{nauf_model.frame}}.}
 }
 \value{
 A list with the following elements:
 \describe{
-  \item{fr}{The model frame (with class \code{\linkS4class{nauf.frame}}). 
+  \item{fr}{The model frame (with class \code{\linkS4class{nauf.frame}}).
     See \code{\link{nauf_model.frame}}.}
-  \item{X}{The fixed effects model matrix with \code{\link{nauf_contrasts}} 
+  \item{X}{The fixed effects model matrix with \code{\link{nauf_contrasts}}
     applied. See \code{\link{nauf_model.matix}}.}
-  \item{reTrms}{A list containing the random effects model matrix and other 
-    information about the random effects structure.  The elements of the list 
-    have the same structure as that returned by \code{\link[lme4]{mkReTrms}}, 
+  \item{reTrms}{A list containing the random effects model matrix and other
+    information about the random effects structure.  The elements of the list
+    have the same structure as that returned by \code{\link[lme4]{mkReTrms}},
     but incorportating \code{\link{nauf_contrasts}}.}
-  \item{REML}{(\code{nauf_lFormula} only): A logical indicating if restricted 
+  \item{REML}{(\code{nauf_lFormula} only): A logical indicating if restricted
     maximum likelihood was used (Copy of argument).}
 }
 }
 \description{
-The same as the \code{lme4} \code{\link[lme4]{modular}} functions 
-\code{glFormula} and \code{lFormula}, but implementing 
-\code{\link{nauf_contrasts}}.  \code{nauf_lFormula} is used for linear mixed 
-effects regressions (i.e. those that would be fit with 
-\code{\link{nauf_lmer}}) and \code{nauf_glFormula} is used for genarlized 
-linear mixed effects regressions (i.e. those that would be fit with 
-\code{\link{nauf_glmer}} or \code{\link{nauf_glmer.nb}}).  Both of the 
-functions contain a call to \code{nauf_mkReTrms}, which serves the same 
-purpose as the \code{lme4} function \code{\link[lme4]{mkReTrms}}, but with 
-\code{\link{nauf_contrasts}}, and, while \code{\link[lme4]{mkReTrms}} is 
-exported by \code{lme4}, \code{nauf_mkReTrms} is an internal function in the 
+The same as the \code{lme4} \code{\link[lme4]{modular}} functions
+\code{glFormula} and \code{lFormula}, but implementing
+\code{\link{nauf_contrasts}}.  \code{nauf_lFormula} is used for linear mixed
+effects regressions (i.e. those that would be fit with
+\code{\link{nauf_lmer}}) and \code{nauf_glFormula} is used for genarlized
+linear mixed effects regressions (i.e. those that would be fit with
+\code{\link{nauf_glmer}} or \code{\link{nauf_glmer.nb}}).  Both of the
+functions contain a call to \code{nauf_mkReTrms}, which serves the same
+purpose as the \code{lme4} function \code{\link[lme4]{mkReTrms}}, but with
+\code{\link{nauf_contrasts}}, and, while \code{\link[lme4]{mkReTrms}} is
+exported by \code{lme4}, \code{nauf_mkReTrms} is an internal function in the
 \code{nauf} package.
 }
 \examples{
@@ -71,12 +71,12 @@ glmod <- nauf_glFormula(svless$formula, svless$data, family = binomial)
 
 }
 \seealso{
-\code{\link{nauf_contrasts}} for a description of the contrasts 
-  applied to unordered factors; \code{\link{nauf_model.frame}} and 
-  \code{\link{nauf_model.matrix}} for the creation of the \code{fr} and 
-  \code{X} elements of the returned list, respectively; and 
-  \code{\link{nauf_lmer}}, \code{\link{nauf_glmer.nb}}, and 
-  \code{\link{nauf_glmer}} for fitting mixed effects regressions with gaussian, 
+\code{\link{nauf_contrasts}} for a description of the contrasts
+  applied to unordered factors; \code{\link{nauf_model.frame}} and
+  \code{\link{nauf_model.matrix}} for the creation of the \code{fr} and
+  \code{X} elements of the returned list, respectively; and
+  \code{\link{nauf_lmer}}, \code{\link{nauf_glmer.nb}}, and
+  \code{\link{nauf_glmer}} for fitting mixed effects regressions with gaussian,
   negative binomial, and all other families, respectively.
 }
 
