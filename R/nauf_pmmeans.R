@@ -11,9 +11,10 @@
 #'
 #' @importFrom pbkrtest Lb_ddf vcovAdj
 #' @importFrom lsmeans ref.grid
+#' @importFrom lmerTest calcSatterth
 #'
 #' @export
-nauf_ref.grid <- function(mod) {
+nauf_ref.grid <- function(mod, KR = NULL) {
   if (!is.nauf.model(mod)) stop("Must supply a nauf model")
 
   fenr <- stats::delete.response(terms(mod))
@@ -74,12 +75,20 @@ nauf_ref.grid <- function(mod) {
   rg$ref.grid@nbasis <- matrix()
   rg$ref.grid@V <- as.matrix(summ$vcov)
   if (is.nauf.lmerMod(mod)) {
-    rg$ref.grid@dffun <- function(k, dfargs) {
-      pbkrtest::Lb_ddf(k, dfargs$unadjV, dfargs$adjV)
+    if (is.null(KR)) KR <- nobs(mod) <= 3000
+    if (KR) {
+      rg$ref.grid@dffun <- function(k, dfargs) {
+        pbkrtest::Lb_ddf(k, dfargs$unadjV, dfargs$adjV)
+      }
+      rg$ref.grid@dfargs <- list(
+        unadjV = vcov(mod),
+        adjV = pbkrtest::vcovAdj(mod))
+    } else {
+      rg$ref.grid@dffun <- function(k, dfargs) {
+        lmerTest::calcSatterth(dfargs$object, k)$denom
+      }
+      rg$ref.grid@dfargs <- list(object = mod)
     }
-    rg$ref.grid@dfargs <- list(
-      unadjV = vcov(mod),
-      adjV = pbkrtest::vcovAdj(mod))
   } else if (is.nauf.glmerMod(mod)) {
     rg$ref.grid@dffun <- function(k, dfargs) NA
     rg$ref.grid@dfargs <- list()
@@ -97,8 +106,7 @@ nauf_ref.grid <- function(mod) {
     avgd.over = character(),
     assign = asgn)
   rg$ref.grid@post.beta <- matrix()
-  family <- get_family(mod)
-  if (!isTRUE(all.equal(family, gaussian()))) {
+  if (!is.linear(family <- get_family(mod))) {
     rg$ref.grid@misc$tran <- family$link
     family <- family$family
     rate <- length(grep("poisson", family)) + length(grep("Negative", family))

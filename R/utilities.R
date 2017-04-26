@@ -96,18 +96,20 @@ is.scalar <- function(x, sgn = c(-1, 0, 1)) {
 # return family information
 #' @importFrom MASS negative.binomial
 get_family <- function(object) {
-  if (is.nauf.glm(object)) {
-    if (!inherits(object, "glm")) return(gaussian())
-    return(get_family(object$family))
-  }
-  if (is.nauf.lmerMod(object)) return(gaussian())
-  if (is.nauf.glmerMod(object)) return(get_family(object@resp$family))
-  
   if (inherits(object, "family")) {
     if (!is.null(object$family) && !is.null(object$link)) {
       return(object)
     }
     stop("'family' not recognized")
+  }
+  
+  if (inherits(object, c("lm", "merMod"))) {
+    if (inherits(object, "lm")) {
+      if (!inherits(object, "glm")) return(gaussian())
+      return(get_family(object$family))
+    }
+    if (is.nauf.lmerMod(object)) return(gaussian())
+    return(get_family(object@resp$family))
   }
   
   if (is.name(object)) object <- as.character(object)
@@ -208,5 +210,10 @@ check_groups <- function(formula) {
       paste(gu, collapse = "\n"))
   }
   return(sort(unique(unlist(gu))))
+}
+
+
+is.linear <- function(object){
+  return(isTRUE(all.equal(get_family(object), gaussian())))
 }
 

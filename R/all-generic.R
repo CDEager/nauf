@@ -322,16 +322,86 @@ predict.nauf.lmerMod <- function(object, newdata = NULL, newparams = NULL,
                                  terms = NULL, type = c("link", "response"),
                                  allow.new.levels = FALSE, na.action = na.pass,
                                  ...) {
-  mc <- match.call()
-  mc[[1]] <- quote(nauf::predict.nauf.glmerMod)
-  return(eval(mc, parent.frame()))
+  # based on lme4_predict.merMod but fewer options
+  # notably cannot specify new ranef structure currently
+  # and cannot have new levels or new paramms
+
+  type <- match.arg(type)
+  if (allow.new.levels) {
+    stop("'allow.new.levels' not currently supported; must be FALSE")
+  }
+  re.form <- lme4_reFormHack(re.form, ReForm, REForm, REform)
+  if (!is.null(re.form) && !is.na(re.form) && !isTRUE(all.equal(re.form, ~ 0))) {
+    stop("New random effects structures not currently supported")
+  }
+  if (!is.null(terms)) {
+    stop("terms functionality for predict not yet implemented")
+  }
+  if (!is.null(newparams)) {
+    stop("'newparams' not currently supported; must be NULL")
+  }
+  if (!isTRUE(all.equal(na.action, na.pass))) {
+    warning("Ignoring 'na.action'; must be na.pass")
+  }
+  if (length(list(...)) > 0) warning("unused arguments ignored")
+
+  if ((is.null(newdata) && is.null(re.form) && is.null(newparams))) {
+    if (lme4_isLMM(object) || lme4_isNLMM(object)) {
+      pred <- stats::na.omit(fitted(object))
+    } else {
+      pred <- switch(type, response = object@resp$mu, link = object@resp$eta)
+      if (is.null(nm <- rownames(model.frame(object)))) nm <- seq_along(pred)
+      names(pred) <- nm
+    }
+
+  } else {
+    X <- lme4::getME(object, "X")
+    X.col.dropped <- attr(X, "col.dropped")
+    if (is.null(newdata)) {
+      offset <- model.offset(model.frame(object))
+      if (is.null(offset)) offset <- 0
+
+    } else {
+      if (is.null(re.form)) {
+        Terms <- attr(object@frame, "terms")
+      } else {
+        RHS <- stats::formula(substitute(~R, list(R = lme4_RHSForm(
+          formula(object, fixed.only = TRUE)))))
+        Terms <- terms(object, fixed.only = TRUE)
+      }
+      mfnew <- suppressWarnings(model.frame(stats::delete.response(Terms),
+        newdata))
+      attr(mfnew, "formula") <- attr(object@frame, "formula")
+      X <- nauf_mm(mfnew)
+      offset <- 0
+      tt <- terms(object)
+      if (!is.null(off.num <- attr(tt, "offset"))) {
+        for (i in off.num) {
+          offset <- offset + eval(attr(tt, "variables")[[i + 1]], newdata)
+        }
+      }
+      if (is.numeric(X.col.dropped) && length(X.col.dropped) > 0) {
+        X <- X[, -X.col.dropped, drop = FALSE]
+      }
+    }
+
+    pred <- drop(X %*% lme4::fixef(object))
+    pred <- pred + offset
+
+    if (is.null(re.form)) {
+      lvs <- lapply(object@flist, levels)
+      z <- Matrix::t(nauf_mkReTrms(mfnew, lvs)$Zt)
+      b <- as.vector(lme4::getME(object, "b"))
+      pred <- pred + base::drop(as(z %*% b, "matrix"))
+    }
+
+    if (lme4_isGLMM(object) && type == "response") {
+      pred <- object@resp$family$linkinv(pred)
+    }
+  }
+
+  return(pred)
 }
-
-
-###### pmmeans ######
-
-
-###### lsmeans ######
 
 
 ###### print ######
@@ -341,4 +411,721 @@ print.nauf.ref.grid <- function(x, ...) {
   show(x$ref.grid)
 }
 
+
+#' @export
+print.nauf.nested.anova <- function(x, ...) {
+  # based on afex:::print.mixed
+  lik_full <- as.numeric(logLik(x[["full_model"]]))
+  lik_rest <- as.numeric(vapply(x[["restricted_models"]], logLik, 0))
+  if (length(better <- which(lik_rest > lik_full))) {
+    warning(paste0("Following nested model(s) ",
+      "provide better fit than full model:\n  ",
+      add_quotes(names(x[["restricted_models"]])[better])))
+  }
+  afex_get_mixed_warnings(x)
+  print(x$anova_table)
+  invisible()
+}
+
+
+###### anova ######
+
+#' @importFrom pbkrtest KRmodcomp PBmodcomp
+#' @importFrom lmerTest calcSatterth
+#' @importFrom car Anova
+#' @export
+anova.nauf.lmerMod <- function(object, ..., refit = TRUE, model.names = NULL,
+                               method = c("lme4", "S", "KR", "LRT", "PB", "nested-KR"),
+                               test_intercept = FALSE, args_test = NULL) {
+  # drawing from afex::mixed
+  mc <- match.call()
+  dots <- list(...)
+  if ("type" %in% names(dots) && !(dots$type %in% c("3", "III"))) {
+    stop("Currently only Type III tests are supported")
+  }
+  method <- match.arg(method)
+  if (method == "lme4" || (length(dots) && any(sapply(dots, is.nauf.model)))) {
+    if (method != "lme4") {
+      warning("Multiple nauf models supplied.  Using method 'lme4'")
+    }
+    if (is.null(model.names)) {
+      if (length(dots) && any(sapply(dots, is.nauf.model))) {
+        model.names <- paste(1:(sum(sapply(dots, is.nauf.model)) + 1))
+      }
+    }
+    return(lme4:::anova.merMod(object, ..., refit = refit,
+      model.names = model.names))
+  }
+  
+  reml <- method %in% c("S", "KR", "nested-KR")
+  if (reml != lme4::isREML(object)) {
+    call <- getCall(object)
+    call[["REML"]] <- reml
+    cat("Refitting model with REML =", reml, "since method =", method, "\n")
+    object <- eval(call, parent.frame())
+  }
+  
+  if (method == "KR") {
+    anova_table <- car::Anova(object, type = 3, test.statistic = "F")
+    if (!test_intercept) {
+      anova_table <- anova_table[-1, , drop = FALSE]
+    }
+    return(anova_table)
+  }
+  
+  fenr <- stats::delete.response(terms(object))
+  fe <- attr(fenr, "term.labels")
+  if (test_intercept) {
+    fe <- c("(Intercept)", fe)
+    a1 <- 0
+  } else {
+    a1 <- 1
+  }
+  fits <- vector("list", length(fe))
+  names(fits) <- fe
+  tests <- fits
+  
+  lmod <- list(
+    fr = object@frame,
+    X = lme4::getME(object, "X"),
+    reTrms = nauf_mkReTrms(object@frame),
+    REML = reml)
+  asgn <- attr((X <- lmod$X), "assign")
+  
+  if (method == "S") {
+    p <- ncol(X)
+    L <- list()
+    for (ft in 1:length(fe)) {
+      naft <- length(aft <- which(asgn == (ft - 1 + a1)))
+      L[[ft]] <- matrix(0, naft, p)
+      L[[ft]][, aft] <- diag(naft)
+      if (naft == 1) {
+        L[[ft]] <- as.vector(L[[ft]])
+      }
+    }
+    
+    anova_table <- t(sapply(L, function(x) lmerTest::calcSatterth(object, x)))
+    anova_table <- data.frame(anova_table[, c(4, 1, 2, 3)])
+    colnames(anova_table) <- c("num Df", "den Df", "F", "Pr(>F)")
+    rownames(anova_table) <- fe
+    anova_tab_addition <- NULL
+    
+    sig_symbols <- c(" +", " *", " **", " ***")
+    type <- "III"
+    
+    class(anova_table) <- c("anova", "data.frame")
+    attr(anova_table, "heading") <- c(paste0("Mixed Model Anova Table (Type ", 
+      type, " tests, ", method, "-method)\n"), paste0("Model: ", 
+      deparse(getCall(object)$formula)), paste0("Data: ",
+      getCall(object)[["data"]]), anova_tab_addition)
+    attr(anova_table, "sig_symbols") <- sig_symbols
+    
+    return(anova_table)
+  }
+  
+  mcout <- oc <- getCall(object)
+
+  getargs <- c("start", "verbose", "control")
+  defaults <- formals(nauf_lmer)[getargs]
+  for (a in getargs) {
+    if (a %in% names(oc)) {
+      val <- eval(oc[[a]], parent.frame())
+    } else {
+      val <- eval(defaults[[a]], parent.frame())
+    }
+    assign(a, val)
+  }
+  if (!inherits(control, "lmerControl")) {
+    control <- do.call(lme4::lmerControl, control)
+  }
+  
+  cat("Fitting", length(fe), "nested nauf_lmer models [")
+  for (ft in 1:length(fe)) {
+    lmod$X <- X[, -which(asgn == (ft - 1 + a1)), drop = FALSE]
+    mcout[["formula"]] <- stats::formula(paste(deparse(oc[["formula"]]), "-",
+      fe[ft]))
+    
+    devfun <- do.call(lme4::mkLmerDevfun, c(lmod, list(start = start,
+      verbose = verbose, control = control)))
+      
+    if (control$optimizer == "none") {
+      opt <- list(par = NA, fval = NA, conv = 1000, message = "no optimzation")
+      
+    } else {
+      opt <- lme4::optimizeLmer(devfun, optimizer = control$optimizer,
+        restart_edge = control$restart_edge, boundary.tol = control$boundary.tol,
+        control = control$optCtrl, verbose = verbose, start = start,
+        calc.derivs = control$calc.derivs,
+        use.last.params = control$use.last.params)
+    }
+    
+    cc <- lme4_checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,
+      lbound = environment(devfun)$lower)
+    
+    fits[[ft]] <- nauf.lmerMod(lme4::mkMerMod(environment(devfun),
+      opt, lmod$reTrms, fr = lmod$fr, mc = mcout, lme4conv = cc))
+      
+    cat(".")
+  }
+  cat("]\n")
+  
+  lik_full <- as.numeric(logLik(object))
+  lik_rest <- as.numeric(vapply(fits, logLik, 0))
+  if (length(better <- which(lik_rest > lik_full))) {
+    warning(paste0("Following nested model(s) ",
+      "provide better fit than full model:\n  ", add_quotes(fe[better])))
+  }
+  
+  cat("Obtaining", length(fe), "p-values [")
+  if (method == "nested-KR") {
+    for (ft in 1:length(fe)) {
+      tests[[ft]] <- do.call(pbkrtest::KRmodcomp,
+        args = c(largeModel = object, smallModel = fits[[ft]], args_test))
+      cat(".")
+    }
+    cat("]\n")
+    
+    anova_table <- data.frame(t(vapply(tests, function(x) 
+      unlist(x[["test"]][1, ]), unlist(tests[[1]][["test"]][1, ]))))
+    rownames(anova_table) <- fe
+    colnames(anova_table) <- c("F", "num Df", "den Df", "F.scaling", "Pr(>F)")
+    anova_table <- anova_table[, c("num Df", "den Df", "F.scaling", "F",
+      "Pr(>F)")]
+    anova_tab_addition <- NULL
+  
+  } else if (method == "PB") {
+    for (ft in 1:length(fe)) {
+      tests[[ft]] <- do.call(pbkrtest::PBmodcomp,
+        args = c(largeModel = object, smallModel = fits[[ft]], args_test))
+      cat(".")
+    }
+    cat("]\n")
+    
+    anova_table <- data.frame(t(vapply(tests, function(x)
+      unlist(x[["test"]][2, ]), unlist(tests[[1]][["test"]][2, ]))))
+    anova_table <- anova_table[, -2]
+    LRT <- vapply(tests, function(x) unlist(x[["test"]][1, ]),
+      unlist(tests[[1]][["test"]][1, ]))
+    row.names(LRT) <- stringr::str_c(row.names(LRT), ".LRT")
+    anova_table <- cbind(anova_table, t(LRT))
+    rownames(anova_table) <- fe
+    anova_table <- anova_table[, c("stat", "df.LRT", "p.value.LRT",
+      "p.value")]
+    colnames(anova_table) <- c("Chisq", "Chi Df", "Pr(>Chisq)", "Pr(>PB)")
+    if (!is.null(args_test$nsim)) {
+      nsim <- args_test$nsim
+    } else {
+      nsim <- formals(pbkrtest::PBmodcomp)$nsim
+    }
+    anova_tab_addition <- paste("Based on", nsim, "simulations")
+
+  } else if (method == "LRT") {
+    for (ft in 1:length(fe)) {
+      tests[[ft]] <- anova(object, fits[[ft]], model.names = paste(1:2))
+      cat(".")
+    }
+    cat("]\n")
+    
+    df.large <- vapply(tests, function(x) x[["Df"]][2], 0)
+    df.small <- vapply(tests, function(x) x[["Df"]][1], 0)
+    chisq <- vapply(tests, function(x) x[["Chisq"]][2], 0)
+    df <- vapply(tests, function(x) x[["Chi Df"]][2], 0)
+    p.value <- vapply(tests, function(x) x[["Pr(>Chisq)"]][2], 0)
+    anova_table <- data.frame(Df = df.small, Chisq = chisq, 
+      `Chi Df` = df, `Pr(>Chisq)` = p.value, stringsAsFactors = FALSE, 
+      check.names = FALSE)
+    rownames(anova_table) <- fe
+    anova_tab_addition <- paste0("Df full model: ", df.large[1])
+  }
+  
+  sig_symbols <- c(" +", " *", " **", " ***")
+  type <- "III"
+  
+  class(anova_table) <- c("anova", "data.frame")
+  attr(anova_table, "heading") <- c(paste0("Mixed Model Anova Table (Type ", 
+    type, " tests, ", method, "-method)\n"), paste0("Model: ", 
+    deparse(getCall(object)$formula)), paste0("Data: ",
+    getCall(object)[["data"]]), anova_tab_addition)
+  attr(anova_table, "sig_symbols") <- sig_symbols
+  list.out <- list(anova_table = anova_table, full_model = object, 
+    restricted_models = fits, tests = tests)
+  class(list.out) <- c("nauf.nested.anova", "list")
+  attr(list.out, "method") <- method
+  attr(list.out, "type") <- type
+  
+  return(list.out)
+}
+
+
+#' @importFrom pbkrtest PBmodcomp
+#' @export
+anova.nauf.glmerMod <- function(object, ..., refit = TRUE, model.names = NULL,
+                                method = c("lme4", "LRT", "PB"),
+                                test_intercept = FALSE, args_test = NULL) {
+  # drawing from afex::mixed
+  mc <- match.call()
+  dots <- list(...)
+  if ("type" %in% names(dots) && !(dots$type %in% c("3", "III"))) {
+    stop("Currently only Type III tests are supported")
+  }
+  method <- match.arg(method)
+  if (method == "lme4" || (length(dots) && any(sapply(dots, is.nauf.model)))) {
+    if (method != "lme4") {
+      warning("Multiple nauf models supplied.  Using method 'lme4'")
+    }
+    if (is.null(model.names)) {
+      if (length(dots) && any(sapply(dots, is.nauf.model))) {
+        model.names <- paste(1:(sum(sapply(dots, is.nauf.model)) + 1))
+      }
+    }
+    return(lme4:::anova.merMod(object, ..., refit = refit,
+      model.names = model.names))
+  }
+  
+  fenr <- stats::delete.response(terms(object))
+  fe <- attr(fenr, "term.labels")
+  if (test_intercept) {
+    fe <- c("(Intercept)", fe)
+    a1 <- 0
+  } else {
+    a1 <- 1
+  }
+  fits <- vector("list", length(fe))
+  names(fits) <- fe
+  tests <- fits
+  
+  glmod <- list(
+    fr = object@frame,
+    X = lme4::getME(object, "X"),
+    reTrms = nauf_mkReTrms(object@frame),
+    family = get_family(object))
+  asgn <- attr((X <- glmod$X), "assign")
+  
+  mcout <- oc <- getCall(object)
+
+  getargs <- c("start", "verbose", "control", "nAGQ")
+  defaults <- formals(nauf_glmer)[getargs]
+  for (a in getargs) {
+    if (a %in% names(oc)) {
+      val <- eval(oc[[a]], parent.frame())
+    } else {
+      val <- eval(defaults[[a]], parent.frame())
+    }
+    assign(a, val)
+  }
+  if (!inherits(control, "glmerControl")) {
+    control <- do.call(lme4::glmerControl, control)
+  }
+  if (control$nAGQ0initStep) {
+    nAGQinit <- 0L
+  } else {
+    nAGQinit <- 1L
+  }
+  oc.start <- start
+  fe.start <- is.list(start) && ("fixef" %in% names(start))
+  
+  cat("Fitting", length(fe), "nested nauf_glmer models [")
+  for (ft in 1:length(fe)) {
+    glmod$X <- X[, -which(asgn == (ft - 1 + a1)), drop = FALSE]
+    mcout[["formula"]] <- stats::formula(paste(deparse(oc[["formula"]]), "-",
+      fe[ft]))
+    
+    devfun <- do.call(lme4::mkGlmerDevfun, c(glmod, list(verbose = verbose,
+      control = control, nAGQ = nAGQinit)))
+      
+    if (fe.start) {
+      start <- oc.start
+      start$fixef <- start[-which(asgn == (ft - 1 + a1))]
+    }
+    if (is.list(start)) {
+      start.bad <- setdiff(names(start), c("theta", "fixef"))
+      if (length(start.bad) > 0) {
+        stop(sprintf("bad name(s) for start vector (%s); should be %s and/or %s",
+          paste(start.bad, collapse = ", "), shQuote("theta"),
+          shQuote("fixef")), call. = FALSE)
+      }
+      if (!is.null(start$fixef) && nAGQ == 0) {
+        stop("should not specify both start$fixef and nAGQ==0")
+      }
+    }
+
+    if (control$nAGQ0initStep) {
+      opt <- lme4::optimizeGlmer(devfun, optimizer = control$optimizer[[1]],
+        restart_edge = if (nAGQ == 0) control$restart_edge else FALSE,
+        boundary.tol = if (nAGQ == 0) control$boundary.tol else 0,
+        control = control$optCtrl, start = start, nAGQ = 0, verbose = verbose,
+        calc.derivs = FALSE)
+    }
+
+    if (nAGQ > 0L) {
+      start <- lme4_updateStart(start, theta = opt$par)
+      devfun <- lme4::updateGlmerDevfun(devfun, glmod$reTrms, nAGQ = nAGQ)
+      opt <- lme4::optimizeGlmer(devfun, optimizer = control$optimizer[[2]],
+        restart_edge = control$restart_edge, boundary.tol = control$boundary.tol,
+        control = control$optCtrl, start = start, nAGQ = nAGQ,
+        verbose = verbose, stage = 2, calc.derivs = control$calc.derivs,
+        use.last.params = control$use.last.params)
+    }
+
+    if (!control$calc.derivs) {
+      cc <- NULL
+    } else {
+      if (verbose > 10) cat("checking convergence\n")
+      cc <- lme4_checkConv(attr(opt, "derivs"), opt$par,
+        ctrl = control$checkConv, lbound = environment(devfun)$lower)
+    }
+    
+    fits[[ft]] <- nauf.glmerMod(lme4::mkMerMod(environment(devfun), opt,
+      glmod$reTrms, fr = glmod$fr, mc = mcout, lme4conv = cc))
+      
+    cat(".")
+  }
+  cat("]\n")
+  
+  lik_full <- as.numeric(logLik(object))
+  lik_rest <- as.numeric(vapply(fits, logLik, 0))
+  if (length(better <- which(lik_rest > lik_full))) {
+    warning(paste0("Following nested model(s) ",
+      "provide better fit than full model:\n  ", add_quotes(fe[better])))
+  }
+  
+  cat("Obtaining", length(fe), "p-values [")
+  if (method == "PB") {
+    for (ft in 1:length(fe)) {
+      tests[[ft]] <- do.call(pbkrtest::PBmodcomp,
+        args = c(largeModel = object, smallModel = fits[[ft]], args_test))
+      cat(".")
+    }
+    cat("]\n")
+    
+    anova_table <- data.frame(t(vapply(tests, function(x)
+      unlist(x[["test"]][2, ]), unlist(tests[[1]][["test"]][2, ]))))
+    anova_table <- anova_table[, -2]
+    LRT <- vapply(tests, function(x) unlist(x[["test"]][1, ]),
+      unlist(tests[[1]][["test"]][1, ]))
+    row.names(LRT) <- stringr::str_c(row.names(LRT), ".LRT")
+    anova_table <- cbind(anova_table, t(LRT))
+    rownames(anova_table) <- fe
+    anova_table <- anova_table[, c("stat", "df.LRT", "p.value.LRT",
+      "p.value")]
+    colnames(anova_table) <- c("Chisq", "Chi Df", "Pr(>Chisq)", "Pr(>PB)")
+    if (!is.null(args_test$nsim)) {
+      nsim <- args_test$nsim
+    } else {
+      nsim <- formals(pbkrtest::PBmodcomp)$nsim
+    }
+    anova_tab_addition <- paste("Based on", nsim, "simulations")
+
+  } else if (method == "LRT") {
+    for (ft in 1:length(fe)) {
+      tests[[ft]] <- lme4:::anova.merMod(object, fits[[ft]],
+        model.names = paste(1:2))
+      cat(".")
+    }
+    cat("]\n")
+    
+    df.large <- vapply(tests, function(x) x[["Df"]][2], 0)
+    df.small <- vapply(tests, function(x) x[["Df"]][1], 0)
+    chisq <- vapply(tests, function(x) x[["Chisq"]][2], 0)
+    df <- vapply(tests, function(x) x[["Chi Df"]][2], 0)
+    p.value <- vapply(tests, function(x) x[["Pr(>Chisq)"]][2], 0)
+    anova_table <- data.frame(Df = df.small, Chisq = chisq, 
+      `Chi Df` = df, `Pr(>Chisq)` = p.value, stringsAsFactors = FALSE, 
+      check.names = FALSE)
+    rownames(anova_table) <- fe
+    anova_tab_addition <- paste0("Df full model: ", df.large[1])
+  }
+  
+  sig_symbols <- c(" +", " *", " **", " ***")
+  type <- "III"
+  
+  class(anova_table) <- c("anova", "data.frame")
+  attr(anova_table, "heading") <- c(paste0("Mixed Model Anova Table (Type ", 
+    type, " tests, ", method, "-method)\n"), paste0("Model: ", 
+    deparse(getCall(object)$formula)), paste0("Data: ",
+    getCall(object)[["data"]]), anova_tab_addition)
+  attr(anova_table, "sig_symbols") <- sig_symbols
+  list.out <- list(anova_table = anova_table, full_model = object, 
+    restricted_models = fits, tests = tests)
+  class(list.out) <- c("nauf.nested.anova", "list")
+  attr(list.out, "method") <- method
+  attr(list.out, "type") <- type
+  
+  return(list.out)
+}
+
+
+###### refitML ######
+
+#' @export
+refitML.nauf.lmerMod <- function(x, ...) {
+  mod <- match.call()
+  mod[[1]] <- quote(lme4:::refitML.merMod)
+  mod <- eval(mod, parent.frame())
+  return(nauf.lmerMod(mod))
+}
+
+
+###### refit ######
+
+#' @export
+refit.nauf.lmerMod <- function(object, newresp = NULL, rename.response = FALSE,
+                               maxit = 100L, ...) {
+  mod <- match.call()
+  mod[[1]] <- quote(lme4:::refit.merMod)
+  mod <- eval(mod, parent.frame())
+  return(nauf.lmerMod(mod))
+}
+
+
+#' @export
+refit.nauf.glmerMod <- function(object, newresp = NULL, rename.response = FALSE,
+                                maxit = 100L, ...) {
+  mod <- match.call()
+  mod[[1]] <- quote(lme4:::refit.merMod)
+  mod <- eval(mod, parent.frame())
+  return(nauf.glmerMod(mod))
+}
+
+
+###### simulate ######
+
+#' @export
+simulate.nauf.lmerMod <- function(object, nsim = 1, seed = NULL, use.u = FALSE,
+                                  re.form = NA, ReForm, REForm, REform,
+                                  newdata = NULL, newparams = NULL,
+                                  family = NULL, allow.new.levels = FALSE,
+                                  na.action = na.pass, ...) {
+  dots <- list(...)
+  if (is.null(dots$weights)) {
+    if (is.null(newdata)) {
+      weights <- object@resp$weights
+    } else {
+      weights <- rep(1, nrow(newdata))
+    }
+  }
+  
+  if (missing(object)) {
+    stop("Currently, method where 'object' is missing is not supported")
+  }
+  stopifnot((nsim <- as.integer(nsim[1])) > 0, is(object, "merMod"))
+  if (!is.null(newparams)) {
+    stop("'newparams' not currently supported")
+  }
+  
+  re.form.miss <- missing(re.form)
+  re.form <- lme4_reFormHack(re.form, ReForm, REForm, REform)
+  if (!missing(use.u)) {
+    if (!re.form.miss) {
+      stop("should specify only one of ", sQuote("use.u"), 
+        " and ", sQuote("re.form"))
+    }
+    if (use.u) {
+      re.form <- NULL
+    } else {
+      re.form <- NA
+    }
+  }
+  
+  if (sim_new_re <- !is.null(re.form)) {
+    re.form <- NA
+  }
+  if (!is.null(seed)) set.seed(seed)
+  if (!exists(".Random.seed", envir = .GlobalEnv)) runif(1)
+  RNGstate <- .Random.seed
+  sigma <- sigma(object)
+  
+  etapred <- predict(object, newdata = newdata, re.form = re.form, type = "link")
+  n <- length(etapred)
+  
+  if (sim_new_re) {
+    if (is.null(newdata)) {
+      newRE <- nauf_mkReTrms(object@frame)
+    } else {
+      Terms <- attr(object@frame, "terms")
+      mfnew <- suppressWarnings(model.frame(stats::delete.response(Terms),
+        newdata))
+      attr(mfnew, "formula") <- attr(object@frame, "formula")
+      lvs <- lapply(object@flist, levels)
+      newRE <- nauf_mkReTrms(mfnew, lvs)
+    }
+    U <- Matrix::t(newRE$Lambdat %*% newRE$Zt)
+    u <- rnorm(ncol(U) * nsim)
+    sim.reff <- as(U %*% matrix(u, ncol = nsim), "matrix")
+  } else {
+    sim.reff <- 0
+  }
+  
+  if (lme4::isLMM(object)) {
+    val <- etapred + sigma * (sim.reff + matrix(rnorm(n * nsim), ncol = nsim))
+    
+  } else if (lme4::isGLMM(object)) {
+    etasim <- etapred + sim.reff
+    family <- object@resp$family
+    if (grepl("^Negative ?Binomial", family$family, ignore.case = TRUE)) {
+      family$family <- "negative.binomial"
+    }
+    musim <- family$linkinv(etasim)
+    
+    if (is.null(sfun <- lme4:::simfunList[[family$family]]) &&
+    is.null(family$simulate)) {
+      stop("simulation not implemented for family", family$family)
+    }
+    
+    val <- sfun(object, nsim = 1, ftd = rep_len(musim, n * nsim), wts = weights)
+    
+    if (family$family == "binomial" && is.matrix(r <- model.response(
+    object@frame))) {
+      val <- lapply(split(val[[1]], gl(nsim, n, 2 * nsim * n)), 
+        matrix, ncol = 2, dimnames = list(NULL, colnames(r)))
+        
+    } else if (family$family == "binomial" && is.factor(val[[1]])) {
+      val <- split(val[[1]], gl(nsim, n))
+      
+    } else {
+      val <- split(val, gl(nsim, n))
+    }
+    
+  } else {
+    stop("simulate method for NLMMs not yet implemented")
+  }
+  
+  if (!is.list(val)) {
+    dim(val) <- c(n, nsim)
+    val <- as.data.frame(val)
+  } else {
+    class(val) <- "data.frame"
+  }
+  names(val) <- paste("sim", seq_len(nsim), sep = "_")
+  f <- fitted(object)
+  nm <- names(f)[!is.na(f)]
+  if (length(nm) == 0) {
+    nm <- as.character(seq(n))
+  } else if (!is.null(newdata)) {
+    nm <- rownames(newdata)
+  }
+  row.names(val) <- nm
+  
+  return(structure(val, na.action = na.pass, seed = RNGstate))
+}
+
+
+#' @export
+simulate.nauf.glmerMod <- function(object, nsim = 1, seed = NULL, use.u = FALSE,
+                                   re.form = NA, ReForm, REForm, REform,
+                                   newdata = NULL, newparams = NULL,
+                                   family = NULL, allow.new.levels = FALSE,
+                                   na.action = na.pass, ...) {
+  dots <- list(...)
+  if (is.null(dots$weights)) {
+    if (is.null(newdata)) {
+      weights <- object@resp$weights
+    } else {
+      weights <- rep(1, nrow(newdata))
+    }
+  }
+  
+  if (missing(object)) {
+    stop("Currently, method where 'object' is missing is not supported")
+  }
+  stopifnot((nsim <- as.integer(nsim[1])) > 0, is(object, "merMod"))
+  if (!is.null(newparams)) {
+    stop("'newparams' not currently supported")
+  }
+  
+  re.form.miss <- missing(re.form)
+  re.form <- lme4_reFormHack(re.form, ReForm, REForm, REform)
+  if (!missing(use.u)) {
+    if (!re.form.miss) {
+      stop("should specify only one of ", sQuote("use.u"), 
+        " and ", sQuote("re.form"))
+    }
+    if (use.u) {
+      re.form <- NULL
+    } else {
+      re.form <- NA
+    }
+  }
+  
+  if (sim_new_re <- !is.null(re.form)) {
+    re.form <- NA
+  }
+  if (!is.null(seed)) set.seed(seed)
+  if (!exists(".Random.seed", envir = .GlobalEnv)) runif(1)
+  RNGstate <- .Random.seed
+  sigma <- sigma(object)
+  
+  etapred <- predict(object, newdata = newdata, re.form = re.form, type = "link")
+  n <- length(etapred)
+  
+  if (sim_new_re) {
+    if (is.null(newdata)) {
+      newRE <- nauf_mkReTrms(object@frame)
+    } else {
+      Terms <- attr(object@frame, "terms")
+      mfnew <- suppressWarnings(model.frame(stats::delete.response(Terms),
+        newdata))
+      attr(mfnew, "formula") <- attr(object@frame, "formula")
+      lvs <- lapply(object@flist, levels)
+      newRE <- nauf_mkReTrms(mfnew, lvs)
+    }
+    U <- Matrix::t(newRE$Lambdat %*% newRE$Zt)
+    u <- rnorm(ncol(U) * nsim)
+    sim.reff <- as(U %*% matrix(u, ncol = nsim), "matrix")
+  } else {
+    sim.reff <- 0
+  }
+  
+  if (lme4::isLMM(object)) {
+    val <- etapred + sigma * (sim.reff + matrix(rnorm(n * nsim), ncol = nsim))
+    
+  } else if (lme4::isGLMM(object)) {
+    etasim <- etapred + sim.reff
+    family <- object@resp$family
+    if (grepl("^Negative ?Binomial", family$family, ignore.case = TRUE)) {
+      family$family <- "negative.binomial"
+    }
+    musim <- family$linkinv(etasim)
+    
+    if (is.null(sfun <- lme4:::simfunList[[family$family]]) &&
+    is.null(family$simulate)) {
+      stop("simulation not implemented for family", family$family)
+    }
+    
+    val <- sfun(object, nsim = 1, ftd = rep_len(musim, n * nsim), wts = weights)
+    
+    if (family$family == "binomial" && is.matrix(r <- model.response(
+    object@frame))) {
+      val <- lapply(split(val[[1]], gl(nsim, n, 2 * nsim * n)), 
+        matrix, ncol = 2, dimnames = list(NULL, colnames(r)))
+        
+    } else if (family$family == "binomial" && is.factor(val[[1]])) {
+      val <- split(val[[1]], gl(nsim, n))
+      
+    } else {
+      val <- split(val, gl(nsim, n))
+    }
+    
+  } else {
+    stop("simulate method for NLMMs not yet implemented")
+  }
+  
+  if (!is.list(val)) {
+    dim(val) <- c(n, nsim)
+    val <- as.data.frame(val)
+  } else {
+    class(val) <- "data.frame"
+  }
+  names(val) <- paste("sim", seq_len(nsim), sep = "_")
+  f <- fitted(object)
+  nm <- names(f)[!is.na(f)]
+  if (length(nm) == 0) {
+    nm <- as.character(seq(n))
+  } else if (!is.null(newdata)) {
+    nm <- rownames(newdata)
+  }
+  row.names(val) <- nm
+  
+  return(structure(val, na.action = na.pass, seed = RNGstate))
+}
 

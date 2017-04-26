@@ -96,18 +96,14 @@ nauf_glmer <- function(formula, data = NULL, family = gaussian,
   mc$contrasts <- NULL
   mc$na.action <- na.pass
 
-  if (is.character(family)) {
-    family <- get(family, mode = "function", envir = parent.frame(2))
-  }
-  if (is.function(family)) {
-    family <- family()
-  }
-  if (isTRUE(all.equal(family, gaussian()))) {
+  if (is.linear(family <- get_family(family))) {
     warning("calling nauf_glmer with family=gaussian (identity link) as a ",
       "shortcut to lmer() is deprecated; please call nauf_lmer directly")
     mc[[1]] <- quote(nauf::nauf_lmer)
     mc["family"] <- NULL
     return(eval(mc, parent.frame()))
+  } else if (is.character(family) && family == "negbin") {
+    stop("To fit a negative binomial model, use nauf_glmer.nb")
   }
 
   mc[[1]] <- quote(nauf::nauf_glFormula)

@@ -76,19 +76,14 @@ nauf_glFormula <- function(formula, data = NULL, family = gaussian, subset,
     warning("Ignoring 'na.action'; must be na.pass")
   }
 
-  if (is.character(family)) {
-    family <- get(family, mode = "function", envir = parent.frame(2))
-  }
-  if (is.function(family)) {
-    family <- family()
-  }
-  if (isTRUE(all.equal(family, stats::gaussian()))) {
+  if (is.linear(family <- get_family(family))) {
     mc[[1]] <- quote(nauf::nauf_lFormula)
     mc["family"] <- NULL
     return(eval(mc, parent.frame()))
-  }
-  if (family$family %in% c("quasibinomial", "quasipoisson", "quasi")) {
-    stop("\"quasi\" families cannot be used in glmer")
+  } else if (!(is.character(family) && family == "negbin")) {
+    if (family$family %in% c("quasibinomial", "quasipoisson", "quasi")) {
+      stop("\"quasi\" families cannot be used in glmer")
+    }
   }
 
   ignoreArgs <- c("start", "verbose", "devFunOnly", "optimizer", "control",

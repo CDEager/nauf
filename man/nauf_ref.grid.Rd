@@ -4,7 +4,7 @@
 \alias{nauf_ref.grid}
 \title{Create a reference grid for a nauf model.}
 \usage{
-nauf_ref.grid(mod)
+nauf_ref.grid(mod, KR = NULL)
 }
 \arguments{
 \item{mod}{Any \code{nauf} model (see \code{\link{is.nauf.model}}).}

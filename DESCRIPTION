@@ -9,16 +9,18 @@ Description: Fits regressions where factors can be set to NA in subsets of the
     sum contrasts and setting NA values to zero.
 Depends:
     R (>= 3.3.3),
-    standardize (>= 0.1.1)
+    standardize (>= 0.1.1),
+    lme4 (>= 1.1-12)
 Imports:
     methods,
     utils,
-    pbkrtest (>= 0.4-7),
     MASS (>= 7.3-45),
-    lsmeans (>= 2.25-5),
     stringr (>= 1.1.0),
     Matrix (>= 1.2-7.1),
-    lme4 (>= 1.1-12),
+    lsmeans (>= 2.25-5),
+    pbkrtest (>= 0.4-7),
+    car (>= 2.1-4),
+    lmerTest (>= 2.0-33)
 License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true

@@ -57,6 +57,26 @@ The data are taken from read speech and informal interviews of 30 speakers in
 Cuzco, Peru and 8 speakers in Lima, Peru; and from 18 speakers in the task
 dialogues in the Spanish portion of the Glissando Corpus (Valladolid, Spain).
 }
+\section{Note}{
+ The \code{\link[standardize]{ptk}} dataset in the 
+\code{standardize} package is a subset of the \code{plosives} dataset, but
+with the speakers renumbered:
+
+\code{\preformatted{
+d <- droplevels(subset(plosives,
+  dialect == "Valladolid" & voicing == "Voiceless"))
+
+levels(d$speaker)  # s39 to s56
+levels(ptk$speaker)  # s01 to s18
+
+levels(d$speaker) <- levels(ptk$speaker)
+d <- d[, colnames(ptk)]
+rownames(d) <- NULL
+
+all.equal(d, ptk)  # TRUE
+}}
+}
+
 \section{References}{
 
 Eager, Christopher D. (2017). Contrast preservation and constraints on

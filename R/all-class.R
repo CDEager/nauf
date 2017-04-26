@@ -162,3 +162,4 @@ nauf.glmerMod <- setClass("nauf.glmerMod", contains = "glmerMod")
 #' @name nauf.ref.grid-class
 NULL
 
+# nauf.nested.anova

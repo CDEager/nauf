@@ -89,15 +89,9 @@ nauf_glm <- function(formula, family = gaussian, data = NULL, weights, subset,
     warning("Ignoring 'na.action'; must be na.pass")
   }
 
-  if (is.character(family)) {
-    family <- get(family, mode = "function", envir = parent.frame())
-  }
-  if (is.function(family)) {
-    family <- family()
-  }
-  if (is.null(family$family)) {
-    print(family)
-    stop("'family' not recognized")
+  family <- get_family(family)
+  if (is.character(family) && family == "negbin") {
+    stop("To fit a negative binomial model, use nauf_glm.nb")
   }
 
   if (!is.data.frame(data)) {
