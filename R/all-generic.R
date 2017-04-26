@@ -457,7 +457,7 @@ anova.nauf.lmerMod <- function(object, ..., refit = TRUE, model.names = NULL,
       model.names = model.names))
   }
   
-  reml <- method %in% c("S", "KR", "nested-KR")
+  reml <- method %in% c("KR", "nested-KR")
   if (reml != lme4::isREML(object)) {
     call <- getCall(object)
     call[["REML"]] <- reml

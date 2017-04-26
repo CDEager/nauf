@@ -1,28 +1,13 @@
 
 
-as_simplex <- function(x) {
-  return(x / sum(x))
-}
-
-
-list_mat_cols <- function(x) {
-  return(split(x, c(col(x))))
+has_resp <- function(x) {
+  if (!inherits(x, "terms")) x <- stats::terms(x)
+  return(attr(x, "response") > 0)
 }
 
 
 add_quotes <- function(x, collapse = " ") {
   return(paste0("'", x, "'", collapse = collapse))
-}
-
-
-# d is a data.frame
-# lvs is a named list of ok levels
-# nms specifies the elements in d and lvs to compare
-# f is the function to apply to the rows of the logical matrix
-match_row <- function(d, lvs, nms = names(lvs), f = all) {
-  return(apply(sapply(nms, function(v) {
-    d[[v]] %in% lvs[[v]]
-  }), 1, f))
 }
 
 
