@@ -3,11 +3,12 @@
 \name{nauf.ref.grid-class}
 \alias{nauf.ref.grid}
 \alias{nauf.ref.grid-class}
-\title{Class for references grids for nauf models}
+\title{Class for reference grids for nauf models}
 \description{
-DESCRIPTION
-}
-\details{
-DETAILS
+A list returned by \code{\link{nauf_ref.grid}} with one element
+\code{ref.grid} which is a  \code{\linkS4class{ref.grid}} object. The 
+reference grid the \code{nauf.ref.grid} contains should not be manipulated 
+directly, or used as an argument to \code{\link[lsmeans]{lsmeans}}.  It 
+should only be used with \code{\link{nauf_pmmeans}}.
 }
 

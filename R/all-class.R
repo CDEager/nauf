@@ -80,7 +80,7 @@ NULL
 #' for end user use.
 #'
 #' @seealso \code{\link{nauf_contrasts}}, \code{\link{nauf_model.frame}}, and
-#'   code{\link{is.nauf.frame}}.
+#'   \code{\link{is.nauf.frame}}.
 #'
 #' @aliases nauf.frame
 #'
@@ -113,11 +113,18 @@ NULL
 #'
 #' A fitted mixed effects regression model returned by \code{\link{nauf_lmer}}
 #' of S4 class \code{nauf.lmerMod}, which inherits from
-#' \code{\linkS4class{lmerMod}}.  There is an S3 method for the
-#' \code{\link[=predict.nauf.merMod]{predict}} function.
-#' Other than this, there are no generic methods for class \code{nauf.lmerMod}
-#' meant for end user use, and generics from the \code{base}, \code{stats}, and
-#' \code{lme4} packages such as \code{summary}, \code{anova}, etc. work just as
+#' \code{\linkS4class{lmerMod}}.
+#'
+#' There are S3 methods for
+#' the \code{\link[=predict.nauf.merMod]{predict}} and 
+#' \code{\link[=anova.nauf.merMod]{anova}} functions meant for end user use.
+#' There is also an S3 method for \code{\link[stats]{simulate}}, but with more
+#' limited functionality than \code{\link[lme4]{simulate.merMod}}; the
+#' \code{nauf.lmerMod} method for this function is not meant for end users, and
+#' is necessary for the \code{PB} method to work for
+#' \code{\link[=anova.nauf.merMod]{anova}}.
+#' Other generics from the \code{base}, \code{stats}, and
+#' \code{lme4} packages such as \code{summary} etc. work just as
 #' they would for models fit with \code{\link[lme4]{lmer}}.  If you encounter a
 #' generic function in these packages which does not function properly, please
 #' report the issue at \url{https://github.com/CDEager/nauf/issues}.
@@ -133,11 +140,18 @@ nauf.lmerMod <- setClass("nauf.lmerMod", contains = "lmerMod")
 #'
 #' A fitted mixed effects regression model returned by \code{\link{nauf_glmer}}
 #' or \code{\link{nauf_glmer.nb}} of S4 class \code{nauf.glmerMod}, which
-#' inherits from \code{\linkS4class{glmerMod}}.  There is an S3 method for
-#' the \code{\link[=predict.nauf.merMod]{predict}} function.
-#' Other than this, there are no generic methods for class \code{nauf.glmerMod}
-#' meant for end user use, and generics from the \code{base}, \code{stats}, and
-#' \code{lme4} packages such as \code{summary}, \code{anova}, etc. work just as
+#' inherits from \code{\linkS4class{glmerMod}}.
+#'
+#' There are S3 methods for
+#' the \code{\link[=predict.nauf.merMod]{predict}} and 
+#' \code{\link[=anova.nauf.merMod]{anova}} functions meant for end user use.
+#' There is also an S3 method for \code{\link[stats]{simulate}}, but with more
+#' limited functionality than \code{\link[lme4]{simulate.merMod}}; the
+#' \code{nauf.glmerMod} method for this function is not meant for end users, and
+#' is necessary for the \code{PB} method to work for
+#' \code{\link[=anova.nauf.merMod]{anova}}.
+#' Other generics from the \code{base}, \code{stats}, and
+#' \code{lme4} packages such as \code{summary} etc. work just as
 #' they would for models fit with \code{\link[lme4]{glmer}} and
 #' \code{\link[lme4]{glmer.nb}}.  If you encounter a generic function in these
 #' packages which does not function properly, please report the issue at
@@ -151,15 +165,35 @@ nauf.lmerMod <- setClass("nauf.lmerMod", contains = "lmerMod")
 nauf.glmerMod <- setClass("nauf.glmerMod", contains = "glmerMod")
 
 
-#' Class for references grids for nauf models
+#' Class for reference grids for nauf models
 #'
-#' DESCRIPTION
-#'
-#' DETAILS
+#' A list returned by \code{\link{nauf_ref.grid}} with one element
+#' \code{ref.grid} which is a  \code{\linkS4class{ref.grid}} object. The 
+#' reference grid the \code{nauf.ref.grid} contains should not be manipulated 
+#' directly, or used as an argument to \code{\link[lsmeans]{lsmeans}}.  It 
+#' should only be used with \code{\link{nauf_pmmeans}}.
 #'
 #' @aliases nauf.ref.grid
 #' 
 #' @name nauf.ref.grid-class
 NULL
 
-# nauf.nested.anova
+
+#' Class for \code{nauf} model anovas with nested models.
+#'
+#' A list returned by \code{\link{anova.nauf.merMod}} when \code{method} is one
+#' of \code{nested-KR}, \code{LRT}, or \code{PB}. Similar to the object returned
+#' by \code{\link[afex]{mixed}}, it has three elements: \code{anova_table} is
+#' an \code{\link[stats]{anova}} table with the significance tests comparing
+#' the full model to each of the nested models; \code{full_model} is the model
+#' with all the fixed effects; and \code{restricted_models} is a named list
+#' of nested models, each lacking one of the fixed effects.
+#'
+#' @seealso \code{\linkS4class{nauf.lmerMod}}, 
+#'   \code{\linkS4class{nauf.glmerMod}}, and \code{\link{anova.nauf.merMod}}.
+#'
+#' @aliases nauf.nested.anova
+#'
+#' @name nauf.nested.anova-class
+NULL
+

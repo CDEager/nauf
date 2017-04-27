@@ -7,7 +7,7 @@
 nauf_ref.grid(mod, KR = NULL)
 }
 \arguments{
-\item{mod}{A regression model fit with \code{\link{nauf_reg}}.}
+\item{mod}{Any \code{nauf} regression model.}
 
 \item{KR}{Only applies when \code{mod} is a \code{\linkS4class{nauf.lmerMod}}
 fit with \code{REML = TRUE}. If \code{KR = TRUE}, then the Kenward-Roger
@@ -46,7 +46,7 @@ the results may be misleading, as is usually the case.  A direct call to
 and inference made with the resulting object will be misleading and/or
 incorrect.  Only \code{nauf_ref.grid} should be used.
 
-The reference grid returned by \code{nauf_grid} contains combinations of
+The reference grid returned by \code{nauf_ref.grid} contains combinations of
 factors which are not actually possible in the data set.  For example,
 if factor \code{f1} has levels \code{A} and \code{B}, and factor \code{f2}
 is \code{NA} when \code{f1 = A}, and takes values \code{C} and \code{D}

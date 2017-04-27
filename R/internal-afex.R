@@ -1,6 +1,7 @@
 
 
-## TODO add afex note
+## this file contains internal functions taken from afex v0.17-8
+## which are altered as little as possible and preceded by 'afex_'
 
 
 afex_get_mixed_warnings <- function(x) {

@@ -34,7 +34,13 @@
 #'     have the same structure as that returned by \code{\link[lme4]{mkReTrms}},
 #'     but incorportating \code{\link{nauf_contrasts}}.}
 #'   \item{REML}{(\code{nauf_lFormula} only): A logical indicating if restricted
-#'     maximum likelihood was used (Copy of argument).}
+#'     maximum likelihood was used (copy of argument).}
+#'   \item{family}{\code{nauf_glFormula} only): The regression family (copy
+#'     of argument).}
+#'   \item{formula}{The \code{formula} argument, but with any double vertical
+#'     bars expanded (e.g. \code{(1 + x || subj)} becomes
+#'     \code{(1 | subj) + (0 + x | subj)}).}
+#'   \item{wmsgs}{Warning messages (if any).}
 #' }
 #'
 #' @examples

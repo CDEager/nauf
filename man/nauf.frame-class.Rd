@@ -16,6 +16,6 @@ for end user use.
 }
 \seealso{
 \code{\link{nauf_contrasts}}, \code{\link{nauf_model.frame}}, and
-  code{\link{is.nauf.frame}}.
+  \code{\link{is.nauf.frame}}.
 }
 

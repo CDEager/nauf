@@ -19,7 +19,8 @@
 #'   \item{is.nauf.model}{\code{\linkS4class{nauf.glm}},
 #'     \code{\linkS4class{nauf.lmerMod}}, or
 #'     \code{\linkS4class{nauf.glmerMod}}.}
-#'   \item{is.nauf.ref.grid}{\linkS4class{nauf.ref.grid}.}
+#'   \item{is.nauf.ref.grid}{\code{\linkS4class{nauf.ref.grid}}.}
+#'   \item{is.nauf.nested.anova}{\code{\linkS4class{nauf.nested.anova}}.}
 #' }
 #'
 #' @param object Any R object.
@@ -88,5 +89,12 @@ is.nauf.model <- function(object) {
 #' @export
 is.nauf.ref.grid <- function(object) {
   return(inherits(object, "nauf.ref.grid"))
+}
+
+
+#' @rdname is.nauf
+#' @export
+is.nauf.nested.anova <- function(object) {
+  return(inherits(object, "nauf.nested.anova"))
 }
 

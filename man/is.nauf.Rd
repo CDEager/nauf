@@ -9,6 +9,7 @@
 \alias{is.nauf.lmerMod}
 \alias{is.nauf.merMod}
 \alias{is.nauf.model}
+\alias{is.nauf.nested.anova}
 \alias{is.nauf.ref.grid}
 \alias{is.nauf.terms}
 \title{Determine if an object inherits from a \code{nauf} class.}
@@ -30,6 +31,8 @@ is.nauf.merMod(object)
 is.nauf.model(object)
 
 is.nauf.ref.grid(object)
+
+is.nauf.nested.anova(object)
 }
 \arguments{
 \item{object}{Any R object.}
@@ -53,7 +56,8 @@ The following inheritances will result in a value of \code{TRUE}:
   \item{is.nauf.model}{\code{\linkS4class{nauf.glm}},
     \code{\linkS4class{nauf.lmerMod}}, or
     \code{\linkS4class{nauf.glmerMod}}.}
-  \item{is.nauf.ref.grid}{\linkS4class{nauf.ref.grid}.}
+  \item{is.nauf.ref.grid}{\code{\linkS4class{nauf.ref.grid}}.}
+  \item{is.nauf.nested.anova}{\code{\linkS4class{nauf.nested.anova}}.}
 }
 }
 

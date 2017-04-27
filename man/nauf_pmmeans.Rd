@@ -41,14 +41,14 @@ considered.  See 'Subsetting'.}
 }
 \value{
 A \code{lsm.list} containing an element \code{pmmeans} and, if
-  pairwise comparisons are made, a seconde element \code{contrasts}, both
+  pairwise comparisons are made, a second element \code{contrasts}, both
   of which are \code{lsmobj} objects (see 
   \code{\link[lsmeans]{ref.grid-class}}).
 }
 \description{
 \code{nauf_pmmeans} computes predicted marginal means (also called
 least-squares means, a term which is less generally applicable) for a factor
-or an interaction involving factors in a model fit with \code{\link{nauf_reg}},
+or an interaction involving factors in a \code{nauf} regression model,
 and optionally pairwise comparisons of these group means.  There are several
 subsetting arguments which allow for the predictions to be generated over
 only the relevant subset of the reference grid created by
@@ -97,7 +97,9 @@ the reference grid over which to generate estimates:
 }
 
 When all four subsetting arguments are empty lists (the default), all cells
-in the reference grid are used.  For factors which contain \code{NA} values
+in the reference grid are used (which makes sense for covariates, and for 
+factors that are applicable with the same meaning throughout the dataset).  
+For factors which contain \code{NA} values
 in the original data frame, \code{NA} is treated as a level and should be
 specified in the subsetting arguments without quotes.  The subsetting
 arguments can also be used jointly in any combination.  Only observations
@@ -120,7 +122,7 @@ with \code{specs = pairwise ~ dialect}, then the predicted marginal means
 will be incorrect.  We want to compare the dialects conditioning on
 spontaneous speech; i.e. we want to compare
 \code{dialect = Cuzco, spont = FALSE}; \code{dialect = Lima, spont = FALSE};
-and \code{dialect = Valladolid, spont = NA}. To dot this, we could use either
+and \code{dialect = Valladolid, spont = NA}. To do this, we could use either
 of the follwing subsetting arguments (where \code{rg} is the 
 \code{\linkS4class{nauf.ref.grid}} for the model):
 
@@ -136,7 +138,7 @@ nauf_pmmeans(rg, pairwise ~ dialect, keep_group = list(
   list(dialect = c("Cuzco", "Lima"), spont = "TRUE")))
 }}
 
-All three of these possibilities will result in the same three predicted
+Both of these possibilities will result in the same three predicted
 marginal means in the \code{pmmeans} element, with pairwise comparisons
 in the \code{contrasts} element of the returned \code{lsm.list}.  If we are
 interested in the effect of \code{spont}, then the situation is substantially 
@@ -162,7 +164,7 @@ has \code{pairwise} on the left hand side).
 If \code{specs} indicates a single covariate, then the effect of an increase
 of \code{1} in the value of the covariate is calculated as the \code{pmmean}.
 If \code{specs} indicates multiple covariates, then the effect of a
-simultaneous increase of \code{1} in the valu of all of the covariates is
+simultaneous increase of \code{1} in the value of all of the covariates is
 calculated as the \code{pmmean}.  In this case, pairwise comparisons are not
 possible, as there is always one estimate.
 }
@@ -171,7 +173,8 @@ possible, as there is always one estimate.
 
 If \code{specs} indicates a combination of factors and covariates, then
 the effect of a simultaneous increase of \code{1} in the covariates for
-each level of the interaction term of the factors.  If \code{pairwise} is
+each level of the interaction term of the factors is calculated.  If
+\code{pairwise} is
 used as the left hand side of \code{specs}, then pairwise comparisons for
 the effect of the simultaneous increase of \code{1} in the covariates for
 the different factor interaction levels are computed.

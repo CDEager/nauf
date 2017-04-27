@@ -8,11 +8,19 @@
 \description{
 A fitted mixed effects regression model returned by \code{\link{nauf_lmer}}
 of S4 class \code{nauf.lmerMod}, which inherits from
-\code{\linkS4class{lmerMod}}.  There is an S3 method for the
-\code{\link[=predict.nauf.merMod]{predict}} function.
-Other than this, there are no generic methods for class \code{nauf.lmerMod}
-meant for end user use, and generics from the \code{base}, \code{stats}, and
-\code{lme4} packages such as \code{summary}, \code{anova}, etc. work just as
+\code{\linkS4class{lmerMod}}.
+}
+\details{
+There are S3 methods for
+the \code{\link[=predict.nauf.merMod]{predict}} and 
+\code{\link[=anova.nauf.merMod]{anova}} functions meant for end user use.
+There is also an S3 method for \code{\link[stats]{simulate}}, but with more
+limited functionality than \code{\link[lme4]{simulate.merMod}}; the
+\code{nauf.lmerMod} method for this function is not meant for end users, and
+is necessary for the \code{PB} method to work for
+\code{\link[=anova.nauf.merMod]{anova}}.
+Other generics from the \code{base}, \code{stats}, and
+\code{lme4} packages such as \code{summary} etc. work just as
 they would for models fit with \code{\link[lme4]{lmer}}.  If you encounter a
 generic function in these packages which does not function properly, please
 report the issue at \url{https://github.com/CDEager/nauf/issues}.
