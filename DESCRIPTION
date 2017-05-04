@@ -28,5 +28,8 @@ LazyData: true
 URL: https://github.com/CDEager/nauf
 BugReports: https://github.com/CDEager/nauf/issues
 Suggests:
-    testthat
+    testthat,
+    knitr,
+    rmarkdown
 RoxygenNote: 5.0.1
+VignetteBuilder: knitr

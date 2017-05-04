@@ -58,7 +58,7 @@ make sense.  In many cases, this is inconsequential for the computation
 of predicted marginal means, since the coding of unordered factors in
 \code{nauf} regressions will average over the effects.  In cases where
 these rows in the reference grid will cause invalid estimates and pairwise
-comparisons, subsetting arguments can be used in the call to
+comparisons, the \code{subset} argument can be used in the call to
 \code{\link{nauf_pmmeans}} to ensure only the correct subsets are considered.
 }
 \examples{

@@ -32,7 +32,7 @@
 #' of predicted marginal means, since the coding of unordered factors in
 #' \code{nauf} regressions will average over the effects.  In cases where
 #' these rows in the reference grid will cause invalid estimates and pairwise
-#' comparisons, subsetting arguments can be used in the call to
+#' comparisons, the \code{subset} argument can be used in the call to
 #' \code{\link{nauf_pmmeans}} to ensure only the correct subsets are considered.
 #'
 #' @param mod Any \code{nauf} regression model.
@@ -91,6 +91,10 @@ nauf_ref.grid <- function(mod, KR = NULL) {
   for (v in vars[vars %in% names(info$mat)]) {
     mlvs[[v]] <- info$mat[[v]]
   }
+  
+  # reorder for consistency
+  lvs <- lvs[vars[vars %in% names(lvs)]]
+  xlev <- xlev[vars[vars %in% names(xlev)]]
   
   g <- expand.grid(lvs)
   g[names(mlvs)] <- lapply(mlvs, function(m) {
@@ -318,19 +322,15 @@ nauf_ref.grid <- function(mod, KR = NULL) {
 #' @param specs A formula whose right hand side indicates variables for which 
 #'   predicted marginal means are to be computed.  Regardless of whether 
 #'   \code{*}, \code{:}, or \code{+} is used to separate the variables, the 
-#'   full interaction term is considered.  If the formula has a left hand side, 
+#'   full interaction term is considered.  If the formula has a left hand side,
 #'   it must be the key word \code{pairwise}, indicating that pairwise 
 #'   comparisons should be computed in addition to the predicted marginal means.
-#' @param keep_level A named list of character vectors indicating factor levels 
-#'   in the reference grid which should be considered.  See 'Subsetting'.
-#' @param drop_level A named list of character vectors indicating factor levels 
-#'   in the reference grid which should not be considered.  See 'Subsetting'.
-#' @param keep_group A list whose elements are named lists of character vectors 
-#'   defining combinations of factor levels in the reference which should be 
-#'   considered.  See 'Subsetting'.
-#' @param drop_group A list whose elements are named lists of character vectors 
-#'   defining combinations of factor levels in the reference which should not be 
-#'   considered.  See 'Subsetting'.
+#' @param subset If \code{TRUE} (the default), the \code{na.info} element of the
+#'   \code{\linkS4class{nauf.ref.grid}} is used to determine what subset of the 
+#'   reference grid should be used.  If not \code{TRUE}, then either a named 
+#'   list describing the subset of the reference grid to be used (see 'Details' 
+#'   for structure), or any value besides a list (e.g. \code{FALSE}, \code{NULL}, 
+#'   \code{NA}, etc.) to indicate that the entire reference grid should be used.
 #' @param ... Additional arguments. Currently unused and ignored with a warning.
 #'
 #' @return A \code{lsm.list} containing an element \code{pmmeans} and, if
@@ -368,260 +368,335 @@ nauf_ref.grid <- function(mod, KR = NULL) {
 #'   \code{\link[lsmeans]{ref.grid-class}}.
 #'
 #' @importFrom lsmeans contrast lsmeans pmmeans
+#' @importFrom utils combn
 #'
 #' @export
-nauf_pmmeans <- function(object, specs, keep_level = list(),
-                         drop_level = list(), keep_group = list(),
-                         drop_group = list(), ...) {
-  dots <- list(...)
-  if (length(dots)) warning("Ignoring arguments: ", add_quote(names(dots)))
-  
-  if (!is.nauf.ref.grid(object)) object <- nauf_ref.grid(object)
+nauf_pmmeans <- function(object, specs, pairwise = FALSE, subset = NULL,
+                         na_as_level = NULL, ...) {
+  if (!is.nauf.ref.grid(object)) stop("must supply a nauf.ref.grid")
   rg <- object$ref.grid
+
+  dots <- list(...)
+  if (length(dots)) warning("Ignoring arguments: ", add_quotes(names(dots)))
   
-  if (!inherits(specs, "formula")) stop("'specs' must be a formula")
-  resp <- has_resp(specs <- stats::terms(specs))
-  specs <- varnms(specs)
-  if (is.null(specs)) stop("'specs' has no variables")
-  if (pw <- (resp && specs[1] == "pairwise")) {
-    specs <- specs[-1]
-  } else if (resp) {
-    stop("If 'specs' has a left hand side, it must be 'pairwise'")
-  }
-  if (!length(specs)) stop("'specs' has no variables")
-  if (length(not_in <- specs[!(specs %in% rg@roles$predictors)])) {
-    stop("The following variables are not valid:\n  ", add_quotes(not_in),
-      "Valid variables are:\n  ", add_quotes(rg@roles$predictors))
+  specs <- check_specs(specs, pairwise, object$ref.grid@model.info$xlev,
+    object$ref.grid@model.info$terms, na_as_level)
+  subset <- grid_subset(subset, specs)
+  
+  if (!is.null(subset$keep)) {
+    keep <- eval(subset$keep, envir = object$ref.grid@grid)
+    object$ref.grid@grid <- object$ref.grid@grid[keep, , drop = FALSE]
+    object$ref.grid@linfct <- object$ref.grid@linfct[keep, , drop = FALSE]
   }
   
-  all_facs <- names(xlev <- rg@model.info$xlev)
-  vv <- rownames(fmat <- attr((mt <- rg@model.info$terms), "factors"))
-  nums <- specs[!(specs %in% all_facs)]
-  facs <- specs[specs %in% all_facs]
+  if (length(specs$facs)) {
+    est_grid <- unique(object$ref.grid@grid[, specs$facs, drop = FALSE])
+    if (!nrow(est_grid)) {
+      stop("Factors are given in 'specs' but no levels exist in the specified",
+        " subset")
+    }
+    if (!is.null(subset$est_keep)) {
+      keep <- eval(subset$est_keep, envir = est_grid)
+      est_grid <- est_grid[keep, , drop = FALSE]
+    }
+    if (!nrow(est_grid)) {
+      stop("Factors are given in 'specs' but no levels exist in the specified",
+        " subset")
+    }
+  }
   
-  specs <- vv[vv %in% specs]
-  specs_which <- which(colnames(fmat) == (specs_term <- paste(specs,
-    collapse = ":")))
-  if (!length(specs_which)) {
-    warning("The interaction term ", specs_term, " is not in the model.")
+  if (length(specs$nums)) {
+    if (!length(specs$facs) || !nrow(est_grid)) {
+      est_grid <- data.frame(t(rep("inc_1", length(specs$nums))))
+      colnames(est_grid) <- specs$nums
+    } else {
+      est_grid[specs$nums] <- "inc_1"
+    }
+    for (v in specs$nums) {
+      object$ref.grid@grid[[v]] <- object$ref.grid@grid[[v]] + 1
+    }
+    object$ref.grid@linfct <- model.matrix(object$ref.grid@model.info$terms,
+      object$ref.grid@grid) - object$ref.grid@linfct
+  }
+  if (!nrow(est_grid)) stop("No grid rows satisfy subsetting conditions")
+  
+  if (length(specs$facs)) {
+    est <- estimate_contrasts(est_grid, specs$facs)
+    est <- eval(est, envir = object$ref.grid@grid)
+    names(est) <- paste(1:length(est))
   } else {
-    specs_order <- attr(mt, "order")[specs_which]
-    o_has_specs <- attr(mt, "order")[sapply(fmat[specs, , drop = FALSE], all)]
-    higher <- which(o_has_specs > specs_order)
-    if (length(higher)) {
-      warning("Results may be misleading due to higher order interactions.")
-    }
-  }
-  
-  
-  check_subset(xlev, keep_level, drop_level, keep_group, drop_group)
-  keep <- grid_subset(rg@grid, keep_level, drop_level, keep_group,
-    drop_group)
-  rg@grid <- rg@grid[keep, , drop = FALSE]
-  rg@linfct <- rg@linfct[keep, , drop = FALSE]
-  
-  est_lvs <- xlev[facs]
-  if (length(nums)) {
-    g <- rg@grid[, -ncol(rg@grid), drop = FALSE]
-    for (v in nums) {
-      g[[v]] <- g[[v]] + 1
-      est_lvs[[v]] <- "inc_1"
-    }
-    rg@linfct <- model.matrix(rg@model.info$terms, g) - rg@linfct
-  }
-  est_grid <- expand.grid(est_lvs)
-  if (length(facs)) {
-    est_grid <- est_grid[sub_est_grid(rg@grid, est_grid, facs), , drop = FALSE]
-  }
-  if (!nrow(est_grid)) {
-    stop("No possible combinations satisfy subsetting conditions")
+    est <- list("1" = rep(1 / nrow(object$ref.grid@grid),
+      nrow(object$ref.grid@grid)))
   }
   
   pmms <- list()
-  est <- estimate_contrasts(rg@grid, est_grid, facs)
-  pmms$pmmeans <- marginal_means(rg, est, est_grid)
-  if (pw) {
+  
+  pmms$pmmeans <- lsmeans::contrast(object$ref.grid, est)
+  pmms$pmmeans@roles$predictors <- colnames(est_grid)
+  pmms$pmmeans@grid <- est_grid
+  for (j in 1:ncol(est_grid)) {
+    pmms$pmmeans@grid[[j]] <- paste(est_grid[[j]])
+  }
+  pmms$pmmeans@misc$estName <- "pmmean"
+  pmms$pmmeans@misc$infer <- c(TRUE, FALSE)
+  pmms$pmmeans@misc$famSize <- nrow(est_grid)
+  if (length(tran <- pmms$pmmeans@misc$orig.tran)) {
+    pmms$pmmeans@misc$tran <- tran
+  }
+
+  if (specs$pw) {
     if (length(est) == 1) {
-      pw <- paste("Specified 'pairwise', but there is only one combination",
-        "that satisfies subsetting conditions.  Contrasts not computed")
-      warning(pw)
+      specs$pw <- paste("Specified 'pairwise', but there is only one",
+        "combination that satisfies subsetting conditions.")
+      warning(specs$pw)
+      
     } else {
-      pmms$contrasts <- pairwise_contrasts(rg, est, est_grid)
+      est_grid <- sapply(est_grid, as.character)
+      combs <- utils::combn(length(est), 2)
+      est <- list_mat_cols(apply(combs, 2,
+        function(x) est[[x[1]]] - est[[x[2]]]))
+      names(est) <- apply(combs, 2, function(x) paste0(
+        paste(est_grid[x[1], ], collapse = ","),
+        " - ",
+        paste(est_grid[x[2], ], collapse = ",")
+      ))
+      
+      pmms$contrasts <- lsmeans::contrast(object$ref.grid, est)
+      pmms$contrasts@misc$estType <- "pairs"
+      pmms$contrasts@misc$adjust <- "tukey"
+      pmms$contrasts@misc$methDesc <- "pairwise differences"
+      pmms$contrasts@misc$famSize <- nrow(est_grid)
+      if (length(tran <- pmms$contrasts@misc$orig.tran)) {
+        pmms$contrasts@misc$tran <- tran
+      }
     }
   }
-  
-  if (length(rg@matlevs) && any(sapply(rg@matlevs, length) > 1)) {
+
+  if (length(object$ref.grid@matlevs) && any(sapply(object$ref.grid@matlevs,
+  length) > 1)) {
     warning("Some matrix elements have more than one column.  If these are\n",
       "  from a call to poly(), results may be misleading.")
   }
 
-  class(pmms) <- c("lsm.list", "list")
-  attr(pmms, "nauf.specs") <- list(specs = specs, keep_level = keep_level,
-    drop_level = drop_level, drop_group = drop_group, pairwise = pw)
-
+  class(pmms) <- c("nauf.pmm", "lsm.list", "list")
+  attr(pmms, "nauf.specs") <- list(
+    variables = specs$vars,
+    pairwise = specs$pw,
+    averaged_over = setdiff(specs$avgfac, subset$cond),
+    held_at_mean = specs$avgcov,
+    conditioned_on = subset$cond,
+    keep_NA = specs$keepNA,
+    drop_NA = specs$dropNA,
+    subset = subset$subset,
+    note = specs$note)
+  
   return(pmms)
 }
 
 
-check_subset <- function(xlev, keep_level, drop_level, keep_group,
-                              drop_group) {
-  if (!length(xlev)) {
-    if (!isTRUE(all.equal(c(keep_level, drop_level, keep_group, drop_group),
-    list()))) {
-      stop("Subsetting arguments are not empty lists, but there are no factors",
-        " in the model")
+check_named_list <- function(x, nms) {
+  if (!is.list(x)) return("Not a list")
+  
+  if (!length(x)) return("Empty list")
+  
+  if (is.null(nx <- names(x))) return("Not a named list")
+  
+  if (any(sapply(x, function(u) !is.character(u) && !all(is.na(u))))) {
+    return("Not all list elements are character vectors")
+  }
+  
+  if (is.list(nms)) {
+    if (length(not_in <- setdiff(nx, names(nms)))) {
+      return(paste(add_quotes(not_in),
+        "is/are not unordered factors in the model"))
+    }
+    
+    not_in <- mapply(setdiff, x, nms[nx], SIMPLIFY = FALSE)
+    if (length(wrong <- which(lengths(not_in) > 0))) {
+      nx <- nx[wrong[1]]
+      wrong <- not_in[[wrong[1]]]
+      return(paste(add_quotes(wrong), "is/are not valid levels for the factor",
+        add_quotes(nx)))
+    }
+    
+  } else {
+    if (length(not_in <- setdiff(nx, nms))) {
+      return(paste(add_quotes(not_in),
+        "is/are not unordered factors in the model"))
+    }
+  }
+  
+  if (length(nx) != length(unique(nx))) {
+    return("list names are not unique")
+  }
+  
+  return(TRUE)
+}
+
+
+join_and <- function(conds) {
+  if (!length(conds)) return(NULL)
+  conds <- conds[sapply(conds, function(x) !is.null(x))]
+  if (!length(conds)) return(NULL)
+
+  if (length(conds) > 1) {
+    cl <- call("&")
+    cl[[3]] <- conds[[1]]
+    cl[[2]] <- conds[[2]]
+    if (length(conds) > 2) {
+      for (k in 3:length(conds)) {
+        cl <- substitute(a & b, list(a = cl, b = conds[[k]]))
+      }
     }
   } else {
+    cl <- conds[[1]]
+  }
   
-    all_facs <- names(xlev)
-    
-    validate_level <- function(u) {
-      if (!is.list(u)) return("Not a list")
-      if (!length(u)) return(TRUE)
-      nn <- names(u)
-      not_in <- names(u)[!(names(u) %in% all_facs)]
-      if (length(not_in)) {
-        return(paste0("The following are not factors in the model:\n  ",
-          add_quotes(not_in)))
+  return(cl)
+}
+
+
+join_or <- function(conds) {
+  if (!length(conds)) return(NULL)
+  conds <- conds[sapply(conds, function(x) !is.null(x))]
+  if (!length(conds)) return(NULL)
+
+  if (length(conds) > 1) {
+    cl <- call("|")
+    cl[[3]] <- conds[[1]]
+    cl[[2]] <- conds[[2]]
+    if (length(conds) > 2) {
+      for (k in 3:length(conds)) {
+        cl <- substitute(a | b, list(a = cl, b = conds[[k]]))
       }
-      u <- lapply(nn, function(k) u[[k]][!(u[[k]] %in% xlev[[k]])])
-      names(u) <- nn
-      u <- u[sapply(u, function(k) length(k) > 0)]
-      if (!length(u)) return(TRUE)
-      return(paste0("The following are not valid levels for '", names(u)[1],
-        "':\n    ", add_quotes(u[[1]])))
     }
+  } else {
+    cl <- conds[[1]]
+  }
+  
+  return(cl)
+}
+
+
+grid_subset <- function(subset, specs) {
+  if (length(specs$dropNA)) {
+    est_keep <- join_and(lapply(specs$dropNA, function(fac) 
+      substitute(!is.na(F), list(F = as.name(fac)))))
+  } else {
+    est_keep <- NULL
+  }
+  
+  if (is.null(subset)) {
+    return(list(keep = NULL, est_keep = est_keep, cond = character(),
+      subset = NULL))
+  }
+  
+  if (!is.list(subset) || !length(subset)) {
+    stop("'subset' must be a list specifying groups")
+  }
+  if (!any(sapply(subset, is.list))) subset <- list(subset)
+  
+  msg <- mapply(check_named_list, subset, MoreArgs = list(nms = specs$uflev),
+    SIMPLIFY = FALSE)
+  msg <- msg[sapply(msg, function(u) !isTRUE(u))]
+  if (length(msg)) {
+    stop("'subset' not properly specified:\n  ", msg[[1]])
+  }
+  
+  cond <- unname(unique(unlist(lapply(subset, names))))
+  
+  keep <- join_or(lapply(subset, function(group) join_and(mapply(
+    function(fac, levs) substitute(F %in% L, list(F = as.name(fac), L = levs)),
+    names(group), group, SIMPLIFY = FALSE))))
+  
+  return(list(keep = keep, est_keep = est_keep, cond = cond, subset = subset))
+}
+
+
+check_specs <- function(specs, pw, xlev, mt, keepNA) {
+  vv <- varnms(mt)
+  
+  if (inherits(specs, "formula")) {
+    resp <- has_resp(specs <- stats::terms(specs))
+    specs <- varnms(specs)
+    if (is.null(specs)) stop("'specs' has no variables")
     
-    validate_group <- function(g) {
-      if (!is.list(g)) return("Not a list")
-      if (!length(g)) return(TRUE)
-      check <- sapply(g, is.list)
-      if (any(!check)) return("Contains elements that are not lists")
-      check <- sapply(g, length)
-      if (any(!check)) return("Contains empty list elments")
-      check <- lapply(g, validate_level)
-      check <- check[sapply(check, function(k) !isTRUE(k))]
-      if (!length(check)) return(TRUE)
-      return(check[[1]])
+    if (pw <- (resp && specs[1] == "pairwise")) {
+      specs <- specs[-1]
+    } else if (resp) {
+      stop("If 'specs' has a left hand side, it must be 'pairwise'")
     }
+  }
+  if (!is.character(specs)) {
+    stop("'specs' should be a character vector or formula specifying variables")
+  }
+  if (!length(specs)) stop("'specs' has no variables")
+  if (length(not_in <- setdiff(specs, vv))) {
+    stop("The following variables are not valid:\n  ", add_quotes(not_in),
+      "\nValid variables are:\n  ", add_quotes(vv))
+  }
+  
+  # reorder for consistency; gets rid of possible duplicates
+  specs <- vv[vv %in% specs]
+  
+  all_facs <- names(xlev)
+  # intersect since info$uf may contain facs in ranef but not fixef
+  all_uf <- names(uflev <- xlev[intersect(names(xlev), names(attr(mt,
+    "nauf.info")$uf))])
+  all_nauf <- all_facs[sapply(xlev, anyNA)]
+  
+  facs <- intersect(specs, all_facs)
+  avgfac <- setdiff(all_facs, facs)
+  uf <- intersect(facs, all_uf)
+  nauf <- intersect(uf, all_nauf)
+  nums <- setdiff(specs, all_facs)
+  avgcov <- setdiff(vv, c(all_facs, nums))
+  
+  note <- character()
+  fmat <- attr(mt, "factors")
+  specs_which <- which(colnames(fmat) == (specs_term <- paste(specs,
+    collapse = ":")))
+  if (!length(specs_which)) {
+    note <- paste0("The interaction term '", specs_term,
+      "' is not in the model.")
     
-    if (!isTRUE(msg <- validate_level(keep_level))) {
-      stop("Invalid 'keep_level'.  ", msg)
-    }
-    if (!isTRUE(msg <- validate_level(drop_level))) {
-      stop("Invalid 'drop_level'.  ", msg)
-    }
-    if (!isTRUE(msg <- validate_group(keep_group))) {
-      stop("Invalid 'keep_group'.  ", msg)
-    }
-    if (!isTRUE(msg <- validate_group(drop_group))) {
-      stop("Invalid 'drop_group'.  ", msg)
+  } else {
+    ord <- attr(mt, "order")
+    specs_order <- ord[specs_which]
+    has_specs <- sapply(fmat[specs, , drop = FALSE], all)
+    ord[!has_specs] <- 0
+    if (length(higher <- which(ord > specs_order))) {
+      note <- paste(add_quotes(specs_term), "is included in higher order",
+        "interaction(s)", add_quotes(colnames(fmat)[higher]))
     }
   }
   
-  invisible(NULL)
+  if (is.null(keepNA)) keepNA <- character()
+  arg_keepNA <- keepNA
+  keepNA <- intersect(keepNA, nauf)
+  if (length(dropped <- setdiff(arg_keepNA, keepNA))) {
+    warning("Dropped from 'keepNA' (not unordered factors with NA values ",
+      "included in 'specs':\n  ", add_quotes(dropped))
+  }
+  dropNA <- setdiff(nauf, keepNA)
+  
+  
+  return(list(vars = specs, facs = facs, nums = nums, uf = uf, uflev = uflev,
+    pw = pw, keepNA = keepNA, avgfac = avgfac, avgcov = avgcov, nauf = nauf,
+    dropNA = dropNA, note = note))
 }
 
 
-grid_subset <- function(grid, keep_level, drop_level, keep_group,
-                            drop_group) {
-  keep <- matrix(TRUE, nrow(grid), 4)
-  
-  if (length(keep_level)) {
-    keep[, 1] <- match_row(grid, keep_level)
+estimate_contrasts <- function(est_grid, facs) {
+  est <- call("list")
+  est_grid <- as.data.frame(lapply(est_grid[facs], as.character),
+    stringsAsFactors = FALSE)
+  for (i in 1:nrow(est_grid)) {
+    est[[i + 1]] <- call("as_simplex")
+    est[[i + 1]][[2]] <- join_and(mapply(function(fac, levs)
+      substitute(F %in% L, list(F = as.name(fac), L = levs)),
+      facs, est_grid[i, facs, drop = FALSE], SIMPLIFY = FALSE))
   }
-  
-  if (length(drop_level)) {
-    keep[, 2] <- !match_row(grid, drop_level, f = any)
-  }
-  
-  if (length(keep_group)) {
-    keep[, 3] <- apply(sapply(keep_group, function(g) {
-      match_row(grid, g)
-    }), 1, any)
-  }
-  
-  if (length(drop_group)) {
-    keep[, 4] <- !apply(sapply(drop_group, function(g) {
-      match_row(grid, g)
-    }), 1, any)
-  }
-  
-  return(apply(keep, 1, all))
-}
-
-
-sub_est_grid <- function(grid, est_grid, facs) {
-  u <- unique(grid[, facs, drop = FALSE])
-  if (nrow(u) == 1) {
-    return(match_row(est_grid, u))
-  }
-  return(apply(apply(u, 1, function(i) {
-    match_row(est_grid, data.frame(t(i)))
-  }), 1, any))
-}
-
-
-estimate_contrasts <- function(grid, est_grid, facs) {
-  if (!length(facs)) {
-    return(list("1" = rep(1 / nrow(grid), nrow(grid))))
-  }
-  return(list_mat_cols(apply(apply(est_grid, 1,
-    function(i) match_row(grid, i, facs)), 2, as_simplex)))
-}
-
-
-marginal_means <- function(rg, est, est_grid) {
-  est <- lsmeans::contrast(rg, est)
-  est@roles$predictors <- colnames(est_grid)
-  for (j in 1:ncol(est_grid)) est_grid[[j]] <- paste(est_grid[[j]])
-  est@grid <- est_grid
-  est@misc$estName <- "pmmean"
-  est@misc$infer <- c(TRUE, FALSE)
-  est@misc$famSize <- nrow(est_grid)
-  if (length(tran <- est@misc$orig.tran)) est@misc$tran <- tran
   return(est)
-}
-
-
-#' @importFrom utils combn
-pairwise_contrasts <- function(rg, est, est_grid) {
-  est_grid <- sapply(est_grid, as.character)
-  combs <- utils::combn(length(est), 2)
-  contr <- list_mat_cols(apply(combs, 2, function(x) est[[x[1]]] - est[[x[2]]]))
-  names(contr) <- apply(combs, 2, function(x) paste0(
-    paste(est_grid[x[1], ], collapse = ","),
-    " - ",
-    paste(est_grid[x[2], ], collapse = ",")
-  ))
-  contr <- lsmeans::contrast(rg, contr)
-  contr@misc$estType <- "pairs"
-  contr@misc$adjust <- "tukey"
-  contr@misc$methDesc <- "pairwise differences"
-  contr@misc$famSize <- nrow(est_grid)
-  if (length(tran <- contr@misc$orig.tran)) contr@misc$tran <- tran
-  return(contr)
-}
-
-
-match_row <- function(d, lvs, nms = names(lvs), f = all) {
-  if (nrow(d) == 1) {
-    return(f(sapply(nms, function(v) {
-      d[[v]] %in% lvs[[v]]
-    })))
-  }
-  return(apply(sapply(nms, function(v) {
-    d[[v]] %in% lvs[[v]]
-  }), 1, f))
-}
-
-
-as_simplex <- function(x) {
-  return(x / sum(x))
-}
-
-
-list_mat_cols <- function(x) {
-  return(split(x, c(col(x))))
 }
 

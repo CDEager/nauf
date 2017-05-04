@@ -1,0 +1,48 @@
+---
+title: "Using the nauf package"
+author: "Christopher D. Eager"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Using the nauf package}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, echo = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+
+# Using the *nauf* package
+
+Intro statement
+
+Dataset introduction
+
+```{r}
+library(nauf)
+
+summary(plosives)
+```
+
+Outline
+
+
+## NA values in the fixed effects (nauf_lm?)
+
+
+## NA values in the random effects (nauf_lmer?)
+
+
+## Contrast changes
+
+
+## nauf_model.frame / matrix / glFormula
+
+
+## p-values
+
+
+## Conclusion
+

@@ -4,8 +4,8 @@
 \alias{nauf_pmmeans}
 \title{Predicted marginal means for \code{nauf} models.}
 \usage{
-nauf_pmmeans(object, specs, keep_level = list(), drop_level = list(),
-  keep_group = list(), drop_group = list(), ...)
+nauf_pmmeans(object, specs, pairwise = FALSE, subset = NULL,
+  na_as_level = NULL, ...)
 }
 \arguments{
 \item{object}{A \code{\linkS4class{nauf.ref.grid}} or any \code{nauf} model
@@ -19,23 +19,16 @@ used for multiple calls to \code{nauf_pmmeans}.}
 \item{specs}{A formula whose right hand side indicates variables for which 
 predicted marginal means are to be computed.  Regardless of whether 
 \code{*}, \code{:}, or \code{+} is used to separate the variables, the 
-full interaction term is considered.  If the formula has a left hand side, 
+full interaction term is considered.  If the formula has a left hand side,
 it must be the key word \code{pairwise}, indicating that pairwise 
 comparisons should be computed in addition to the predicted marginal means.}
 
-\item{keep_level}{A named list of character vectors indicating factor levels 
-in the reference grid which should be considered.  See 'Subsetting'.}
-
-\item{drop_level}{A named list of character vectors indicating factor levels 
-in the reference grid which should not be considered.  See 'Subsetting'.}
-
-\item{keep_group}{A list whose elements are named lists of character vectors 
-defining combinations of factor levels in the reference which should be 
-considered.  See 'Subsetting'.}
-
-\item{drop_group}{A list whose elements are named lists of character vectors 
-defining combinations of factor levels in the reference which should not be 
-considered.  See 'Subsetting'.}
+\item{subset}{If \code{TRUE} (the default), the \code{na.info} element of the
+\code{\linkS4class{nauf.ref.grid}} is used to determine what subset of the 
+reference grid should be used.  If not \code{TRUE}, then either a named 
+list describing the subset of the reference grid to be used (see 'Details' 
+for structure), or any value besides a list (e.g. \code{FALSE}, \code{NULL}, 
+\code{NA}, etc.) to indicate that the entire reference grid should be used.}
 
 \item{...}{Additional arguments. Currently unused and ignored with a warning.}
 }

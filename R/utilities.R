@@ -1,11 +1,25 @@
 
 
+# just divide by self
+as_simplex <- function(x) {
+  return(x / sum(x))
+}
+
+
+# convert matrix to list by col
+list_mat_cols <- function(x) {
+  return(split(x, c(col(x))))
+}
+
+
+# find b0 from either terms or formula
 has_resp <- function(x) {
   if (!inherits(x, "terms")) x <- stats::terms(x)
   return(attr(x, "response") > 0)
 }
 
 
+# for warnings and errors
 add_quotes <- function(x, collapse = " ") {
   return(paste0("'", x, "'", collapse = collapse))
 }
@@ -198,6 +212,7 @@ check_groups <- function(formula) {
 }
 
 
+# glmer vs lmer, etc
 is.linear <- function(object){
   return(isTRUE(all.equal(get_family(object), gaussian())))
 }

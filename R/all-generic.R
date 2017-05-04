@@ -424,7 +424,58 @@ print.nauf.nested.anova <- function(x, ...) {
   }
   afex_get_mixed_warnings(x)
   print(x$anova_table)
-  invisible()
+  invisible(NULL)
+}
+
+
+#' @export
+print.nauf.pmm <- function(x, ...) {
+  print(summary(x, ...))
+}
+
+
+#' @export
+print.summ.nauf.pmm <- function(x, ...) {
+  nauf <- attr(x, "nauf.specs")
+  attr(x, "nauf.specs") <- NULL
+  
+  cat("\nPredicted marginal means for '",
+    paste(nauf$variables, collapse = ":"), "'", sep = "")
+    
+  if (length(nauf$keep_NA)) {
+    cat("\nNA considered a level for:", add_quotes(nauf$keep_NA))
+  }
+  if (length(nauf$drop_NA)) {
+    cat("\nNA not considered a level for:", add_quotes(nauf$drop_NA))
+  }
+  if (length(nauf$note)) {
+    cat("\nNote:", nauf$note)
+  }
+  cat("\n")
+  
+  if (length(nauf$averaged_over)) {
+    cat("\nFactors averaged over:", add_quotes(nauf$averaged_over))
+  }
+  if (length(nauf$held_at_mean)) {
+    cat("\nCovariates held at their means:", add_quotes(nauf$held_at_mean))
+  }
+  if (length(nauf$conditioned_on)) {
+    cat("\nFactors conditioned on:", add_quotes(nauf$conditioned_on),
+      "\n\nSee the 'subset' element of the 'nauf.specs'",
+      "attribute for subsetted groups.")
+  }
+  
+  cat("\n")
+  
+  if (sum(lengths(nauf[c("averaged_over", "held_at_mean",
+  "conditioned_on")]))) {
+    cat("\n")
+  }
+  
+  class(x) <- class(x)[-1]
+  print(x, ...)
+
+  invisible(NULL)
 }
 
 
@@ -1240,5 +1291,17 @@ simulate.nauf.glmerMod <- function(object, nsim = 1, seed = NULL, use.u = FALSE,
   row.names(val) <- nm
   
   return(structure(val, na.action = na.pass, seed = RNGstate))
+}
+
+
+###### summary ######
+
+#' @export
+summary.nauf.pmm <- function(object, ...) {
+  class(object) <- c("lsm.list", "list")
+  summ <- summary(object, ...)
+  class(summ) <- c("summ.nauf.pmm", class(summ))
+  attr(summ, "nauf.specs") <- attr(object, "nauf.specs")
+  return(summ)
 }
 
