@@ -15,34 +15,36 @@
   args_test = NULL)
 }
 \arguments{
-\item{object}{A \code{\linkS4class{nauf.lmerMod}} or 
+\item{object}{A \code{\linkS4class{nauf.lmerMod}} or
 \code{\linkS4class{nauf.glmerMod}}.}
 
-\item{...}{Additional \code{nauf} models for the \code{lme4} method. See 
+\item{...}{Additional \code{nauf} models for the \code{lme4} method. See
 \code{\link[lme4]{anova.merMod}}.}
 
-\item{refit}{For the \code{lme4} method, a logical indicating whether 
-\code{\linkS4class{nauf.lmerMod}} models fit with \code{REML} should be 
-refit with \code{ML} prior to comparison with models in \code{...}; default 
+\item{refit}{For the \code{lme4} method, a logical indicating whether
+\code{\linkS4class{nauf.lmerMod}} models fit with \code{REML} should be
+refit with \code{ML} prior to comparison with models in \code{...}; default
 \code{TRUE}. See \code{\link[lme4]{anova.merMod}}.}
 
-\item{model.names}{For the \code{lme4} method, character vectors of model 
+\item{model.names}{For the \code{lme4} method, character vectors of model
 names to be used in the anova table. See \code{\link[lme4]{anova.merMod}}.}
 
 \item{method}{The method for calculating p-values.  See 'Details'.}
 
-\item{test_intercept}{For all methods besides \code{lme4}, whether a test 
+\item{test_intercept}{For all methods besides \code{lme4}, whether a test
 should be performed for the intercept term (default \code{FALSE}).}
 
-\item{args_test}{For methods \code{nested-KR} and \code{PB}, an optional 
-named list of arguments to be passed to \code{\link[pbkrtest]{KRmodcomp}} 
+\item{args_test}{For methods \code{nested-KR} and \code{PB}, an optional
+named list of arguments to be passed to \code{\link[pbkrtest]{KRmodcomp}}
 and \code{\link[pbkrtest]{PBmodcomp}}, respectively.}
 }
 \value{
-The object returned depends on the method.  For the \code{lme4},
-  \code{S}, and \code{KR} methods, an \code{\link[stats]{anova}} table is
-  returned.  For the \code{nested-KR}, \code{PB}, and \code{LRT} methods,
-  a list with class \code{\linkS4class{nauf.nested.anova}} is returned.
+The object returned depends on the method, and has class
+  \code{nauf.mer.anova}.  For the \code{lme4},
+  \code{S}, and \code{KR} methods, it is an \code{\link[stats]{anova}} table.
+  For the \code{nested-KR}, \code{PB}, and \code{LRT} methods,
+  a list with the anova table and restricted models is returned (similar
+  to the output of \code{\link[afex]{mixed}}).
 }
 \description{
 Obtain an anova table for a \code{\linkS4class{nauf.lmerMod}} or
@@ -54,42 +56,42 @@ There are six methods of p-value calculation which are supported:
 
 \describe{
   \item{lme4}{The default method. See \code{\link[lme4]{anova.merMod}}.}
-  \item{S}{\emph{nauf.lmerMod models only}. Computes F-tests using the 
-    Satterthwaite approximation of denominator degrees of freedom, 
+  \item{S}{\emph{nauf.lmerMod models only}. Computes F-tests using the
+    Satterthwaite approximation of denominator degrees of freedom,
     implemented with \code{\link[lmerTest]{calcSatterth}}.}
-  \item{KR}{\emph{nauf.lmerMod models only}. If \code{object} was fit with 
-    maximum likelihood (\code{ML}), then the model is refit with restricted 
-    maximum likelihood (\code{REML}) first. Then computes F-tests using the 
-    Kenward-Roger approximation of denominator degrees of freedom, 
+  \item{KR}{\emph{nauf.lmerMod models only}. If \code{object} was fit with
+    maximum likelihood (\code{ML}), then the model is refit with restricted
+    maximum likelihood (\code{REML}) first. Then computes F-tests using the
+    Kenward-Roger approximation of denominator degrees of freedom,
     implemented with \code{\link[car]{Anova.merMod}}.}
-  \item{nested-KR}{\emph{nauf.lmerMod models only}. If \code{object} was fit 
-    with maximum likelihood (\code{ML}), then the model is refit with 
-    restricted maximum likelihood (\code{REML}) first. Then for each fixed 
-    effects term, a restricted nested model is fit lacking only that fixed 
-    effects term, and F-tests are computed using the Kenward-Roger 
-    approximation of denominator degrees of freedom, 
-    implemented with \code{\link[pbkrtest]{KRmodcomp}}.  The full model and 
-    restricted models are returned along with the anova table, similar to 
+  \item{nested-KR}{\emph{nauf.lmerMod models only}. If \code{object} was fit
+    with maximum likelihood (\code{ML}), then the model is refit with
+    restricted maximum likelihood (\code{REML}) first. Then for each fixed
+    effects term, a restricted nested model is fit lacking only that fixed
+    effects term, and F-tests are computed using the Kenward-Roger
+    approximation of denominator degrees of freedom,
+    implemented with \code{\link[pbkrtest]{KRmodcomp}}.  The full model and
+    restricted models are returned along with the anova table, similar to
     \code{\link[afex]{mixed}}.}
   \item{LRT}{If \code{object} is a \code{\linkS4class{nauf.lmerMod}} fit with
-    \code{REML}, it is first refit with \code{ML}.  Then restricted models 
-    are fit as in the \code{nested-KR} method, and Chi-squared (likelihood 
-    ratio) tests are computed.  The full model and restricted models are 
-    returned along with the anova table, similar to 
+    \code{REML}, it is first refit with \code{ML}.  Then restricted models
+    are fit as in the \code{nested-KR} method, and Chi-squared (likelihood
+    ratio) tests are computed.  The full model and restricted models are
+    returned along with the anova table, similar to
     \code{\link[afex]{mixed}}.}
-  \item{PB}{If \code{object} is a \code{\linkS4class{nauf.lmerMod}} fit with 
-    \code{REML}, it is first refit with \code{ML}. Then likelihood ratios are 
-    computed as for the \code{LRT} method, and p-values for the likelihood 
-    ratios are computed using parametric bootstrapping, implemented with 
-    \code{\link[pbkrtest]{PBmodcomp}}.  The full model and restricted models 
-    are returned along with the anova table, similar to 
+  \item{PB}{If \code{object} is a \code{\linkS4class{nauf.lmerMod}} fit with
+    \code{REML}, it is first refit with \code{ML}. Then likelihood ratios are
+    computed as for the \code{LRT} method, and p-values for the likelihood
+    ratios are computed using parametric bootstrapping, implemented with
+    \code{\link[pbkrtest]{PBmodcomp}}.  The full model and restricted models
+    are returned along with the anova table, similar to
     \code{\link[afex]{mixed}}.}
 }
 }
 \examples{
 dat <- droplevels(subset(plosives, voicing == "Voiceless"))
 dat$spont[dat$dialect == "Valladolid"] <- NA
-sdat <- standardize(cur ~ dialect * spont + (1 | speaker) + (1 | item), dat)
+sdat <- standardize(cdur ~ dialect * spont + (1 | speaker) + (1 | item), dat)
 
 mod <- nauf_lmer(sdat$formula, sdat$data)
 
@@ -103,14 +105,14 @@ anova(mod, method = "S")
 # anova table using Kenward-Roger approximation
 anova(mod, method = "KR")
 
-# nauf.nested.anova with restricted models and Kenward-Roger table
+# list with restricted models and Kenward-Roger table
 anova(mod, method = "nested-KR")
 
-# nauf.nested.anova with restricted models and parametric bootstrap table
+# list with restricted models and parametric bootstrap table
 # model is first refit with maximum likelihood
 anova(mod, method = "PB")
 
-# nauf.nested.anova with restricted models and likelihood ratio test table
+# list with restricted models and likelihood ratio test table
 # model is first refit with maximum likelihood
 anova(mod, method = "LRT")
 }

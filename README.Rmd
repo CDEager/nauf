@@ -11,3 +11,62 @@ knitr::opts_chunk$set(
   fig.path = "README-"
 )
 ```
+
+# nauf 1.0.0
+
+## Installation
+
+To install the *nauf* package, call:
+
+```{r, eval = FALSE}
+install.packages("nauf")
+```
+
+## Package use
+
+It is often the case that a factor only makes sense in a subset of a dataset (i.e. for some observations a factor may simply not be meaningful), or that with observational datasets there are no observations in some levels of an interaction term.  There are also cases where a random effects grouping factor is only applicable in a subset the data, and it is desireable to model the noise introduced by the repeated measures on the group members within the subset of the data where the repeated measures exist.  The *nauf* package allows unordered factors and random effects grouping factors to be coded as NA in the subsets of the data where they are not applicable or otherwise not contrastive.  Sum contrasts are used for all unordered factors (using **named_contr_sum** in the *standardize* package), and then NA values are set to 0.  This allows all of the data to be modeled together without creating collinearity or making the output difficult to interpret.
+
+For example, in the **fricatives** dataset, the factor *uvoi* (underlying voicing) is not contrastive in Spanish, and in Catalan it can only be contrastive in for certain word positions, leading to an imbalanced distribution:
+
+```{r}
+library(nauf)
+
+summary(fricatives)
+
+dat <- fricatives
+
+u <- unique(dat[, c("lang", "wordpos", "uvoi")])
+u <- u[order(u$lang, u$wordpos, u$uvoi), ]
+rownames(u) <- NULL
+u
+```
+
+With *nauf*, we can code *uvoi* as NA when it is not contrastive, and include *uvoi* slopes only for speakers where it is contrastive by creating language-specific speaker columns set to NA for the opposite language:
+
+```{r}
+u$uvoi[!(u$lang == "Catalan" & u$wordpos == "Medial")] <- NA
+u
+
+dat$uvoi[!(dat$lang == "Catalan" & dat$wordpos == "Medial")] <- NA
+dat$c_speaker <- dat$s_speaker <- dat$speaker
+dat$c_speaker[dat$lang != "Catalan"] <- NA
+dat$s_speaker[dat$lang != "Spanish"] <- NA
+
+sdat <- standardize(pvoi ~ lang * wordpos + uvoi +
+  (1 + wordpos + uvoi | c_speaker) + (1 + wordpos | s_speaker),
+  dat)
+
+mod <- nauf_lmer(sdat$formula, sdat$data)
+
+summary(mod)
+```
+
+Predicted marginal means can be calculated for specific subsets where a factor is contrastive.  For example, *uvoi* is only contrastive for word-medial Catalan fricatives, so we could call:
+
+```{r}
+rg <- nauf_ref.grid(mod)
+
+nauf_pmmeans(rg, "uvoi", pairwise = TRUE,
+  subset = list(lang = "Catalan", wordpos = "Medial")
+)
+```

@@ -1,4 +1,4 @@
-# nauf 0.1.0-9000
+# nauf 1.0.0
 
 * Not backward compatible with v0.1.0 (GitHub only)
 

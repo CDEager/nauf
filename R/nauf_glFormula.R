@@ -15,7 +15,7 @@
 #' exported by \code{lme4}, \code{nauf_mkReTrms} is an internal function in the
 #' \code{nauf} package.
 #'
-#' @param formula,data,REML,subset,weights,offset,control,mustart,etastart,...
+#' @param formula,data,family,REML,subset,weights,offset,control,mustart,etastart,...
 #'   See \code{\link[lme4]{glFormula}}.
 #' @param na.action,contrasts Changes from default values are ignored.  See
 #'   \code{\link{nauf_model.frame}}.
@@ -25,17 +25,17 @@
 #'
 #' @return A list with the following elements:
 #' \describe{
-#'   \item{fr}{The model frame (with class \code{\linkS4class{nauf.frame}}).
+#'   \item{fr}{The model frame (with class \code{nauf.frame}).
 #'     See \code{\link{nauf_model.frame}}.}
 #'   \item{X}{The fixed effects model matrix with \code{\link{nauf_contrasts}}
-#'     applied. See \code{\link{nauf_model.matix}}.}
+#'     applied. See \code{\link{nauf_model.matrix}}.}
 #'   \item{reTrms}{A list containing the random effects model matrix and other
 #'     information about the random effects structure.  The elements of the list
 #'     have the same structure as that returned by \code{\link[lme4]{mkReTrms}},
 #'     but incorportating \code{\link{nauf_contrasts}}.}
 #'   \item{REML}{(\code{nauf_lFormula} only): A logical indicating if restricted
 #'     maximum likelihood was used (copy of argument).}
-#'   \item{family}{\code{nauf_glFormula} only): The regression family (copy
+#'   \item{family}{(\code{nauf_glFormula} only): The regression family (copy
 #'     of argument).}
 #'   \item{formula}{The \code{formula} argument, but with any double vertical
 #'     bars expanded (e.g. \code{(1 + x || subj)} becomes

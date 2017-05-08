@@ -27,7 +27,9 @@ than the explicitly set value, then the explicitly set value
 is used and a warning is issued.}
 }
 \value{
-A \code{\linkS4class{nauf.frame}}.
+A model frame with second class attribute \code{nauf.frame}.  Its
+  \code{formula} attribute has class \code{nauf.formula} and its \code{terms}
+  attribute has class \code{\link{nauf.terms}}.
 }
 \description{
 \code{nauf_model.frame} creates a model frame which employs
@@ -63,9 +65,9 @@ Changes from the following default values are ignored with a warning:
     \code{\link{nauf_contrasts}}.}
   \item{drop.unused.levels = TRUE}{This default value is set because
     \code{nauf_model.frame} assumes that \code{data} is not new data.  To
-    create a \code{\linkS4class{nauf.frame}} with new data, the \code{terms}
-    attribute of an already existing \code{\linkS4class{nauf.frame}} (which
-    has class \code{\linkS4class{nauf.terms}}) can be used as the
+    create a \code{nauf.frame} with new data, the \code{terms}
+    attribute of an already existing \code{nauf.frame} (which
+    has class \code{\link{nauf.terms}}) can be used as the
     \code{formula} argument to \code{\link[stats]{model.frame}}.}
   \item{xlev = NULL}{This default is necessary for the same reasons as the
     default value for \code{drop.unused.levels}.}

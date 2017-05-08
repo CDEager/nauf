@@ -22,17 +22,10 @@ nauf_glmer.nb(..., interval = log(th) + c(-3, 3), tol = 5e-05,
   * tol, trace = verbose))
 }
 \arguments{
-\item{formula, data, subset, weights, offset, control, start, devFunOnly}{For
-\code{nauf_lmer}, see \code{\link[lme4]{lmer}}.  For \code{nauf_glmer}, see
-\code{\link[lme4]{glmer}}.}
-
-\item{family, etastart, mustart, nAGQ}{For \code{nauf_glmer}, see
-\code{\link[lme4]{glmer}}.}
-
-\item{verbose, ...}{For \code{nauf_lmer}, see \code{\link[lme4]{lmer}}.  For
-\code{nauf_glmer}, see \code{\link[lme4]{glmer}}.  For \code{nauf_glmer.nb},
-see \code{\link[lme4]{glmer.nb}}.  Note that many arguments that are passed
-to \code{nauf_glmer} are passed to \code{nauf_glmer.nb} through \code{...},
+\item{formula, data, subset, weights, offset, control, start, devFunOnly, verbose, REML, family, etastart, mustart, nAGQ, interval, tol, nb.control, initCtrl, ...}{See
+\code{\link[lme4]{lmer}}, \code{\link[lme4]{glmer}}, and
+\code{\link[lme4]{glmer.nb}}.  Note that many arguments that are passed to
+\code{nauf_glmer} are passed to \code{nauf_glmer.nb} through \code{...},
 including \code{ncs_scale}.}
 
 \item{na.action, contrasts}{Changes to the default values for these arguments
@@ -42,11 +35,6 @@ are ignored with a warning.  See \code{\link{nauf_model.frame}}.}
 to \code{\link[standardize]{named_contr_sum}} for all unordered factors.
 See \code{\link{nauf_model.frame}}.  For \code{nauf_glmer.nb},
 \code{ncs_scale} is passed through \code{...}.}
-
-\item{REML}{For \code{nauf_lmer}, see \code{\link[lme4]{lmer}}.}
-
-\item{interval, tol, nb.control, initCtrl}{For \code{nauf_glmer.nb}, see
-\code{\link[lme4]{glmer.nb}}.}
 }
 \value{
 A fitted model of class \code{\linkS4class{nauf.lmerMod}}
@@ -75,20 +63,7 @@ dat <- plosives
 dat$spont[dat$dialect == "Valladolid"] <- NA
 sdat <- standardize(intdiff ~ voicing * dialect * spont +
   (1 + voicing * spont | speaker) + (1 + dialect | item), dat)
-
-vless <- droplevels(subset(dat, voicing == "Voiceless"))
-vless$fully_voiced <- vless$vdur == 0
-svless_fully_voiced <- standardize(fully_voiced ~ dialect * spont +
-  (1 + spont | speaker) + (1 + dialect | item), vless, family = binomial)
-svless_vdur <- standardize(vdur ~ dialect * spont +
-  (1 + spont | speaker) + (1 + dialect | item), vless, family = "negbin")
-
-linear_model <- nauf_lmer(sdat$formula, sdat$data)
-
-binomial_model <- nauf_glmer(svless_fully_voiced$formula,
-  svless_fully_voiced$data, family = binomial)
-
-negbin_model <- nauf_glmer.nb(svless_vdur$formula, svless_vdur$data)
+mod <- nauf_lmer(sdat$formula, sdat$data)
 
 }
 \seealso{

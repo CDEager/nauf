@@ -1,12 +1,12 @@
 
 
-# just divide by self
+# divide non-neg vec by self to make simplex
 as_simplex <- function(x) {
   return(x / sum(x))
 }
 
 
-# convert matrix to list by col
+# convert matrix to list with element for each column
 list_mat_cols <- function(x) {
   return(split(x, c(col(x))))
 }
@@ -101,7 +101,7 @@ get_family <- function(object) {
     }
     stop("'family' not recognized")
   }
-  
+
   if (inherits(object, c("lm", "merMod"))) {
     if (inherits(object, "lm")) {
       if (!inherits(object, "glm")) return(gaussian())
@@ -110,7 +110,7 @@ get_family <- function(object) {
     if (is.nauf.lmerMod(object)) return(gaussian())
     return(get_family(object@resp$family))
   }
-  
+
   if (is.name(object)) object <- as.character(object)
 
   if (isTRUE(all.equal(object, MASS::negative.binomial)) ||

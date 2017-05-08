@@ -24,22 +24,12 @@ nauf_glm.nb(formula, data = NULL, weights, subset, na.action = na.pass,
   init.theta, link = log)
 }
 \arguments{
-\item{formula, data, subset, weights, method, ...}{For \code{nauf_lm}, see
-\code{\link[stats]{lm}}.  For \code{nauf_glm}, see
-\code{\link[stats]{glm}}.  For \code{nauf_glm.nb}, see
+\item{formula, data, subset, offset, weights, method, control, start, etastart, mustart, qr, singular.ok, family, init.theta, link, ...}{See
+\code{\link[stats]{lm}}, \code{\link[stats]{glm}}, and
 \code{\link[MASS]{glm.nb}}.}
-
-\item{family}{For \code{nauf_glm}, see \code{\link[stats]{glm}}.}
 
 \item{na.action, contrasts}{Changes to the default values for these arguments
 are ignored with a warning.  See \code{\link{nauf_model.frame}}.}
-
-\item{offset}{For \code{nauf_lm}, see \code{\link[stats]{lm}}.  For
-\code{nauf_glm}, see \code{\link[stats]{glm}}.}
-
-\item{control, start, etastart, mustart}{For \code{nauf_glm}, see
-\code{\link[stats]{glm}}.  For \code{nauf_glm.nb}, see
-\code{\link[MASS]{glm.nb}}.}
 
 \item{model, x, y}{Chages to the default values for these arguments are ignored
 with a warning.  See 'Details'.}
@@ -47,16 +37,13 @@ with a warning.  See 'Details'.}
 \item{ncs_scale}{A positive number to be passed as the \code{scale} argument
 to \code{\link[standardize]{named_contr_sum}} for all unordered factors.
 See \code{\link{nauf_model.frame}}.}
-
-\item{qr, singular.ok}{For \code{nauf_lm}, see \code{\link[stats]{lm}}.}
-
-\item{init.theta, link}{For \code{nauf_glm.nb}, see \code{\link[MASS]{glm.nb}}.}
 }
 \value{
-A fitted model of class \code{\linkS4class{nauf.glm}}.  For the
-  elements contained in the object, and additional class attributes the model
-  may contain, see \code{\link[stats]{lm}}, \code{\link[stats]{glm}}, and
-  \code{\link[MASS]{glm.nb}}.
+A fitted model with class \code{nauf.glm} (inheriting from \code{lm},
+  and also possibly \code{glm} and/or \code{negbin} depending on the
+  regression).  For the elements contained in the object, and additional
+  class attributes the model may contain, see \code{\link[stats]{lm}},
+  \code{\link[stats]{glm}}, and \code{\link[MASS]{glm.nb}}.
 }
 \description{
 The fixed effects regression functions \code{nauf_lm}, \code{nauf_glm.nb},
@@ -80,23 +67,19 @@ retains the model frame, model matrix, and response, respectively.  This is
 necessary for some generic functions applied to the fitted model to work
 properly.
 }
+\section{Note on Generics}{
+ Methods for S3 generic functions from the
+  \code{stats} and \code{MASS} packages should work for \code{nauf.glm}
+  models as they normally would for the related regression models not fit
+  with \code{\link{nauf_contrasts}}.  If you encounter a generic function in
+  these packages which does not function properly, please report the issue at
+  \url{https://github.com/CDEager/nauf/issues}.
+}
 \examples{
 dat <- plosives
 dat$spont[dat$dialect == "Valladolid"] <- NA
 sdat <- standardize(intdiff ~ voicing * dialect * spont, dat)
-
-vless <- droplevels(subset(dat, voicing == "Voiceless"))
-vless$fully_voiced <- vless$vdur == 0
-svless_fully_voiced <- standardize(fully_voiced ~ dialect * spont, vless,
-  family = binomial)
-svless_vdur <- standardize(vdur ~ dialect * spont, vless, family = "negbin")
-
-linear_model <- nauf_lm(sdat$formula, sdat$data)
-
-binomial_model <- nauf_glm(svless_fully_voiced$formula,
-  svless_fully_voiced$data, family = binomial)
-
-negbin_model <- nauf_glm.nb(svless_vdur$formula, svless_vdur$data)
+mod <- nauf_lm(sdat$formula, sdat$data)
 
 }
 \seealso{

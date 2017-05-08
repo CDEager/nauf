@@ -1,12 +1,12 @@
 Package: nauf
 Type: Package
-Title: Regression with Not Applicable Unordered Factors in R
-Version: 0.1.0-9000
+Title: Regression with Not Applicable Values in Unordered Factors
+Version: 1.0.0
 Authors@R: person("Christopher D.", "Eager",
     email = "eagerstats@gmail.com", role = c("aut","cre"))
-Description: Fits regressions where factors can be set to NA in subsets of the
-    data where they are not applicable or otherwise not contrastive by using
-    sum contrasts and setting NA values to zero.
+Description: Fits regressions where unordered factors can be set to NA in 
+    subsets of the data where they are not applicable or otherwise not
+    contrastive by using sum contrasts and setting NA values to zero.
 Depends:
     R (>= 3.3.3),
     standardize (>= 0.1.1),

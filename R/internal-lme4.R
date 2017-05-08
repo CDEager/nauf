@@ -605,3 +605,181 @@ lme4_optTheta <- function(object, interval = c(-5, 5),
   lastfit
 }
 
+
+lme4_anova.merMod <- function(object, ..., refit = TRUE, model.names = NULL) {
+  mCall <- match.call(expand.dots = TRUE)
+  dots <- list(...)
+  .sapply <- function(L, FUN, ...) unlist(lapply(L, FUN, ...))
+  modp <- (as.logical(vapply(dots, is, NA, "merMod")) | as.logical(vapply(dots, 
+    is, NA, "lm")))
+    
+  if (any(modp)) {
+    mods <- c(list(object), dots[modp])
+    nobs.vec <- vapply(mods, nobs, 1L)
+    if (var(nobs.vec) > 0) {
+      stop("models were not all fitted to the same size of dataset")
+    }
+    if (is.null(mNms <- model.names)) {
+      mNms <- vapply(as.list(mCall)[c(FALSE, TRUE, modp)], lme4_safeDeparse, "")
+    }
+    if (any(duplicated(mNms))) {
+      warning("failed to find unique model names, assigning generic names")
+      mNms <- paste0("MODEL", seq_along(mNms))
+    }
+    if (length(mNms) != length(mods)) {
+      stop("model names vector and model list have different lengths")
+    }
+    
+    names(mods) <- sub("@env$", "", mNms)
+    models.reml <- vapply(mods,
+      function(x) is(x, "merMod") && lme4::isREML(x), NA)
+    models.GHQ <- vapply(mods, function(x) is(x, "glmerMod") &&
+      lme4::getME(x, "devcomp")$dims["nAGQ"] > 1, NA)
+    if (any(models.GHQ) && any(vapply(mods, function(x) is(x, "glm"), NA))) {
+      stop("GLMMs with nAGQ>1 have log-likelihoods incommensurate with glm() objects")
+    }
+    if (refit) {
+      if (any(models.reml)) {
+        message("refitting model(s) with ML (instead of REML)")
+      }
+      mods[models.reml] <- lapply(mods[models.reml], lme4::refitML)
+    } else {
+      if (any(models.reml) && any(!models.reml)) {
+        warning("some models fit with REML = TRUE, some not")
+      }
+    }
+    
+    llks <- lapply(mods, logLik)
+    ii <- order(Df <- vapply(llks, attr, FUN.VALUE = numeric(1), "df"))
+    mods <- mods[ii]
+    llks <- llks[ii]
+    Df <- Df[ii]
+    calls <- lapply(mods, getCall)
+    data <- lapply(calls, `[[`, "data")
+    if (!all(vapply(data, identical, NA, data[[1]]))) {
+      stop("all models must be fit to the same data object")
+    }
+    
+    header <- paste("Data:", lme4_abbrDeparse(data[[1]]))
+    subset <- lapply(calls, `[[`, "subset")
+    if (!all(vapply(subset, identical, NA, subset[[1]]))) {
+      stop("all models must use the same subset")
+    }
+    if (!is.null(subset[[1]])) {
+      header <- c(header, paste("Subset:", lme4_abbrDeparse(subset[[1]])))
+    }
+    llk <- unlist(llks)
+    chisq <- 2 * pmax(0, c(NA, diff(llk)))
+    dfChisq <- c(NA, diff(Df))
+    val <- data.frame(Df = Df, AIC = .sapply(llks, AIC), 
+      BIC = .sapply(llks, BIC), logLik = llk, deviance = -2 * llk,
+      Chisq = chisq, `Chi Df` = dfChisq, `Pr(>Chisq)` = pchisq(chisq, 
+      dfChisq, lower.tail = FALSE), row.names = names(mods),
+      check.names = FALSE)
+    class(val) <- c("anova", class(val))
+    forms <- lapply(lapply(calls, `[[`, "formula"), deparse)
+    structure(val, heading = c(header, "Models:", paste(rep(names(mods), 
+      times = lengths(forms)), unlist(forms), sep = ": ")))
+        
+  } else {
+    dc <- lme4::getME(object, "devcomp")
+    X <- lme4::getME(object, "X")
+    stopifnot(length(asgn <- attr(X, "assign")) == dc$dims[["p"]])
+    ss <- as.vector(object@pp$RX() %*% object@beta)^2
+    names(ss) <- colnames(X)
+    terms <- terms(object)
+    nmeffects <- attr(terms, "term.labels")[unique(asgn)]
+    if ("(Intercept)" %in% names(ss)) {
+      nmeffects <- c("(Intercept)", nmeffects)
+    }
+    ss <- unlist(lapply(split(ss, asgn), sum))
+    stopifnot(length(ss) == length(nmeffects))
+    df <- lengths(split(asgn, asgn))
+    ms <- ss/df
+    f <- ms/(sigma(object)^2)
+    table <- data.frame(df, ss, ms, f)
+    dimnames(table) <- list(nmeffects, c("Df", "Sum Sq", 
+      "Mean Sq", "F value"))
+    if ("(Intercept)" %in% nmeffects) {
+      table <- table[-match("(Intercept)", nmeffects), ]
+    }
+    structure(table, heading = "Analysis of Variance Table", 
+      class = c("anova", "data.frame"))
+  }
+}
+
+
+lme4_abbrDeparse <- function(x, width = 60) {
+  r <- deparse(x, width)
+  if (length(r) > 1) {
+    paste(r[1], "...")
+  } else {
+    r
+  }
+}
+
+
+lme4_simfunList <- function() {
+  simfunList <- list()
+  
+  simfunList$gaussian <- function(object, nsim, ftd = fitted(object),
+                                       wts = weights(object)) {
+    if (any(wts != 1)) warning("ignoring prior weights")
+    rnorm(nsim * length(ftd), ftd, sd = sigma(object))
+  }
+
+  simfunList$binomial <- function(object, nsim, ftd = fitted(object),
+                                       wts = weights(object)) {
+    n <- length(ftd)
+    ntot <- n * nsim
+    
+    if (any(wts%%1 != 0)) {
+      stop("cannot simulate from non-integer prior.weights")
+    }
+    
+    if (!is.null(m <- model.frame(object))) {
+      y <- model.response(m)
+      
+      if (is.factor(y)) {
+        yy <- factor(1 + rbinom(ntot, size = 1, prob = ftd), labels = levels(y))
+        split(yy, rep(seq_len(nsim), each = n))
+        
+      } else if (is.matrix(y) && ncol(y) == 2) {
+        yy <- vector("list", nsim)
+        for (i in seq_len(nsim)) {
+          Y <- rbinom(n, size = wts, prob = ftd)
+          YY <- cbind(Y, wts - Y)
+          colnames(YY) <- colnames(y)
+          yy[[i]] <- YY
+        }
+        yy
+        
+      } else rbinom(ntot, size = wts, prob = ftd)/wts
+      
+    } else rbinom(ntot, size = wts, prob = ftd)/wts
+  }
+
+  simfunList$poisson <- function(object, nsim, ftd = fitted(object),
+                                      wts = weights(object)) {
+    wts <- weights(object)
+    if (any(wts != 1)) warning("ignoring prior weights")
+    rpois(nsim * length(ftd), ftd)
+  }
+
+  simfunList$Gamma <- function(object, nsim, ftd = fitted(object),
+                                    wts = weights(object)) {
+    if (any(wts != 1)) message("using weights to scale shape parameter")
+    shape <- sigma(object) * wts
+    rgamma(nsim * length(ftd), shape = shape, rate = shape/ftd)
+  }
+
+  simfunList$negative.binomial <- function(object, nsim, ftd = fitted(object),
+                                                wts = weights(object)) {
+    if (any(wts != 1)) warning("ignoring prior weights")
+    theta <- lme4_getNBdisp(object)
+    rnbinom(nsim * length(ftd), mu = ftd, size = theta)
+  }
+  
+  return(simfunList)
+}
+

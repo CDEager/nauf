@@ -7,9 +7,10 @@
 nauf_contrasts(object, inc_ordered = FALSE)
 }
 \arguments{
-\item{object}{A \code{\linkS4class{nauf.terms}}, \code{\linkS4class{nauf.frame}},
-\code{\linkS4class{nauf.glm}}, \code{\linkS4class{nauf.lmerMod}}, or
-\code{\linkS4class{nauf.glmerMod}} object.}
+\item{object}{A \code{\link{nauf.terms}} object, a model frame made with
+\code{\link{nauf_model.frame}}, a \code{nauf.glm} model (see
+\code{\link{nauf_glm}}), or a \code{\linkS4class{nauf.lmerMod}} or
+\code{\linkS4class{nauf.glmerMod}} model.}
 
 \item{inc_ordered}{A logical indicating whether or not ordered factor
 contrasts should also be returned (default \code{FALSE}).}
@@ -45,7 +46,7 @@ speaker of Spanish, or \code{Bilingual}, indicating the observation is from a
 Spanish-Quechua bilingual speaker.  The \code{dialect} factor indicates the
 city the speaker is from (one of \code{Cuzco}, \code{Lima}, or
 \code{Valladolid}).  The Cuzco dialect has both monolingual and bilingual
-speakers, but the Lima and Valladolid dialects have only monolinguals
+speakers, but the Lima and Valladolid dialects have only monolingual
 speakers.  In the case of Valladolid, the dialect is not in contact with
 Quechua, and so being monolingual in Valladolid does not mean the same
 thing as it does in Cuzco, where it indicates
@@ -71,7 +72,8 @@ dialect; the mean of the Lima dialect would be the
 \code{lingBilingual} coefficient is similarly affected, and the intercept
 term averages over the predicted value for the non-existent groups of Lima
 bilingual speakers and Valladolid bilingual speakers, losing the
-interpretation as the corrected mean.  With the \code{nauf} package, we can
+interpretation as the corrected mean (insofar as there can be a corrected
+mean in this type of imbalanced data).  With the \code{nauf} package, we can
 instead code non-Cuzco speakers' observations as \code{NA} for the
 \code{ling} factor (i.e. execute
 \code{plosives$ling[plosives$dialect != "Cuzco"] <- NA}).  These \code{NA}
@@ -107,7 +109,7 @@ to the sampling scheme.  The \code{age} and \code{ed} factors (speaker age
 group and education level, respectively) are factors which can apply to
 speakers regardless of their dialect, but in the dataset they are only
 contrastive within the Cuzco dialect; all the Lima and Valladolid speakers
-are 40 years old or younger with university education (in the case of
+are 40 years old or younger with a university education (in the case of
 Valladolid, the data come from an already-existing corpus; and in the case of
 Lima, the data were collected as part of the same dataset as the Cuzco data,
 but as a smaller control group).  These factors can be treated just as the
@@ -141,7 +143,7 @@ of contrasts: (1) when an unordered factor with \code{NA} values interacts
 with another unordered factor, and some levels are collinear with \code{NA};
 and (2) when an unordered factor is included as a slope for a random effects
 grouping factor that has \code{NA} values, but only a subset of the levels
-for slope factor occur when the grouping factor is not \code{NA}.  As an
+for the slope factor occur when the grouping factor is not \code{NA}.  As an
 example of an interaction requiring new contrasts, consider the interaction
 \code{dialect * spont} (that is, suppose we are interested in whether the
 effect of \code{spont} is different for Cuzco and Lima).  We code
@@ -160,7 +162,7 @@ Valladolid \tab NA    \tab           -1 \tab          -1 \tab         0
 If we simply multiply these \code{dialect} and \code{spont} main effect
 contrasts together to obtain the contrasts for the interaction (which is what
 is done in the default \code{\link[stats]{model.matrix}} method), we get
-following undesirable contrasts:
+following contrasts:
 
 \tabular{llrr}{
 dialect    \tab spont \tab dialectCuzco:spontTRUE \tab dialectLima:spontTRUE \cr
@@ -188,7 +190,7 @@ Valladolid \tab                0
 
 This second set of \code{dialect} contrasts is only used when it needs to be.
 That is, in this case, these contrasts would be used in the creation of the
-model matrix columns for the interaction term \code{dialect : spont} term,
+model matrix columns for the interaction term \code{dialect:spont} term,
 but not in the creation of the model matrix columns for the main effect terms
 \code{dialect} and \code{spont}, and when the second set of contrasts is
 used, \code{.c2.} will appear between the name of the factor and the level so
@@ -252,7 +254,7 @@ If we were to, say, fit the model
 \code{intdiff ~ dialect * spont + (1 + dialect | item)}, then \code{nauf} would
 additionally recognize that the same set of altered contrasts for
 \code{dialect} are required in the fixed effects interaction term
-\code{dialect : spont} and the \code{item} slope for \code{dialect}, and both
+\code{dialect:spont} and the \code{item} slope for \code{dialect}, and both
 would be labeled with \code{.c2.}.  In other (rare) cases, more than two sets
 of contrasts may be required for a factor, in which case they would have
 \code{.c3.}, \code{.c4.} and so on.
@@ -261,11 +263,12 @@ In this way, users only need to code unordered factors as \code{NA} in the
 subsets of the data where they are not contrastive, and \code{nauf} handles
 the rest.  Having described in detail what \code{nauf} contrasts are, we now
 return to the \code{nauf_contrasts} function.  The function can be used on
-objects of any \code{nauf} class (with the exception of
-\code{\linkS4class{nauf.formula}}), and returns a named list with a matrix for each
+objects of any \code{nauf} model, a \code{\link{nauf.terms}} object, or a
+model frame made by \code{\link{nauf_model.frame}}. It returns a named list
+with a matrix for each
 unordered factor in \code{object} which contains all contrasts associated the
-factor.  For the \code{intdiff ~ dialect * spont + (1 + dialect | item)}, the
-result would be a list with elements \code{dialect} and \code{spont} that
+factor.  For the model \code{intdiff ~ dialect * spont + (1 + dialect | item)},
+the result would be a list with elements \code{dialect} and \code{spont} that
 contain the following matrices (see the 'Examples' section for code to
 generate this list):
 
@@ -290,14 +293,19 @@ for any ordered factors in \code{object} are also included.
 \section{Note}{
  The argument \code{ncs_scale} changes what value is used for
   the sum contrast deviations.  The default value of \code{1} would give the
-  contrast matrices above.  A value of \code{ncs_scale = 0.5}, for example,
+  contrast matrices in 'Details'.  A value of \code{ncs_scale = 0.5}, for example,
   would result in replacing \code{1} with \code{0.5} and \code{-1} with
   \code{-0.5} in all of the contrast matrices.
 }
 \examples{
 dat <- plosives
 dat$spont[dat$dialect == "Valladolid"] <- NA
+
 mf <- nauf_model.frame(intdiff ~ dialect * spont + (1 + dialect | item), dat)
+nauf_contrasts(mf)
+
+mf <- nauf_model.frame(intdiff ~ dialect * spont + (1 + dialect | item),
+  dat, ncs_scale = 0.5)
 nauf_contrasts(mf)
 
 }

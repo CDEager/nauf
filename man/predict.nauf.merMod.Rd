@@ -32,6 +32,9 @@ currently condition on a subset of the random effects).}
 \item{ReForm, REForm, REform}{Older versions of \code{re.form} in \code{lme4}
 which are now deprecated.}
 
+\item{type}{Whether the predictions should be transformed with the inverse
+link function.}
+
 \item{na.action}{Changes from default of \code{na.pass} are ignored with a
 warning.}
 

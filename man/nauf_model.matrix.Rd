@@ -7,10 +7,10 @@
 nauf_model.matrix(object = NULL, data = NULL, ...)
 }
 \arguments{
-\item{object}{A \code{\linkS4class{nauf.frame}} or a regression formula.
+\item{object}{A \code{nauf.frame} or a regression formula.
 See 'Details'.}
 
-\item{data}{A \code{\linkS4class{nauf.frame}} or a \code{data.frame}
+\item{data}{A \code{nauf.frame} or a \code{data.frame}
 containing the variables in \code{object} if \code{object} is a regression
 formula. See 'Details'.}
 
@@ -39,11 +39,11 @@ The following possibilities are evaluated in the order listed:
   \item{data is a nauf.frame}{All arguments besides \code{data} are ignored,
     and the information in \code{data} is used to create the model matrix.}
   \item{object is a formula and data is a data.frame}{
-    \code{\linkS4class{nauf.frame}} is called with \code{formula = object}
+    \code{\link{nauf_model.frame}} is called with \code{formula = object}
     and \code{data = data}, passing along any additional arguments in
     \code{...} (including \code{ncs_scale}).  Then the model matrix is
     created using the information in the resulting
-    \code{\linkS4class{nauf.frame}}.}
+    \code{nauf.frame}.}
   \item{any other argument values}{An error is returned.}
 }
 }
