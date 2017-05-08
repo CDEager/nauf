@@ -3,6 +3,8 @@
 nauf 1.0.0
 ==========
 
+[![Build Status](https://travis-ci.org/CDEager/nauf.svg?branch=master)](https://travis-ci.org/CDEager/nauf)
+
 Installation
 ------------
 
