@@ -1,24 +1,35 @@
 Package: nauf
 Type: Package
-Title: Not Applicable Unordered Factors
-Version: 0.1.0
+Title: Regression with Not Applicable Values in Unordered Factors
+Version: 1.0.0
 Authors@R: person("Christopher D.", "Eager",
     email = "eagerstats@gmail.com", role = c("aut","cre"))
-Description: nauf allows not applicable values (as opposed to values missing at
-    random) in unordered factors to be modeled with already-existing regression
-    fitting functions through the use of sum contrasts and setting NA values to
-    zero in the model matrix.
-Depends: R (>= 3.3.2)
+Description: Fits regressions where unordered factors can be set to NA in 
+    subsets of the data where they are not applicable or otherwise not
+    contrastive by using sum contrasts and setting NA values to zero.
+Depends:
+    R (>= 3.3.3),
+    standardize (>= 0.1.1),
+    lme4 (>= 1.1-12)
 Imports:
-    utils,
     methods,
+    utils,
     MASS (>= 7.3-45),
-    lsmeans (>= 2.25)
+    stringr (>= 1.1.0),
+    Matrix (>= 1.2-7.1),
+    lsmeans (>= 2.25-5),
+    pbkrtest (>= 0.4-7),
+    car (>= 2.1-4),
+    lmerTest (>= 2.0-33),
+    afex (>= 0.17-8)
 License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true
 URL: https://github.com/CDEager/nauf
 BugReports: https://github.com/CDEager/nauf/issues
 Suggests:
-    testthat
+    testthat,
+    knitr,
+    rmarkdown
 RoxygenNote: 5.0.1
+VignetteBuilder: knitr

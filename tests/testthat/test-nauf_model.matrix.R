@@ -1,4 +1,4 @@
-context("nauf_model_matrix")
+context("nauf_model.matrix")
 
 set.seed(1)
 dat <- rbind(
@@ -12,18 +12,16 @@ dat$z <- stats::rnorm(nrow(dat))
 dat$y <- stats::rnorm(nrow(dat))
 
 form <- y ~ f1 * f2 * (o + x + poly(z, 2))
-mf <- nauf_model_frame(form, dat)
-# m <- nauf_reg(y ~ f1 * f2 * (o + x + poly(z, 2)), dat)
-
+mf <- nauf_model.frame(form, dat)
 mm <- stats::model.matrix(form, mf)
 mf2 <- mf
 mf2$f1 <- factor(mf2$f1, levels = c("a", "b"))
-mf2$f1 <- named_contr_sum(mf2$f1, FALSE)
+mf2$f1 <- standardize::named_contr_sum(mf2$f1, 1, FALSE)
+colnames(contrasts(mf2$f1)) <- paste0(".c2.", colnames(contrasts(mf2$f1)))
 mm2 <- stats::model.matrix(form, mf2)
-colnames(mm2) <- paste("ccna", colnames(mm2), sep = "_")
 
 asgn <- attr(mm, "assign")
-d <- which(asgn %in% attr(attr(mf, "terms"), "ccna")[[1]]$assign)
+d <- which(asgn %in% attr(attr(mf, "terms"), "nauf.info")$cc[[1]][[1]]$assign)
 mm <- mm[, -d]
 asgn <- asgn[-d]
 mm <- cbind(mm, mm2[, c(9, 20:24)])
@@ -37,14 +35,14 @@ attr(mm, "contrasts") <- NULL
 attr(mm, "assign") <- asgn
 
 test_that("all three methods work", {
-  expect_equal(nauf_model_matrix(form, dat), mm)
-  expect_equal(nauf_model_matrix(mf), mm)
-  expect_equal(nauf_model_matrix(data = mf), mm)
-  # expect_equal(nauf_model_matrix(m), mm)
+  expect_equal(nauf_model.matrix(form, dat), mm)
+  expect_equal(nauf_model.matrix(mf), mm)
+  expect_equal(nauf_model.matrix(data = mf), mm)
+  expect_equal(nrow(mm), nrow(dat))
 })
 
 test_that("errors work", {
-  expect_error(nauf_model_matrix(stats::model.frame(form, dat)))
+  expect_error(nauf_model.matrix(stats::model.frame(form, dat)))
 })
 
 rm(list = ls())
