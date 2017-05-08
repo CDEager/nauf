@@ -207,6 +207,7 @@ model.matrix.nauf.terms <- function(object, data = environment(object),
 #' @return A numeric vector of predicted values.
 #'
 #' @examples
+#' \dontrun{
 #' dat <- plosives
 #' dat$spont[dat$dialect == "Valladolid"] <- NA
 #' sdat <- standardize(intdiff ~ voicing * dialect * spont +
@@ -219,6 +220,7 @@ model.matrix.nauf.terms <- function(object, data = environment(object),
 #'
 #' isTRUE(all.equal(fit, preds))  # TRUE
 #' isTRUE(all.equal(preds, preds_fe))  # FALSE
+#' }
 #'
 #' @seealso \code{\link[lme4]{predict.merMod}}, \code{\link{nauf_lmer}},
 #'   \code{\link{nauf_glmer}}, \code{\link{nauf_glmer.nb}},

@@ -53,6 +53,7 @@ and \code{\link{nauf_glmer}}).  It is based on
 supported for \code{nauf} models.
 }
 \examples{
+\dontrun{
 dat <- plosives
 dat$spont[dat$dialect == "Valladolid"] <- NA
 sdat <- standardize(intdiff ~ voicing * dialect * spont +
@@ -65,6 +66,7 @@ preds_fe <- predict(mod, sdat$data, re.form = NA)  # only use fixef
 
 isTRUE(all.equal(fit, preds))  # TRUE
 isTRUE(all.equal(preds, preds_fe))  # FALSE
+}
 
 }
 \seealso{

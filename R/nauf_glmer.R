@@ -34,11 +34,13 @@
 #'   and \code{nauf_glmer.nb}).
 #'
 #' @examples
+#' \dontrun{
 #' dat <- plosives
 #' dat$spont[dat$dialect == "Valladolid"] <- NA
 #' sdat <- standardize(intdiff ~ voicing * dialect * spont +
 #'   (1 + voicing * spont | speaker) + (1 + dialect | item), dat)
 #' mod <- nauf_lmer(sdat$formula, sdat$data)
+#' }
 #'
 #' @seealso \code{\link{nauf_contrasts}} for a description of the contrasts
 #'   applied to unordered factors; and \code{\link[lme4]{lmer}},
