@@ -4,7 +4,7 @@
 \name{nauf-package}
 \alias{nauf}
 \alias{nauf-package}
-\title{Regression with not applicable values in unordered factors.}
+\title{Regression with NA values in unordered factors.}
 \description{
 It is often the case that a factor only makes sense in a subset of a dataset
 (i.e. for some observations a factor may simply not be meaningful), or that

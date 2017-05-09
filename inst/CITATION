@@ -1,7 +1,7 @@
 citHeader("To cite nauf in publications use:")
 
 citEntry(entry = "Manual",
-  title = "nauf: Regression with Not Applicable Values in Unordered Factors",
+  title = "nauf: Regression with NA Values in Unordered Factors",
   author = personList(person("Christopher D.", "Eager")),
   year = "2017",
   note = "R package version 1.0.0",
@@ -9,7 +9,7 @@ citEntry(entry = "Manual",
     
   textVersion =
   paste("Eager, Christopher D. (2017).",
-        "nauf: Regression with Not Applicable Values in Unordered Factors.",
+        "nauf: Regression with NA Values in Unordered Factors.",
         "R package version 1.0.0.",
         "https://CRAN.R-project.org/package=nauf")
 )

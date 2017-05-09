@@ -1,6 +1,6 @@
 
 
-#' Regression with not applicable values in unordered factors.
+#' Regression with NA values in unordered factors.
 #'
 #' It is often the case that a factor only makes sense in a subset of a dataset
 #' (i.e. for some observations a factor may simply not be meaningful), or that
