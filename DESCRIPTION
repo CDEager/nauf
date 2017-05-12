@@ -10,7 +10,8 @@ Description: Fits regressions where unordered factors can be set to NA in
 Depends:
     R (>= 3.3.3),
     standardize (>= 0.1.1),
-    lme4 (>= 1.1-12)
+    lme4 (>= 1.1-12),
+    rstanarm (>= 2.15.3)
 Imports:
     methods,
     utils,

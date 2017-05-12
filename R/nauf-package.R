@@ -63,12 +63,21 @@
 #' \code{\link{plosives}} and \code{\link{fricatives}} datasets included in the
 #' package.
 #'
+#' @section To Do:
+#' Check stanreg generic compatibility
+#' Add pmmeans functionality for nauf.stanreg
+#' Add 'by' argument to nauf_pmmeans
+#' Documentation for nauf.stanreg class and nauf_stan functions
+#' Testing
+#'
 #' @import stats
 #' @import MASS
 #' @import methods
 #' @import lme4
 #' @import standardize
 #' @import stringr
+#' @import rstanarm
+#' @import Rcpp
 #' @importClassesFrom lme4 merMod lmerMod glmerMod
 "_PACKAGE"
 

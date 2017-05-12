@@ -1337,7 +1337,8 @@ is.nauf.merMod <- function(object) {
 
 
 is.nauf.model <- function(object) {
-  return(inherits(object, c("nauf.glm", "nauf.lmerMod", "nauf.glmerMod")))
+  return(inherits(object, c("nauf.glm", "nauf.lmerMod", "nauf.glmerMod",
+    "nauf.stanreg")))
 }
 
 
@@ -1358,5 +1359,20 @@ is.nauf.pmm <- function(object) {
 
 is.summ.nauf.pmm <- function(object) {
   return(inherits(object, "summ.nauf.pmm"))
+}
+
+
+is.nauf.stanreg <- function(object) {
+  return(inherits(object, "nauf.stanreg"))
+}
+
+
+is.nauf.stanmer <- function(object) {
+  return(inherits(object, "nauf.stanreg") && inherits(object, "lmerMod"))
+}
+
+
+is.nauf.stanfer <- function(object) {
+  return(inherits(object, "nauf.stanreg") && !inherits(object, "lmerMod"))
 }
 

@@ -85,3 +85,14 @@ nauf.lmerMod <- setClass("nauf.lmerMod", contains = "lmerMod")
 #' @rdname nauf.merMod
 nauf.glmerMod <- setClass("nauf.glmerMod", contains = "glmerMod")
 
+
+#' Class for fitted Bayesian models with \code{nauf} contrasts.
+#'
+#' ADD DESCRIPTION
+#'
+#' @seealso \code{\link{nauf_stan_glm}}, \code{\link{nauf_stan_glmer}},
+#'   \code{\link{nauf_contrasts}}, and \code{\link[rstanarm]{stanreg-objects}}.
+#'
+#' @name nauf.stanreg
+NULL
+
