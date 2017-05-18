@@ -96,3 +96,23 @@ nauf.glmerMod <- setClass("nauf.glmerMod", contains = "glmerMod")
 #' @name nauf.stanreg
 NULL
 
+
+# a is array[iteration, chain, coefficient]
+# x is vector[feature] or matrix[obs, feature]
+# returns array[iteration, chain, prediction]
+`%*a%` <- function(x, a) {
+  x <- t(x)
+  
+  d <- dim(a)
+  d[3] <- ncol(x)
+  
+  ans <- array(dim = d)
+  for (chain in 1:d[2]) {
+    ans[, chain, ] <- a[, chain, ] %*% x
+  }
+  
+  class(ans) <- c("nauf.mcmc", "array")
+  
+  return(ans)
+}
+

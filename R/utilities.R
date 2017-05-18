@@ -101,6 +101,10 @@ get_family <- function(object) {
     }
     stop("'family' not recognized")
   }
+  
+  if (is.nauf.stanreg(object)) {
+    return(object$family)
+  }
 
   if (inherits(object, c("lm", "merMod"))) {
     if (inherits(object, "lm")) {
@@ -215,5 +219,78 @@ check_groups <- function(formula) {
 # glmer vs lmer, etc
 is.linear <- function(object){
   return(isTRUE(all.equal(get_family(object), gaussian())))
+}
+
+
+pna <- function() {
+  dat <- plosives
+  
+  dat[dat$dialect != "Cuzco", c("age", "ed", "ling")] <- NA
+  dat$wordpos[!dat$spont] <- NA
+  dat$spont[dat$dialect == "Valladolid"] <- NA
+  dat$task <- factor(rep(NA, nrow(dat)), levels = c("Read", "Spontaneous"))
+  dat$task[dat$spont] <- "Spontaneous"
+  dat$task[!dat$spont] <- "Read"
+  dat$prehi <- factor(dat$prevowel %in% c("i", "u"))
+  dat$poshi <- factor(dat$posvowel %in% c("i", "u"))
+  levels(dat$poshi) <- levels(dat$prehi) <- c("Non-High", "High")
+  
+  pcs <- prcomp(dat[, 1:5], scale = TRUE)
+  s <- sign(pcs$rotation[1, 1])
+  dat$pc1 <- s * pcs$x[, 1]
+  
+  dat <- standardize(scale_by(pc1 ~ voicing) ~ voicing + place + stress +
+    wordpos + prehi + poshi + log(wordfreq) + scale_by(speechrate ~ speaker) +
+    task + dialect + sex + age + ed + ling + (1 | speaker) + (1 | item), dat)
+    
+  dat$formula <- scale_pc1_by_voicing ~
+    voicing + place + stress + wordpos + prehi + poshi + log_wordfreq +
+      scale_speechrate_by_speaker + task + dialect + sex + age + ed + ling +
+      voicing:(place + wordpos + prehi + poshi + scale_speechrate_by_speaker +
+      dialect + sex + ling) + dialect:sex +
+    (1 + voicing + place + stress + wordpos + prehi + poshi + log_wordfreq +
+      scale_speechrate_by_speaker + task + voicing:(place + wordpos + prehi +
+      poshi + scale_speechrate_by_speaker) | speaker) +
+    (1 + scale_speechrate_by_speaker + dialect * sex + age + ed + ling | item)
+    
+  attr(dat$formula, "standardized.scale") <- 1
+  
+  return(dat)
+}
+
+
+fna <- function() {
+  dat <- fricatives
+  
+  dat$uvoi[!(dat$lang == "Catalan" & dat$wordpos == "Medial")] <- NA
+  dat$ca_speaker <- dat$sp_speaker <- dat$speaker
+  dat$ca_speaker[dat$lang != "Catalan"] <- NA
+  dat$sp_speaker[dat$lang != "Spanish"] <- NA
+
+  dat <- standardize(pvoi ~ lang * wordpos + uvoi +
+    (1 + wordpos + uvoi | ca_speaker) + (1 + wordpos | sp_speaker), dat)
+
+  return(dat)
+}
+
+
+nauf.info <- function(object) {
+  if (!is.nauf.terms(object)) {
+    object <- terms(object)
+    if (!is.nauf.terms(object)) {
+      stop("'object' must contain a nauf.terms object")
+    }
+  }
+  return(attr(object, "nauf.info"))
+}
+
+
+psgn <- function(x, f = mean) {
+  return(mean(sign(x) == sign(f(x))))
+}
+
+
+isFALSE <- function(x) {
+  return(identical(FALSE, x))
 }
 

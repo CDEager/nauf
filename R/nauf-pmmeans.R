@@ -239,13 +239,13 @@ nauf_ref.grid <- function(mod, KR = FALSE, ...) {
   dots <- list(...)
   if (length(dots)) warning("Ignoring arguments: ", add_quotes(names(dots)))
 
+  info <- nauf.info(mod)
   fenr <- stats::delete.response(terms(mod))
-  info <- attr(fenr, "nauf.info")
   vars <- varnms(fenr)
   mf <- model.frame(mod)
 
   xlev <- lvs <- mlvs <- list()
-  for (v in vars[vars %in% names(info$uf)]) {
+  for (v in intersect(vars, names(info$uf))) {
     lvs[[v]] <- info$uf[[v]][[1]]
     if (info$hasna[v]) {
       lvs[[v]][length(lvs[[v]]) + 1] <- NA
@@ -253,19 +253,19 @@ nauf_ref.grid <- function(mod, KR = FALSE, ...) {
     }
     xlev[[v]] <- lvs[[v]]
   }
-  for (v in vars[vars %in% names(info$of)]) {
+  for (v in intersect(vars, names(info$of))) {
     xlev[[v]] <- lvs[[v]] <- info$of[[v]]$levels
   }
-  for (v in vars[vars %in% names(info$num)]) {
+  for (v in intersect(vars, names(info$num))) {
     lvs[[v]] <- info$num[[v]]
   }
-  for (v in vars[vars %in% names(info$mat)]) {
+  for (v in intersect(vars, names(info$mat))) {
     mlvs[[v]] <- info$mat[[v]]
   }
 
   # reorder for consistency
-  lvs <- lvs[vars[vars %in% names(lvs)]]
-  xlev <- xlev[vars[vars %in% names(xlev)]]
+  lvs <- lvs[intersect(vars, names(lvs))]
+  xlev <- xlev[intersect(vars, names(xlev))]
 
   g <- expand.grid(lvs)
   g[names(mlvs)] <- lapply(mlvs, function(m) {
@@ -277,16 +277,16 @@ nauf_ref.grid <- function(mod, KR = FALSE, ...) {
 
   g[[".wgt."]] <- data.frame(xtabs(~ ., mf[names(xlev)]))$Freq
 
-  summ <- summary(mod)
+  if (!(bayes <- is.nauf.stanreg)) summ <- summary(mod)
 
   rg <- list()
-  class(rg) <- c("nauf.ref.grid", "list")
+  class(rg) <- "nauf.ref.grid"
   temp_dat <- data.frame(y = 1:5, x = c(2, 5, 3, 6, 1))
   temp_mod <- lm(y ~ x, temp_dat)
   rg$ref.grid <- lsmeans::ref.grid(temp_mod, data = temp_dat)
 
   rg$ref.grid@model.info <- list(
-    call = summ$call,
+    call = if (bayes) mod$call else summ$call,
     terms = fenr,
     xlev = xlev)
   rg$ref.grid@roles <- list(
@@ -297,10 +297,12 @@ nauf_ref.grid <- function(mod, KR = FALSE, ...) {
   rg$ref.grid@levels <- lvs
   rg$ref.grid@matlevs <- mlvs
   rg$ref.grid@linfct <- mm
-  rg$ref.grid@bhat <- summ$coefficients[, 1]
+  rg$ref.grid@bhat <- if (bayes) numeric() else summ$coefficients[, 1]
   rg$ref.grid@nbasis <- matrix()
   if (is.nauf.merMod(mod)) {
     rg$ref.grid@V <- as.matrix(summ$vcov)
+  } else if (bayes) {
+    rg$ref.grid@V <- matrix()
   } else {
     rg$ref.grid@V <- vcov(mod)
   }
@@ -319,7 +321,7 @@ nauf_ref.grid <- function(mod, KR = FALSE, ...) {
       }
       rg$ref.grid@dfargs <- list(object = mod)
     }
-  } else if (is.nauf.glmerMod(mod)) {
+  } else if (is.nauf.glmerMod(mod) || bayes) {
     rg$ref.grid@dffun <- function(k, dfargs) NA
     rg$ref.grid@dfargs <- list()
   } else {
@@ -334,11 +336,14 @@ nauf_ref.grid <- function(mod, KR = FALSE, ...) {
     adjust = "none",
     famSize = ncol(g) - 1,
     avgd.over = character(),
-    assign = asgn)
+    assign = asgn,
+    post.beta = if (bayes) fixef(mod, TRUE, FALSE) else NULL)
   rg$ref.grid@post.beta <- matrix()
   if (!is.linear(family <- get_family(mod))) {
     rg$ref.grid@misc$tran <- family$link
+    rg$ref.grid@misc$family <- family
     family <- family$family
+    
     rate <- length(grep("poisson", family)) + length(grep("Negative", family))
     prob <- length(grep("binomial", family))
     if (rate) {
@@ -357,11 +362,10 @@ nauf_ref.grid <- function(mod, KR = FALSE, ...) {
 #' @rdname nauf-pmmeans
 #'
 #' @importFrom lsmeans contrast lsmeans pmmeans
-#' @importFrom utils combn
 #'
 #' @export
 nauf_pmmeans <- function(object, specs, pairwise = FALSE, subset = NULL,
-                         na_as_level = NULL, ...) {
+                         na_as_level = NULL, by = NULL, ...) {
   if (!is.nauf.ref.grid(object)) stop("must supply a nauf.ref.grid")
   rg <- object$ref.grid
 
@@ -369,7 +373,7 @@ nauf_pmmeans <- function(object, specs, pairwise = FALSE, subset = NULL,
   if (length(dots)) warning("Ignoring arguments: ", add_quotes(names(dots)))
 
   specs <- check_specs(specs, pairwise, object$ref.grid@model.info$xlev,
-    object$ref.grid@model.info$terms, na_as_level)
+    object$ref.grid@model.info$terms, na_as_level, by)
   subset <- grid_subset(subset, specs)
 
   if (!is.null(subset$keep)) {
@@ -407,7 +411,27 @@ nauf_pmmeans <- function(object, specs, pairwise = FALSE, subset = NULL,
     object$ref.grid@linfct <- model.matrix(object$ref.grid@model.info$terms,
       object$ref.grid@grid) - object$ref.grid@linfct
   }
+  
   if (!nrow(est_grid)) stop("No grid rows satisfy subsetting conditions")
+  
+  if (length(specs$by)) {
+    by_fac <- est_grid[specs$by]
+    for (j in specs$by) {
+      by_fac[[j]] <- droplevels(by_fac[[j]])
+      if (anyNA(by_fac[[j]])) by_fac[[j]] <- addNA(by_fac[[j]])
+    }
+    by_fac <- interaction(by_fac, drop = TRUE)
+    if (any(xtabs(~ by_fac) < 2)) {
+      cat("Not all combinations of ", paste(specs$by, collapse = ":"),
+        " have more than 1 row in the subsetted estimate grid:\n\n", sep = "")
+      print(est_grid)
+      stop("Cannot condition pairwise comparisons on 'by'")
+    }
+  } else if (nrow(est_grid) == 1 && specs$pw) {
+    cat("Specified 'pairwise' but subsetted estimate grid only has one row:\n\n")
+    print(est_grid)
+    stop("Cannot perform pairwise comparisons.")
+  }
 
   if (length(specs$facs)) {
     est <- estimate_contrasts(est_grid[, specs$facs, drop = FALSE])
@@ -417,47 +441,50 @@ nauf_pmmeans <- function(object, specs, pairwise = FALSE, subset = NULL,
     est <- list("1" = rep(1 / nrow(object$ref.grid@grid),
       nrow(object$ref.grid@grid)))
   }
+  
+  freq <- is.null(object$ref.grid@misc$post.beta)
 
   pmms <- list()
 
-  pmms$pmmeans <- lsmeans::contrast(object$ref.grid, est)
-  pmms$pmmeans@roles$predictors <- colnames(est_grid)
-  pmms$pmmeans@grid <- est_grid
-  for (j in 1:ncol(est_grid)) {
-    pmms$pmmeans@grid[[j]] <- paste(est_grid[[j]])
-  }
-  pmms$pmmeans@misc$estName <- "pmmean"
-  pmms$pmmeans@misc$infer <- c(TRUE, FALSE)
-  pmms$pmmeans@misc$famSize <- nrow(est_grid)
-  if (length(tran <- pmms$pmmeans@misc$orig.tran)) {
-    pmms$pmmeans@misc$tran <- tran
+  pmm_freq <- function(rg, contr, eg, misc = NULL)
+  
+  if (freq) {
+    pmms$pmmeans <- pmm_freq(object, est, est_grid, list(estName = "pmmean",
+      infer = c(TRUE, FALSE), famSize = nrow(est_grid)))
+  } else {
+    pmms$pmmeans <- pmm_bayes(object, est, est_grid, list(estName = "pmmean"))
   }
 
-  if (specs$pw) {
-    if (length(est) == 1) {
-      specs$pw <- paste("Specified 'pairwise', but there is only one",
-        "combination that satisfies subsetting conditions.")
-      warning(specs$pw)
-
-    } else {
-      est_grid <- sapply(est_grid, as.character)
-      combs <- utils::combn(length(est), 2)
-      est <- list_mat_cols(apply(combs, 2,
-        function(x) est[[x[1]]] - est[[x[2]]]))
-      names(est) <- apply(combs, 2, function(x) paste0(
-        paste(est_grid[x[1], ], collapse = ","),
-        " - ",
-        paste(est_grid[x[2], ], collapse = ",")
-      ))
-
-      pmms$contrasts <- lsmeans::contrast(object$ref.grid, est)
-      pmms$contrasts@misc$estType <- "pairs"
-      pmms$contrasts@misc$adjust <- "tukey"
-      pmms$contrasts@misc$methDesc <- "pairwise differences"
-      pmms$contrasts@misc$famSize <- nrow(est_grid)
-      if (length(tran <- pmms$contrasts@misc$orig.tran)) {
-        pmms$contrasts@misc$tran <- tran
+  if (length(specs$by)) {
+    by_num <- as.numeric(by_fac)
+    est_grid <- est_grid[c(specs$by, setdiff(specs$specs, specs$by))]
+    contr <- lapply(1:max(by_num), function(x) {
+      w <- which(by_num == x)
+      return(pairwise_contr(est[w], est_grid[w, , drop = FALSE]))
+    })
+    
+    if (freq) {
+      for (i in 1:length(contr)) {
+        pmms[[paste("contrasts", i, sep = "_")]] <- pmm_freq(object,
+          contr[[i]], NULL, list(estType = "pairs", adjust = "tukey",
+          methDesc = "pairwise differences", famSize = sum(by_num == i)))
       }
+    } else {
+      for (i in 1:length(contr)) {
+        pmms[[paste("contrasts", i, sep = "_")]] <- pmm_bayes(object,
+          contr[[i]], NULL, list(estName = "pairs"))
+      }
+    }
+    
+  } else if (specs$pw) {
+    contr <- pairwise_contr(est, est_grid)
+    
+    if (freq) {
+      pmms$contrasts <- pmm_freq(object, contr, NULL, list(estType = "pairs",
+        adjust = "tukey", methDesc = "pairwise differences",
+        famSize = nrow(est_grid)))
+    } else {
+      pmms$contrasts <- pmm_bayes(object, contr, NULL, list(estName = "pairs"))
     }
   }
 
@@ -467,7 +494,7 @@ nauf_pmmeans <- function(object, specs, pairwise = FALSE, subset = NULL,
       "  from a call to poly(), results may be misleading.")
   }
 
-  class(pmms) <- c("nauf.pmm", "lsm.list", "list")
+  class(pmms) <- c("nauf.pmm", if (freq) "lsm.list", "list")
   attr(pmms, "nauf.specs") <- list(
     variables = specs$vars,
     pairwise = specs$pw,
@@ -477,13 +504,75 @@ nauf_pmmeans <- function(object, specs, pairwise = FALSE, subset = NULL,
     keep_NA = specs$keepNA,
     drop_NA = specs$dropNA,
     subset = subset$subset,
+    by = specs$by,
+    bayes = !freq,
     note = specs$note)
 
   return(pmms)
 }
 
 
-check_specs <- function(specs, pw, xlev, mt, keepNA) {
+pmm_freq <- function(rg, contr, eg = NULL, misc = NULL) {
+  pmm <- lsmeans::contrast(rg$ref.grid, contr)
+  
+  if (!is.null(eg)) {
+    pmm@grid <- as.data.frame(sapply(eg, paste))
+    pmm@roles$predictors <- colnames(eg)
+  }
+  rownames(pmm@grid) <- NULL
+  
+  pmm@misc[names(misc)] <- misc
+  if (length(tran <- pmm@misc$orig.tran)) pmm@misc$tran <- tran
+  
+  return(pmm)
+}
+
+
+pmm_bayes <- function(rg, contr, eg = NULL, misc = NULL) {
+  pmm <- list()
+  
+  pmm$model.info <- rg$ref.grid@model.info
+  
+  if (is.null(eg)) {
+    pmm$grid <- data.frame(contrast = names(contr))
+  } else {
+    pmm$grid <- as.data.frame(sapply(eg, paste))
+  }
+  rownames(pmm$grid) <- NULL
+  
+  pmm$linfct <- do.call(rbind, contr) %*% rg$ref.grid@linfct
+  pmm$mcmc <- pmm$linfct %*a% rg$ref.grid@misc$post.beta
+  
+  pmm$misc <- list(tran = rg$ref.grid@misc$tran,
+    inv.lbl = rg$ref.grid@misc$inv.lbl)
+  pmm$misc[names(misc)] <- misc
+  pmm$family <- rg$ref.grid@misc$family
+    
+  class(pmm) <- "nauf.postmm"
+  return(pmm)
+}
+
+
+#' @importFrom utils combn
+pairwise_contr <- function(est, eg) {
+  eg <- sapply(eg, as.character)
+  
+  combs <- utils::combn(length(est), 2)
+  
+  contr <- list_mat_cols(apply(combs, 2,
+    function(x) est[[x[1]]] - est[[x[2]]]))
+    
+  names(contr) <- apply(combs, 2, function(x) paste0(
+    paste(eg[x[1], ], collapse = ","),
+    " - ",
+    paste(eg[x[2], ], collapse = ",")
+  ))
+  
+  return(contr)
+}
+
+
+check_specs <- function(specs, pw, xlev, mt, keepNA, by) {
   vv <- varnms(mt)
 
   if (inherits(specs, "formula")) {
@@ -506,14 +595,30 @@ check_specs <- function(specs, pw, xlev, mt, keepNA) {
       "\nValid variables are:\n  ", add_quotes(vv))
   }
 
-  # reorder for consistency; gets rid of possible duplicates
-  specs <- vv[vv %in% specs]
-
   all_facs <- names(xlev)
   # intersect since info$uf may contain facs in ranef but not fixef
   all_uf <- names(uflev <- xlev[intersect(names(xlev), names(attr(mt,
     "nauf.info")$uf))])
   all_nauf <- all_facs[sapply(xlev, anyNA)]
+  
+  if (!is.null(by)) {
+    if (!is.character(by)) {
+      stop("'by', if specified, must be a character vector")
+    }
+    if (length(setdiff(by, all_uf))) {
+      stop("'by' should only contain names of unordered factors")
+    }
+    by <- unique(by)
+    specs <- union(specs, by)
+    if (!length(intersect(setdiff(specs, by), all_facs))) {
+      stop("If 'by' is specified, 'specs' must contain at least one factor",
+        " that is not in 'by'")
+    }
+    pw <- TRUE
+  }
+  
+  # reorder for consistency; gets rid of possible duplicates
+  specs <- intersect(vv, specs)
 
   facs <- intersect(specs, all_facs)
   avgfac <- setdiff(all_facs, facs)
@@ -546,14 +651,14 @@ check_specs <- function(specs, pw, xlev, mt, keepNA) {
   keepNA <- intersect(keepNA, nauf)
   if (length(dropped <- setdiff(arg_keepNA, keepNA))) {
     warning("Dropped from 'keepNA' (not unordered factors with NA values ",
-      "included in 'specs':\n  ", add_quotes(dropped))
+      "included in 'specs' or 'by':\n  ", add_quotes(dropped))
   }
   dropNA <- setdiff(nauf, keepNA)
 
 
   return(list(vars = specs, facs = facs, nums = nums, uf = uf, uflev = uflev,
     pw = pw, keepNA = keepNA, avgfac = avgfac, avgcov = avgcov, nauf = nauf,
-    dropNA = dropNA, note = note))
+    dropNA = dropNA, note = note, by = by))
 }
 
 

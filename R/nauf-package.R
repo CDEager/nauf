@@ -65,8 +65,6 @@
 #'
 #' @section To Do:
 #' Check stanreg generic compatibility
-#' Add pmmeans functionality for nauf.stanreg
-#' Add 'by' argument to nauf_pmmeans
 #' Documentation for nauf.stanreg class and nauf_stan functions
 #' Testing
 #'

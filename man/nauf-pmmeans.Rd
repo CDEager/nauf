@@ -9,7 +9,7 @@
 nauf_ref.grid(mod, KR = FALSE, ...)
 
 nauf_pmmeans(object, specs, pairwise = FALSE, subset = NULL,
-  na_as_level = NULL, ...)
+  na_as_level = NULL, by = NULL, ...)
 }
 \arguments{
 \item{mod}{A regression model fit with \code{nauf} contrasts.}

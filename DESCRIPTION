@@ -22,7 +22,9 @@ Imports:
     pbkrtest (>= 0.4-7),
     car (>= 2.1-4),
     lmerTest (>= 2.0-33),
-    afex (>= 0.17-8)
+    afex (>= 0.17-8),
+    Rcpp (>= 0.12.5),
+    rstan (>= 2.15.1)
 License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true
