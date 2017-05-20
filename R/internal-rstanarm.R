@@ -312,3 +312,150 @@ rsa_binom_y_prop <- function(y, family, weights) {
   return(isTRUE(wtrials))
 }
 
+
+rsa_model_has_weights <- function(x) {
+  wts <- x[["weights"]]
+  return(length(wts) && !all(wts == wts[1]))
+}
+
+
+rsa_null_or_zero <- function(x) {
+  return(isTRUE(is.null(x) || all(x == 0)))
+}
+
+
+rsa_posterior_sample_size <- function(x) {
+  return(sum(x$stanfit@sim$n_save - x$stanfit@sim$warmup2))
+}
+
+
+
+
+rsa_pp_fun <- function(object) {
+  return(get(paste0("rsa_pp_", object$family$family), mode = "function"))
+}
+
+
+rsa_pp_gaussian <- function(mu, sigma) {
+  t(sapply(1:nrow(mu), function(s) {
+    rnorm(ncol(mu), mu[s, ], sigma[s])
+  }))
+}
+
+
+rsa_pp_binomial <- function(mu, trials) {
+  t(sapply(1:nrow(mu), function(s) {
+    rbinom(ncol(mu), size = trials, prob = mu[s, ])
+  }))
+}
+
+
+rsa_pp_poisson <- function(mu) {
+  t(sapply(1:nrow(mu), function(s) {
+    rpois(ncol(mu), mu[s, ])
+  }))
+}
+
+
+rsa_pp_neg_binomial_2 <- function(mu, size) {
+  t(sapply(1:nrow(mu), function(s) {
+    rnbinom(ncol(mu), size = size[s], mu = mu[s, ])
+  }))
+}
+
+
+rsa_pp_inverse.gaussian <- function(mu, lambda) {
+  t(sapply(1:nrow(mu), function(s) {
+    rsa_rinvGauss(ncol(mu), mu = mu[s, ], lambda = lambda[s])
+  }))
+}
+
+
+rsa_pp_Gamma <- function(mu, shape) {
+  t(sapply(1:nrow(mu), function(s) {
+    rgamma(ncol(mu), shape = shape[s], rate = shape[s]/mu[s, ])
+  }))
+}
+
+
+rsa_rinvGauss <- function(n, mu, lambda) {
+  mu2 <- mu^2
+  y <- rnorm(n)^2
+  z <- runif(n)
+  tmp <- (mu2 * y - mu * sqrt(4 * mu * lambda * y + mu2 * y^2))
+  x <- mu + tmp/(2 * lambda)
+  ifelse(z <= (mu/(mu + x)), x, mu2/x)
+}
+
+
+
+
+rsa_ll_fun <- function(object) {
+  return(get(paste0("rsa_ll_", object$family$family, "_i"), mode = "function"))
+}
+
+
+rsa_ll_gaussian_i <- function(i, data, draws) {
+  val <- dnorm(data$y, mean = rsa_mu(data, draws), sd = draws$sigma, log = TRUE)
+  rsa_weignted(val, data$weights)
+}
+
+
+rsa_ll_binomial_i <- function(i, data, draws) {
+  val <- dbinom(data$y, size = data$trials, prob = rsa_mu(data, draws), log = TRUE)
+  rsa_weignted(val, data$weights)
+}
+
+
+rsa_ll_poisson_i <- function(i, data, draws) {
+  val <- dpois(data$y, lambda = rsa_mu(data, draws), log = TRUE)
+  rsa_weignted(val, data$weights)
+}
+
+
+rsa_ll_neg_binomial_2_i <- function(i, data, draws) {
+  val <- dnbinom(data$y, size = draws$size, mu = rsa_mu(data, draws), log = TRUE)
+  rsa_weignted(val, data$weights)
+}
+
+
+rsa_ll_inverse.gaussian_i <- function(i, data, draws) {
+  mu <- rsa_mu(data, draws)
+  val <- 0.5 * log(draws$lambda/(2 * pi)) - 1.5 * log(data$y) - 
+    0.5 * draws$lambda * (data$y - mu)^2/(data$y * mu^2)
+  rsa_weignted(val, data$weights)
+}
+
+
+rsa_ll_Gamma_i <- function(i, data, draws) {
+  val <- dgamma(data$y, shape = draws$shape, rate = draws$shape/rsa_mu(data, 
+    draws), log = TRUE)
+  rsa_weignted(val, data$weights)
+}
+
+
+rsa_mu <- function(data, draws) {
+  if (is.matrix(draws$beta)) {
+    eta <- as.vector(rsa_linear_predictor.matrix(draws$beta, rsa_xdata(data),
+      data$offset))
+  } else {
+    eta <- as.vector(rsa_linear_predictor.default(draws$beta, rsa_xdata(data),
+      data$offset))
+  }
+  return(draws$f$linkinv(eta))
+}
+
+
+rsa_xdata <- function(data) {
+  sel <- c("y", "weights", "offset", "trials")
+  return(data[, -which(colnames(data) %in% sel)])
+}
+
+
+rsa_weighted <- function(val, w) {
+  if (is.null(w)) {
+    return(val)
+  }
+  return(val * w)
+}
+

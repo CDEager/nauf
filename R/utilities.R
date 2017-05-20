@@ -70,9 +70,10 @@ empty_cells <- function(x) {
 
 # what is the first element in lst which matches x exactly
 in_list <- function(x, lst) {
-  m <- which(sapply(lst, function(n) isTRUE(all.equal(n, x))))
-  if (length(m)) return(m[1])
-  return(0)
+  if (is.character(x)) x <- list(x)
+  m <- match(x, lst, nomatch = 0L)
+  names(m) <- names(x)
+  return(m)
 }
 
 
@@ -169,8 +170,11 @@ charlogbin_to_uf <- function(x) {
 nval <- function(x, rm.na = TRUE) {
   if ((L <- length(dim(x))) > 2) stop("'x' must have at most two dims")
   x <- unique(x)
-  if (!L) x <- matrix(x)
-  if (rm.na) x <- x[!rowna(x), , drop = FALSE]
+  if (!L) {
+    if (rm.na) return(sum(!is.na(x)))
+    return(length(x))
+  }
+  if (rm.na) return(sum(!rowna(x)))
   return(nrow(x))
 }
 
@@ -274,17 +278,6 @@ fna <- function() {
 }
 
 
-nauf.info <- function(object) {
-  if (!is.nauf.terms(object)) {
-    object <- terms(object)
-    if (!is.nauf.terms(object)) {
-      stop("'object' must contain a nauf.terms object")
-    }
-  }
-  return(attr(object, "nauf.info"))
-}
-
-
 psgn <- function(x, f = mean) {
   return(mean(sign(x) == sign(f(x))))
 }
@@ -292,5 +285,290 @@ psgn <- function(x, f = mean) {
 
 isFALSE <- function(x) {
   return(identical(FALSE, x))
+}
+
+
+condition_on_re <- function(re.form, ReForm, REForm, REform) {
+  re.form <- lme4_reFormHack(re.form, ReForm, REForm, REform)
+  if (is.null(re.form)) return(TRUE)
+  if (is.na(re.form) || isTRUE(all.equal(~ 0, re.form))) return(FALSE)
+  stop("Currently, only NULL, NA, and ~0 are supported re.form values.")
+}
+
+
+nchain <- function(object) {
+  if (inherits(object, "stanfit")) {
+    return(length(object@sim))
+  }
+  if (is.nauf.stanreg(object)) {
+    return(length(object$stanfit@sim))
+  }
+  stop("Must be a stanfit or nauf.stanreg")
+}
+
+
+
+
+
+
+###### manipulating classes ######
+
+`drop_class<-` <- function(x, which, value) {
+  if (missing(which)) {
+    if (isS4(x)) stop("'x' is S4; cannot alter class")
+    class(x) <- setdiff(class(x), value)
+  } else {
+    class(attr(x, which)) <- setdiff(class(attr(x, which)), value)
+  }
+  return(x)
+}
+
+
+`first_class<-` <- function(x, which, value) {
+  if (missing(which)) {
+    if (isS4(x)) stop("'x' is S4; cannot alter class")
+    class(x) <- union(value, class(x))
+  } else {
+    class(attr(x, which)) <- union(value, class(attr(x, which)))
+  }
+  return(x)
+}
+
+
+`last_class<-` <- function(x, which, value) {
+  if (missing(which)) {
+    if (isS4(x)) stop("'x' is S4; cannot alter class")
+    class(x) <- c(setdiff(class(x), value), value)
+  } else {
+    class(attr(x, which)) <- c(setdiff(class(attr(x, which)), value), value)
+  }
+  return(x)
+}
+
+
+
+
+###### nauf.info ######
+
+nauf.info <- function(object) {
+  i <- NULL
+  
+  if (is.nauf.terms(object)) {
+    i <- attr(object, "nauf.info")
+    
+  } else if (is.glmod(object)) {
+    i <- attr(attr(object$fr, "terms"), "nauf.info")
+  
+  } else {
+    tt <- terms(object)
+    if (is.nauf.terms(tt)) {
+      i <- attr(tt, "nauf.info")
+    }
+  }
+  
+  if (is.null(i)) {
+    stop("'object' must be or contain a nauf.terms object")
+  }
+  
+  return(i)
+}
+
+
+`nauf.info<-` <- function(x, which, value) {
+  if (inherits(x, "terms") && !is.nauf.terms(x)) {
+    attr(x, "nauf.info") <- value
+    first_class(x) <- "nauf.terms"
+    return(x)
+  }
+  
+  i <- nauf.info(x)
+  
+  if (missing(which)) {
+    i <- value
+  } else if (identical(which, 0)) {
+    i[names(value)] <- value
+  } else if (length(which) == 1) {
+    i[[which]] <- value
+  } else {
+    i[which] <- value
+  }
+  
+  .nauf.info(x) <- i
+  
+  return(x)
+}
+
+
+`.nauf.info<-` <- function(x, value) {
+  UseMethod(".nauf.info<-")
+}
+
+
+`.nauf.info<-.default` <- function(x, value) {
+  stop("methods for classes c(", add_quotes(class(x), ", "), ") do not exist.")
+}
+
+
+`.nauf.info<-.nauf.terms` <- function(x, value) {
+  attr(x, "nauf.info") <- value
+  return(x)
+}
+
+
+`.nauf.info<-.nauf.frame` <- function(x, value) {
+  attr(attr(x, "terms"), "nauf.info") <- value
+  return(x)
+}
+
+
+`.nauf.info<-.list` <- function(x, value) {
+  if (is.glmod(x)) {
+    attr(attr(x$fr, "terms"), "nauf.info") <- value
+  } else {
+    stop("'x' is a list but not a lmod/glmod")
+  }
+  return(x)
+}
+
+
+`.nauf.info<-.nauf.glm` <- function(x, value) {
+  attr(x$terms, "nauf.info") <- value
+  attr(attr(x$model, "terms"), "nauf.info") <- value
+  return(x)
+}
+
+
+`.nauf.info<-.nauf.lmerMod` <- function(x, value) {
+  attr(attr(x@frame, "terms"), "nauf.info") <- value
+  return(x)
+}
+
+
+`.nauf.info<-.nauf.glmerMod` <- function(x, value) {
+  attr(attr(x@frame, "terms"), "nauf.info") <- value
+  return(x)
+}
+
+
+`.nauf.info<-.nauf.stanreg` <- function(x, value) {
+  if (is.nauf.stanfer(x)) {
+    attr(x$terms, "nauf.info") <- attr(attr(x$model, "terms"),
+      "nauf.info") <- value
+  } else {
+    attr(attr(x$glmod$fr, "terms"), "nauf.info") <- value
+  }
+  return(x)
+}
+
+
+`.nauf.info<-.nauf.ref.grid` <- function(x, value) {
+  attr(x$ref.grid@model.info$terms, "nauf.info") <- value
+  return(x)
+}
+
+
+
+
+###### is ######
+
+
+is.glmod <- function(object) {
+  return(is.list(object) && all(c("fr", "X", "reTrms") %in% names(object)))
+}
+
+
+is.nauf.formula <- function(object) {
+  return(inherits(object, "nauf.formula"))
+}
+
+
+is.nauf.terms <- function(object) {
+  return(inherits(object, "nauf.terms"))
+}
+
+
+is.nauf.frame <- function(object) {
+  return(inherits(object, "nauf.frame"))
+}
+
+
+is.nauf.glm <- function(object) {
+  return(inherits(object, "nauf.glm"))
+}
+
+
+is.nauf.lmerMod <- function(object) {
+  return(inherits(object, "nauf.lmerMod"))
+}
+
+
+is.nauf.glmerMod <- function(object) {
+  return(inherits(object, "nauf.glmerMod"))
+}
+
+
+is.nauf.merMod <- function(object) {
+  return(inherits(object, c("nauf.lmerMod", "nauf.glmerMod")))
+}
+
+
+is.nauf.model <- function(object) {
+  return(inherits(object, c("nauf.glm", "nauf.lmerMod", "nauf.glmerMod",
+    "nauf.stanreg")))
+}
+
+
+is.nauf.ref.grid <- function(object) {
+  return(inherits(object, "nauf.ref.grid"))
+}
+
+
+is.nauf.mer.anova <- function(object) {
+  return(inherits(object, "nauf.mer.anova"))
+}
+
+
+is.nauf.pmm <- function(object) {
+  return(inherits(object, "nauf.pmm"))
+}
+
+
+is.summ.nauf.pmm <- function(object) {
+  return(inherits(object, "summ.nauf.pmm"))
+}
+
+
+is.nauf.stanreg <- function(object) {
+  return(inherits(object, "nauf.stanreg"))
+}
+
+
+is.nauf.stanmer <- function(object) {
+  return(inherits(object, "nauf.stanreg") && inherits(object, "lmerMod"))
+}
+
+
+is.nauf.stanfer <- function(object) {
+  return(inherits(object, "nauf.stanreg") && !inherits(object, "lmerMod"))
+}
+
+
+is.nauf.mcmc <- function(object) {
+  return(inherits(object, "nauf.mcmc"))
+}
+
+
+is.summ.nauf.mcmc <- function(object) {
+  return(inherits(object, "summ.nauf.mcmc"))
+}
+
+
+is.nauf.postmm <- function(object) {
+  return(inherits(object, "nauf.postmm"))
+}
+
+
+is.summ.nauf.postmm <- function(object) {
+  return(inherits(object, "summ.nauf.postmm"))
 }
 

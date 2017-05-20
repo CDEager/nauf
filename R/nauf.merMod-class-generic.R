@@ -1,6 +1,45 @@
 
 
-###### formula ######
+#' Class for fitted mixed effects models with \code{nauf} contrasts.
+#'
+#' Models fit with \code{\link{nauf_lmer}} have class \code{nauf.lmerMod}
+#' (inheriting from \code{\linkS4class{lmerMod}}) and models fit with
+#' \code{\link{nauf_glmer}} and \code{\link{nauf_glmer.nb}} have class
+#' \code{nauf.glmerMod} (inheriting from \code{\linkS4class{glmerMod}}).
+#'
+#' @slot rsp,Gp,call,frame,flist,cnms,lower,theta,beta,u,devcomp,pp,optinfo See
+#'   \code{\linkS4class{merMod}}.
+#'
+#' @section Generic Methods:
+#' There are S3 methods specific to the
+#' \code{nauf.lmerMod} and \code{nauf.glmerMod} classes for the generic
+#' functions \code{\link[=predict.nauf.merMod]{predict}} and
+#' \code{\link[=anova.nauf.merMod]{anova}}, which behave differently from the
+#' methods for \code{\linkS4class{merMod}} objects. Other methods for generic
+#' functions from the \code{stats}, \code{MASS}, and \code{lme4} packages
+#' should work as they would for \code{\linkS4class{merMod}} objects, with the
+#' exception of the method for the \code{\link[stats]{simulate}} function,
+#' for which the \code{nauf} method has more limited options than
+#' \code{\link[lme4]{simulate.merMod}}, and is not meant for end user use
+#' at this time (the method is necessary for the \code{PB} method to work
+#' for \code{\link[=anova.nauf.merMod]{anova}}). If you encounter a generic
+#' function in these packages which does not function properly, please report
+#' the issue at \url{https://github.com/CDEager/nauf/issues}.
+#'
+#' @seealso \code{\link{nauf_glmer}}, \code{\link{nauf_contrasts}}, and
+#'   \code{\linkS4class{merMod}}.
+#'
+#' @name nauf.merMod
+NULL
+
+
+#' @rdname nauf.merMod
+nauf.lmerMod <- setClass("nauf.lmerMod", contains = "lmerMod")
+
+
+#' @rdname nauf.merMod
+nauf.glmerMod <- setClass("nauf.glmerMod", contains = "glmerMod")
+
 
 #' @export
 formula.nauf.lmerMod <- function(x, fixed.only = FALSE, random.only = FALSE,
@@ -51,29 +90,6 @@ formula.nauf.glmerMod <- function(x, fixed.only = FALSE, random.only = FALSE,
   return(form)
 }
 
-
-#' @export
-formula.nauf.stanreg <- function(x, fixed.only = FALSE, random.only = FALSE,
-                                 ...) {
-  form <- x$formula
-  
-  if (is.nauf.stanmer(x)) {
-    if (missing(fixed.only) && random.only) fixed.only <- FALSE
-    if (fixed.only && random.only) {
-      stop("can't specify 'only fixed' and 'only random' terms")
-    }
-    if (fixed.only) form <- lme4_getFixedFormula(form)
-    if (random.only) form <- lme4_reOnly(form, response = TRUE)
-  }
-  
-  class(form) <- c("nauf.formula", "formula")
-
-  return(form)
-}
-
-
-
-###### terms ######
 
 #' @export
 terms.nauf.lmerMod <- function(x, fixed.only = TRUE, random.only = FALSE,
@@ -130,105 +146,6 @@ terms.nauf.glmerMod <- function(x, fixed.only = TRUE, random.only = FALSE,
   return(tt)
 }
 
-
-#' @export
-terms.nauf.stanreg <- function(x, fixed.only = TRUE, random.only = FALSE, ...) {
-  if (!is.nauf.stanmer(x)) return(x$terms)
-  
-  if (missing(fixed.only) && random.only) fixed.only <- FALSE
-  if (fixed.only && random.only) {
-    stop("can't specify 'only fixed' and 'only random' terms")
-  }
-
-  tt <- attr(x$glmod$fr, "terms")
-
-  if (fixed.only) {
-    tt <- terms.formula(formula(x, fixed.only = TRUE))
-    attr(tt, "predvars") <- attr(terms(x$glmod$fr), "predvars.fixed")
-  }
-  if (random.only) {
-    tt <- terms.formula(lme4::subbars(formula(x, random.only = TRUE)))
-    attr(tt, "predvars") <- attr(terms(x$glmod$fr), "predvars.random")
-  }
-
-  attr(tt, "nauf.info") <- nauf.info(x$glmod$fr)
-    # calling nauf.info(x) would create infinite recursion
-  class(tt) <- c("nauf.terms", "terms", "formula")
-
-  return(tt)
-}
-
-
-
-###### model.frame ######
-
-#' @export
-model.frame.nauf.formula <- function(formula, data = NULL, subset = NULL,
-                                   na.action = na.pass,
-                                   drop.unused.levels = TRUE, xlev = NULL,
-                                   ncs_scale = attr(formula, "standardized.scale"),
-                                   ...) {
-  mc <- match.call()
-  mc[[1]] <- quote(nauf::nauf_model.frame)
-  return(eval(mc, parent.frame()))
-}
-
-
-#' @export
-model.frame.nauf.terms <- function(formula, data = NULL, subset = NULL,
-                                   na.action = na.pass,
-                                   drop.unused.levels = TRUE, xlev = NULL,
-                                   ncs_scale = attr(formula, "standardized.scale"),
-                                   ...) {
-  mc <- match.call()
-  info <- attr(formula, "nauf.info")
-  class(formula) <- c("terms", "formula")
-  ncs <- info$ncs_scale
-  mc[[1]] <- quote(stats::model.frame)
-  mc$formula <- formula
-  mc$na.action <- na.pass
-  mc$drop.unused.levels <- TRUE
-  mc$xlev <- NULL
-  mc["ncs_scale"] <- NULL
-  mf <- eval(mc, parent.frame())
-  attr(attr(mf, "terms"), "nauf.info") <- info
-  class(attr(mf, "terms")) <- c("nauf.terms", "terms", "formula")
-  attr(mf, "formula") <- stats::formula(attr(mf, "terms"))
-  class(attr(mf, "formula")) <- c("nauf.formula", "formula")
-  class(mf) <- c("data.frame", "nauf.frame")
-
-  for (j in colnames(mf)) {
-    if (j %in% names(info$uf)) {
-      mf[[j]] <- standardize::fac_and_contr(mf[[j]], ordered = FALSE,
-        levels = info$uf[[j]][[1]],
-        contrasts = named_contr_sum(info$uf[[j]][[1]], ncs))
-    } else if (j %in% names(info$of)) {
-      mf[[j]] <- standardize::fac_and_contr(mf[[j]], ordered = TRUE,
-        levels = info$of[[j]]$levels, contrasts = info$of[[j]]$contrasts)
-    } else if (j %in% names(info$groups)) {
-      mf[[j]] <- factor(mf[[j]], levels = info$groups[[j]])
-    }
-  }
-
-  return(mf)
-}
-
-
-
-###### model.matrix ######
-
-#' @export
-model.matrix.nauf.terms <- function(object, data = environment(object),
-                                    contrasts.arg = NULL, xlev = NULL, ...) {
-  if (!is.nauf.frame(data)) {
-    data <- model.frame(object, data)
-  }
-  return(nauf_mm(data))
-}
-
-
-
-###### predict ######
 
 #' Predictions from a mixed effects \code{nauf} model at new data values.
 #'
@@ -462,15 +379,6 @@ predict.nauf.lmerMod <- function(object, newdata = NULL, newparams = NULL,
 }
 
 
-
-###### print ######
-
-#' @export
-print.nauf.ref.grid <- function(x, ...) {
-  show(x$ref.grid)
-}
-
-
 #' @export
 print.nauf.mer.anova <- function(x, ...) {
   if (!inherits(x, "list")) {
@@ -493,116 +401,6 @@ print.nauf.mer.anova <- function(x, ...) {
   }
 }
 
-
-#' @export
-print.nauf.pmm <- function(x, ...) {
-  print(summary(x, ...))
-}
-
-
-#' @export
-print.summ.nauf.pmm <- function(x, ...) {
-  nauf <- attr(x, "nauf.specs")
-  attr(x, "nauf.specs") <- NULL
-
-  if (nauf$bayes) {
-    cat("\nPosterior marginal means for '",
-      paste(nauf$variables, collapse = ":"), "'", sep = "")
-  } else {
-    cat("\nPredicted marginal means for '",
-      paste(nauf$variables, collapse = ":"), "'", sep = "")
-  }
-  
-  if (length(nauf$keep_NA)) {
-    cat("\nNA considered a level for:", add_quotes(nauf$keep_NA))
-  }
-  if (length(nauf$drop_NA)) {
-    cat("\nNA not considered a level for:", add_quotes(nauf$drop_NA))
-  }
-  if (length(nauf$by)) {
-    cat("\nPairwise comparisons by '", paste(nauf$by, collapse = ":"), "'",
-      sep = "")
-  }
-  if (length(nauf$note)) {
-    cat("\nNote:", nauf$note)
-  }
-  cat("\n")
-
-  if (length(nauf$averaged_over)) {
-    cat("\nFactors averaged over:", add_quotes(nauf$averaged_over))
-  }
-  if (length(nauf$held_at_mean)) {
-    cat("\nCovariates held at their means:", add_quotes(nauf$held_at_mean))
-  }
-  if (length(nauf$conditioned_on)) {
-    cat("\nFactors conditioned on:", add_quotes(nauf$conditioned_on),
-      "\n\nSee the 'subset' element of the 'nauf.specs'",
-      "attribute for subsetted groups.")
-  }
-
-  cat("\n")
-
-  if (sum(lengths(nauf[c("averaged_over", "held_at_mean",
-  "conditioned_on")]))) {
-    cat("\n")
-  }
-
-  if (nauf$bayes) {
-    for (i in 1:length(x)) {
-      cat("$", names(x)[i], "\n", sep = "")
-      print(x[[i]], ...)
-      cat("\n")
-    }
-  } else {
-    class(x) <- class(x)[-1]
-    print(x, ...)
-  }
-
-  invisible(NULL)
-}
-
-
-#' @export
-print.summ.nauf.postmm <- function(x, ...) {
-  lbl <- attr(x, "lbl")
-  attr(x, "lbl") <- NULL
-  class(x) <- "data.frame"
-  print(x, ...)
-  if (!is.null(lbl)) {
-    cat("\nEstimates are given on the", lbl, "scale.\n")
-  }
-}
-
-
-#' @export
-print.nauf.postmm <- function(x, ...) {
-  print(summary(x, ...))
-}
-
-
-#' @export
-print.summ.nauf.mcmc <- function(x, digits = 5, mce = FALSE, rhat = NULL, ...) {
-  class(x) <- "data.frame"
-  if (!mce) x <- x[-which(colnames(x) == "MCE")]
-  w <- any(x$Rhat > 1.1)
-  if (w) {
-    warning("Some Rhat's are greater than 1.1; chains have not converged.")
-  }
-  if (isFALSE(rhat) || (is.null(rhat) && !w)) {
-    x <- x[-which(colnames(x) == "Rhat")]
-  }
-  print(x, digits = digits, ...)
-}
-
-
-#' @export
-print.nauf.mcmc <- function(x, ...) {
-  print(summary(x, ...))
-}
-
-
-
-###### anova ######
 
 #' Type III anovas for mixed effects \code{nauf} models.
 #'
@@ -1156,9 +954,6 @@ anova.nauf.glmerMod <- function(object, ..., refit = TRUE, model.names = NULL,
 }
 
 
-
-###### simulate ######
-
 #' @export
 simulate.nauf.lmerMod <- function(object, nsim = 1, seed = NULL, use.u = FALSE,
                                   re.form = NA, ReForm, REForm, REform,
@@ -1396,340 +1191,5 @@ simulate.nauf.glmerMod <- function(object, nsim = 1, seed = NULL, use.u = FALSE,
   row.names(val) <- nm
 
   return(structure(val, na.action = na.pass, seed = RNGstate))
-}
-
-
-
-###### summary ######
-
-#' @export
-summary.nauf.pmm <- function(object, ...) {
-  if (inherits(object, "lsm.list")) {
-    class(object) <- c("lsm.list", "list")
-    summ <- summary(object, ...)
-    class(summ) <- c("summ.nauf.pmm", class(summ))
-    attr(summ, "nauf.specs") <- attr(object, "nauf.specs")
-    return(summ)
-  }
-  
-  summ <- sapply(object, summary, ..., simplify = FALSE)
-  class(summ) <- c("summ.nauf.pmm", "list")
-  attr(summ, "nauf.specs") <- attr(object, "nauf.specs")
-  return(summ)
-}
-
-
-#' @export
-summary.nauf.postmm <- function(object, probs = c(0.025, 0.5, 0.975),
-                                psign = TRUE, type = c("link", "response"),
-                                ...) {
-  type <- match.arg(type)
-  lbl <- NULL
-  if (type == "response" && !is.null(object$family)) {
-    if (!is.function(inv <- object$family$linkinv)) {
-      warning("'type' is 'response' but there is no inverse link function.",
-        "  No transformation performed.")
-    } else {
-      object$mcmc <- inv(object$mcmc)
-      lbl <- object$misc$inv.lbl
-    }
-  }
-  summ <- cbind(object$grid, summary(object$mcmc, probs, psign, ...))
-  attr(summ, "lbl") <- lbl
-  class(summ) <- c("summ.nauf.postmm", "data.frame")
-  return(summ)
-}
-
-
-#' @export
-summary.nauf.mcmc <- function(object, probs = c(0.025, 0.5, 0.975), psign = TRUE,
-                              ...) {
-  summ <- rstan::monitor(object, warmup = 0, probs = probs, print = FALSE)
-  nc <- ncol(summ)
-  colnames(summ)[c(1:3, nc - 1)] <- c("Mean", "MCE", "SD", "Neff")
-  summ <- summ[, c(1, 3:(nc - 1), 2, nc)]
-  if (med <- length(w <- which(colnames(summ) == "50%"))) {
-    colnames(summ)[w] <- "Median"
-    summ <- summ[, c(1:2, w, setdiff(3:nc, w))]
-  }
-  summ <- as.data.frame(summ)
-  if (psign) {
-    summ[["P(Sign(Mean))"]] <- apply(object, 3, psgn)
-  }
-  class(summ) <- c("summ.nauf.mcmc", "data.frame")
-  return(summ)
-}
-
-
-
-###### fixef ######
-
-#' @export
-fixef.nauf.stanreg <- function(object, samples = FALSE, permuted = TRUE, ...) {
-  # what about zero-intercept?
-  if (!samples) return(NextMethod("fixef"))
-  b <- rstan::extract(object$stanfit, c("alpha", "beta"), permuted = permuted)
-  if (permuted) {
-    b <- do.call(cbind, b)
-    dimnames(b) <- list(iterations = NULL,
-      parameters = colnames(model.matrix(object)))
-  }
-  return(b)
-}
-
-
-
-###### ranef ######
-
-#' @export
-ranef.nauf.stanreg <- function(object, samples = FALSE, permuted = TRUE,
-                               arr = FALSE, ...) {
-  if (!is.nauf.stanmer(object)) {
-    stop("model contains no random effects")
-  }
-  if (!samples) return(NextMethod("ranef"))
-  
-  g <- rstan::extract(object$stanfit, "b", permuted = permuted)
-  all_names <- object$stanfit@sim$fnames_oi
-  b_names <- all_names[grep("^b\\[", all_names)]
-  keep <- !grepl("_NEW_", b_names, fixed = TRUE)
-  
-  if (permuted) {
-    g <- g[[1]][, keep, drop = FALSE]
-  } else {
-    g <- g[, , keep, drop = FALSE]
-  }
-  
-  re <- object$glmod$reTrms
-  
-  groups <- colnames(re$flist)
-  members <- sapply(re$flist, levels, simplify = FALSE)
-  
-  if (arr) {
-    gnums <- vector("list", length(groups))
-    names(gnums) <- groups
-    nms <- gnums
-    
-    levs <- lapply(fl <- re$flist, levels)
-    asgn <- attr(fl, "assign")
-    cnms <- re$cnms
-    nc <- lengths(cnms)
-    nm <- lengths(levs)[asgn]
-    nb <- nc * nm
-    bnums <- lapply(nb, function(x) 1:x)
-    if (length(bnums) > 1) {
-      for (j in 2:length(bnums)) {
-        bnums[[j]] <- bnums[[j]] + max(bnums[[j - 1]])
-      }
-    }
-    mnums <- list()
-    for (j in 1:length(bnums)) {
-      mnums[[j]] <- rep(1:nm[j], each = nc[j])
-    }
-    
-    for (j in 1:length(groups)) {
-      w <- which(asgn == j)
-      gnums[[j]] <- unname(unlist(bnums[w]))[order(unname(unlist(mnums[w])))]
-      nms[[j]] <- list(m = members[[j]], parameters = unname(unlist(cnms[w])))
-      names(nms[[j]])[1] <- groups[j]
-    }
-    
-    matdims <- lapply(nms, lengths)
-    
-    if (permuted) {
-      return(mapply(function(loc, md, g, n) {
-        iter <- dim(g)[1]
-        a <- array(dim = c(iter, md), dimnames = c(dimnames(g)[1], n))
-        for (i in 1:iter) {
-          a[i, , ] <- matrix(g[i, loc], md[1], md[2], byrow = TRUE)
-        }
-        return(a)
-      }, gnums, matdims, nms, MoreArgs = list(g = g), SIMPLIFY = FALSE))
-      
-    } else {
-      return(mapply(function(loc, md, g, n) {
-        iter <- dim(g)[1]
-        chains <- dim(g)[2]
-        a <- array(dim = c(iter, chains, md), dimnames = c(dimnames(g)[1:2], n))
-        for (ch in 1:chains) {
-          for (i in 1:iter) {
-            a[i, ch, , ] <- matrix(g[i, ch, loc], md[1], md[2], byrow = TRUE)
-          }
-        }
-        return(a)
-      }, gnums, matdims, nms, MoreArgs = list(g = g), SIMPLIFY = FALSE))
-    }
-  }
-  
-  nms <- sapply(groups, function(x) paste(x, members[[x]], sep = "_"),
-    simplify = FALSE)
-  nms <- unlist(sapply(1:length(re$cnms), function(x)
-    as.vector(t(outer(nms[[names(re$cnms)[x]]], re$cnms[[x]], paste,
-    sep = ":"))), simplify = FALSE))
-    
-  if (permuted) {
-    dimnames(g) <- list(iterations = NULL, parameters = nms)
-  } else {
-    dimnames(g)[[3]] <- nms
-  }
-  
-  return(g)
-}
-
-
-
-###### coef ######
-
-#' @export
-coef.nauf.stanreg <- function(object, samples = FALSE, permuted = TRUE, ...) {
-  if (!samples) return(NextMethod("coef"))
-  
-  fef <- fixef(object, samples, permuted)
-  if (!inherits(object, "lmerMod")) return(fe)
-  ref <- ranef(object, samples, permuted, arr = TRUE)
-  re <- object$glmod$reTrms
-  fl <- re$flist
-  groups <- colnames(fl)
-  glist <- vector("list", ncol(fl))
-  names(glist) <- groups
-  
-  if (permuted) {
-    fnms <- colnames(fef)
-    for (g in groups) {
-      rnms <- dimnames(ref[[g]])[[3]]
-      dnms <- dimnames(ref[[g]])
-      dnms[[3]] <- union(fnms, rnms)
-      
-      glist[[g]] <- array(0, dim = c(dim(ref[[g]])[1:2], length(dnms[[3]])),
-        dimnames = dnms)
-      glist[[g]][, , rnms] <- ref[[g]][, , rnms]
-      
-      for (f in fnms) {
-        glist[[g]][, , f] <- glist[[g]][, , f] + matrix(fef[, f],
-          nrow(fef), dim(ref[[g]])[2])
-      }
-    }
-    
-    return(glist)
-  }
-  
-  fnms <- dimnames(fef)[[3]]
-  for (g in groups) {
-    rnms <- dimnames(ref[[g]])[[4]]
-    dnms <- dimnames(ref[[g]])
-    dnms[[4]] <- union(fnms, rnms)
-    
-    glist[[g]] <- array(0, dim = c(dim(ref[[g]])[1:3], length(dnms[[4]])),
-      dimnames = dnms)
-    glist[[g]][, , , rnms] <- ref[[g]][, , , rnms]
-    
-    for (f in fnms) {
-      for (ch in 1:dim(ref[[g]])[2]) {
-        glist[[g]][, ch, , f] <- glist[[g]][, ch, , f] + matrix(fef[, ch, f],
-          dim(fef)[1], dim(ref[[g]])[3])
-      }
-    }
-  }
-  
-  return(glist)
-}
-
-
-
-###### is ######
-
-is.nauf.formula <- function(object) {
-  return(inherits(object, "nauf.formula"))
-}
-
-
-is.nauf.terms <- function(object) {
-  return(inherits(object, "nauf.terms"))
-}
-
-
-is.nauf.frame <- function(object) {
-  return(inherits(object, "nauf.frame"))
-}
-
-
-is.nauf.glm <- function(object) {
-  return(inherits(object, "nauf.glm"))
-}
-
-
-is.nauf.lmerMod <- function(object) {
-  return(inherits(object, "nauf.lmerMod"))
-}
-
-
-is.nauf.glmerMod <- function(object) {
-  return(inherits(object, "nauf.glmerMod"))
-}
-
-
-is.nauf.merMod <- function(object) {
-  return(inherits(object, c("nauf.lmerMod", "nauf.glmerMod")))
-}
-
-
-is.nauf.model <- function(object) {
-  return(inherits(object, c("nauf.glm", "nauf.lmerMod", "nauf.glmerMod",
-    "nauf.stanreg")))
-}
-
-
-is.nauf.ref.grid <- function(object) {
-  return(inherits(object, "nauf.ref.grid"))
-}
-
-
-is.nauf.mer.anova <- function(object) {
-  return(inherits(object, "nauf.mer.anova"))
-}
-
-
-is.nauf.pmm <- function(object) {
-  return(inherits(object, "nauf.pmm"))
-}
-
-
-is.summ.nauf.pmm <- function(object) {
-  return(inherits(object, "summ.nauf.pmm"))
-}
-
-
-is.nauf.stanreg <- function(object) {
-  return(inherits(object, "nauf.stanreg"))
-}
-
-
-is.nauf.stanmer <- function(object) {
-  return(inherits(object, "nauf.stanreg") && inherits(object, "lmerMod"))
-}
-
-
-is.nauf.stanfer <- function(object) {
-  return(inherits(object, "nauf.stanreg") && !inherits(object, "lmerMod"))
-}
-
-
-is.nauf.mcmc <- function(object) {
-  return(inherits(object, "nauf.mcmc"))
-}
-
-
-is.summ.nauf.mcmc <- function(object) {
-  return(inherits(object, "summ.nauf.mcmc"))
-}
-
-
-is.nauf.postmm <- function(object) {
-  return(inherits(object, "nauf.postmm"))
-}
-
-
-is.summ.nauf.postmm <- function(object) {
-  return(inherits(object, "summ.nauf.postmm"))
 }
 
