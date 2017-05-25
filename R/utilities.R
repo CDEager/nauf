@@ -1,5 +1,76 @@
 
 
+# reorganized mapply with default for simplify set to FALSE, lower case
+# arguments (just don't use with functions where partial matching could
+# occur), and MoreArgs -> same.  Just a more intuitive way for me to code.
+mlapply <- function(..., same = NULL, simplify = FALSE, use.names = TRUE,
+                    fun = NULL) {
+  return(mapply(FUN = fun, ..., MoreArgs = same, SIMPLIFY = simplify,
+    USE.NAMES = use.names))
+}
+
+
+# args is a list of lists, each of which is passed to do.call(fun)
+doapply <- function(fun, args, simplify = FALSE, use.names = TRUE) {
+  return(mapply(FUN = do.call, args = args, MoreArgs = list(what = fun),
+    SIMPLIFY = simplify, USE.NAMES = use.names))
+}
+
+
+attrapply <- function(x, ..., same = NULL, simplify = FALSE, use.names = TRUE) {
+  return(mapply(FUN = structure, .Data = x, ..., MoreArgs = same,
+    SIMPLIFY = simplify, USE.NAMES = use.names))
+}
+
+
+# split a matrix (based on split.data.frame but with col option)
+msplit <- function(x, f, byrow = TRUE, drop = FALSE, ...) {
+  if (byrow) {
+    return(lapply(split(x = seq_len(nrow(x)), f = f, drop = drop, ...),
+      function(ind) x[ind, , drop = FALSE]))
+  }
+  return(lapply(split(x = seq_len(ncol(x)), f = f, drop = drop, ...),
+    function(ind) x[, ind, drop = FALSE]))
+}
+
+
+# call matrix allowing rownames and colnames to be specified separately
+# (useful for mapply), and then optionally call as.data.frame on the result
+matframe <- function(data = NA, nrow = 1, ncol = 1, byrow = FALSE,
+                     dimnames = NULL, rownames = NULL, colnames = NULL,
+                     as_data_frame = TRUE, ...) {
+  if (!is.null(rownames) || !is.null(colnames)) {
+    if (!is.null(dimnames)) {
+      stop("If 'dimnames' is specified, can't specify rownames or colnames.")
+    }
+    dimnames <- list(rownames, colnames)
+  }
+  
+  ans <- matrix(data = data, nrow = nrow, ncol = ncol, byrow = byrow,
+    dimnames = dimnames)
+    
+  if (as_data_frame) return(as.data.frame(ans, ...))
+  
+  return(ans)
+}
+
+
+nsplit <- function(x, ord = NULL) {
+  if (is.null(ord)) {
+    ans <- split(x, names(x))
+  } else {
+    ans <- split(x[ord], names(x)[ord])
+  }
+  if (is.list(x) && !is.data.frame(x)) ans <- lapply(ans, unname)
+  return(ans)
+}
+
+
+levs_and_contr <- function(fac) {
+  return(list(levels = levels(fac), contrasts = contrasts(fac)))
+}
+
+
 # divide non-neg vec by self to make simplex
 as_simplex <- function(x) {
   return(x / sum(x))
@@ -296,14 +367,23 @@ condition_on_re <- function(re.form, ReForm, REForm, REform) {
 }
 
 
-nchain <- function(object) {
-  if (inherits(object, "stanfit")) {
-    return(length(object@sim))
+last_names <- function(object, nms) {
+  d <- length(dim(object))
+  if (missing(nms)) {
+    if (d) return(dimnames(object)[[d]])
+    return(names(object))
   }
-  if (is.nauf.stanreg(object)) {
-    return(length(object$stanfit@sim))
+  if (d) {
+    if (is.list(nms)) {
+      dimnames(object)[d] <- nms
+    } else {
+      dimnames(object)[[d]] <- nms
+    }
+  } else {
+    if (is.list(nms)) nms <- nms[[1]]
+    names(object) <- nms
   }
-  stop("Must be a stanfit or nauf.stanreg")
+  return(object)
 }
 
 
@@ -346,130 +426,29 @@ nchain <- function(object) {
 }
 
 
-
-
-###### nauf.info ######
-
-nauf.info <- function(object) {
-  i <- NULL
-  
-  if (is.nauf.terms(object)) {
-    i <- attr(object, "nauf.info")
-    
-  } else if (is.glmod(object)) {
-    i <- attr(attr(object$fr, "terms"), "nauf.info")
-  
-  } else {
-    tt <- terms(object)
-    if (is.nauf.terms(tt)) {
-      i <- attr(tt, "nauf.info")
-    }
+`add_class<-` <- function(x, which, value) {
+  if (!is.list(value) || length(intersect(value[[1]], value[[2]]))) {
+    stop("should use first/last_class if 'value' is not a list; ",
+      "elements should have no overlap")
   }
-  
-  if (is.null(i)) {
-    stop("'object' must be or contain a nauf.terms object")
-  }
-  
-  return(i)
-}
-
-
-`nauf.info<-` <- function(x, which, value) {
-  if (inherits(x, "terms") && !is.nauf.terms(x)) {
-    attr(x, "nauf.info") <- value
-    first_class(x) <- "nauf.terms"
-    return(x)
-  }
-  
-  i <- nauf.info(x)
-  
   if (missing(which)) {
-    i <- value
-  } else if (identical(which, 0)) {
-    i[names(value)] <- value
-  } else if (length(which) == 1) {
-    i[[which]] <- value
+    if (isS4(x)) stop("'x' is S4; cannot alter class")
+    class(x) <- c(value[[1]], setdiff(class(x), do.call(c, value)), value[[2]])
   } else {
-    i[which] <- value
-  }
-  
-  .nauf.info(x) <- i
-  
-  return(x)
-}
-
-
-`.nauf.info<-` <- function(x, value) {
-  UseMethod(".nauf.info<-")
-}
-
-
-`.nauf.info<-.default` <- function(x, value) {
-  stop("methods for classes c(", add_quotes(class(x), ", "), ") do not exist.")
-}
-
-
-`.nauf.info<-.nauf.terms` <- function(x, value) {
-  attr(x, "nauf.info") <- value
-  return(x)
-}
-
-
-`.nauf.info<-.nauf.frame` <- function(x, value) {
-  attr(attr(x, "terms"), "nauf.info") <- value
-  return(x)
-}
-
-
-`.nauf.info<-.list` <- function(x, value) {
-  if (is.glmod(x)) {
-    attr(attr(x$fr, "terms"), "nauf.info") <- value
-  } else {
-    stop("'x' is a list but not a lmod/glmod")
+    class(attr(x, which)) <- c(value[[1]], setdiff(class(attr(x, which)),
+      do.call(c, value)), value[[2]])
   }
   return(x)
 }
-
-
-`.nauf.info<-.nauf.glm` <- function(x, value) {
-  attr(x$terms, "nauf.info") <- value
-  attr(attr(x$model, "terms"), "nauf.info") <- value
-  return(x)
-}
-
-
-`.nauf.info<-.nauf.lmerMod` <- function(x, value) {
-  attr(attr(x@frame, "terms"), "nauf.info") <- value
-  return(x)
-}
-
-
-`.nauf.info<-.nauf.glmerMod` <- function(x, value) {
-  attr(attr(x@frame, "terms"), "nauf.info") <- value
-  return(x)
-}
-
-
-`.nauf.info<-.nauf.stanreg` <- function(x, value) {
-  if (is.nauf.stanfer(x)) {
-    attr(x$terms, "nauf.info") <- attr(attr(x$model, "terms"),
-      "nauf.info") <- value
-  } else {
-    attr(attr(x$glmod$fr, "terms"), "nauf.info") <- value
-  }
-  return(x)
-}
-
-
-`.nauf.info<-.nauf.ref.grid` <- function(x, value) {
-  attr(x$ref.grid@model.info$terms, "nauf.info") <- value
-  return(x)
-}
-
 
 
 
 ###### is ######
+
+
+is.mixed <- function(object) {
+  return(length(lme4::findbars(formula(object))) > 0)
+}
 
 
 is.glmod <- function(object) {

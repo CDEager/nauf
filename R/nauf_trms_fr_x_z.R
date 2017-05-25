@@ -306,10 +306,9 @@
 nauf_contrasts <- function(object, inc_ordered = FALSE) {
   info <- nauf.info(object)
 
-  contr <- mapply(expand_contr, levs = info$uf,
-    hasna = info$hasna[names(info$uf)], MoreArgs = list(ncs = info$ncs_scale),
-    SIMPLIFY = FALSE)
-
+  contr <- mlapply(levs = info$uf, hasna = info$hasna[names(info$uf)],
+    same = list(ncs = info$ncs_scale), fun = expand_contr)
+  
   if (inc_ordered && length(info$of)) {
     contr <- c(contr, lapply(info$of, `[[`, "contrasts"))
   }
@@ -322,13 +321,8 @@ expand_contr <- function(levs, ncs, hasna) {
   contr <- lapply(levs, standardize::named_contr_sum, scale = ncs)
   
   if ((n <- length(contr)) > 1) {
-    contr[2:n] <- mapply(function(mat, cj, rn) {
-      cn <- paste0(".c", cj, ".", colnames(mat))
-      expanded <- matrix(0, length(rn), length(cn), dimnames = list(rn, cn))
-      expanded[rownames(mat), ] <- mat
-      return(expanded)
-    }, mat = contr[2:n], cj = 2:n, MoreArgs = list(rn = rownames(contr[[1]])),
-    SIMPLIFY = FALSE)
+    contr[2:n] <- mlapply(mat = contr[2:n], cj = 2:n,
+      same = list(rn = rownames(contr[[1]])), fun = add_contr_zeros)
   }
   
   contr <- do.call(cbind, contr)
@@ -338,6 +332,14 @@ expand_contr <- function(levs, ncs, hasna) {
   }
 
   return(contr)
+}
+
+
+add_contr_zeros <- function(mat, cj, rn) {
+  cn <- paste0(".c", cj, ".", colnames(mat))
+  expanded <- matrix(0, length(rn), length(cn), dimnames = list(rn, cn))
+  expanded[rownames(mat), ] <- mat
+  return(expanded)
 }
 
 
@@ -431,28 +433,25 @@ model.frame.nauf.terms <- function(formula, data = NULL, subset = NULL,
   
   lvs <- lapply(info$uf[uf], `[[`, 1)
   contr <- lapply(lvs, standardize::named_contr_sum, scale = ncs)
-  mf[uf] <- mapply(standardize::fac_and_contr, x = mf[uf], levels = lvs,
-    contrasts = contr, MoreArgs = list(ordered = FALSE), SIMPLIFY = FALSE)
+  mf[uf] <- mlapply(x = mf[uf], levels = lvs, contrasts = contr,
+    fun = standardize::fac_and_contr)
   
-  mf[of] <- mapply(standardize::fac_and_contr, x = mf[of],
-    levels = lapply(info$of[of], `[[`, "levels"),
+  mf[of] <- mlapply(x = mf[of], levels = lapply(info$of[of], `[[`, "levels"),
     contrasts = lapply(info$of[of], `[[`, "contrasts"),
-    MoreArgs = list(ordered = TRUE), SIMPLIFY = FALSE)
+    same = list(ordered = TRUE), fun = standardize::fac_and_contr)
   
   if (isTRUE(info$allow.new.levels)) {
-    mf[groups] <- mapply(
-      function(fac, levs, hasna) {
+    mf[groups] <- mlapply(fac = mf[groups], levs = info$groups[groups],
+      hasna = info$hasna[groups], fun = function(fac, levs, hasna) {
         wnew <- which(!(fac %in% c(levs, if (hasna) NA)))
         fac <- factor(fac, levels = c(levs, "_NEW_"))
         fac[wnew] <- "_NEW_"
         return(fac)
-      },
-      fac = mf[groups], levs = info$groups[groups], hasna = info$hasna[groups],
-      SIMPLIFY = FALSE)
-    
+      }
+    )
   } else {
-    mf[groups] <- mapply(factor, x = mf[groups], levels = info$groups[groups],
-      MoreArgs = list(ordered = FALSE), SIMPLIFY = FALSE)
+    mf[groups] <- mlapply(x = mf[groups], levels = info$groups[groups],
+      same = list(ordered = FALSE), fun = factor)
   }
   
   if (any(sapply(mf, anyNA) & !info$hasna[v])) {
@@ -642,8 +641,7 @@ nauf_model.frame <- function(formula, data = NULL, subset = NULL,
 
   cnms <- colnames(mf)
   extras <- find_extras(mf)
-  rgrp <- cnms %in% groups
-  names(rgrp) <- cnms
+  rgrp <- setNames(cnms %in% groups, cnms)
   mf[rgrp] <- lapply(mf[rgrp], factor, ordered = FALSE)
   check <- which(!extras & !rgrp)
   mf[check] <- lapply(mf[check], charlogbin_to_uf)
@@ -662,27 +660,16 @@ nauf_model.frame <- function(formula, data = NULL, subset = NULL,
 
   mf[uf] <- lapply(mf[uf], standardize::named_contr_sum, scale = ncs,
     return_contr = FALSE)
-    
   attr(mt, "dataClasses")[cnms[uf | rgrp]] <- "factor"
   
-  info <- list(
-    resp = cnms[1],
-    groups = lapply(mf[groups], levels),
-    uf = lapply(mf[uf], function(x) list(levels(x))),
-    of = lapply(mf[of], function(x) list(levels = levels(x),
-      contrasts = contrasts(x))),
-    num = lapply(mf[num], mean),
-    mat = lapply(mf[mat], colMeans),
-    extras = cnms[extras],
-    cc = NULL,
-    hasna = hasna,
-    ncs_scale = ncs
-  )
-  info[c("uf", "cc")] <- contrast_changes(fe_form, bars, info$uf, mf)
-  
-  nauf.info(mt) <- info
-  last_class(mf) <- "nauf.frame"
+  changes <- contrast_changes(fe_form, bars, mf, uf)
+    
+  mt <- nauf.terms(mt, resp = cnms[1], groups = lapply(mf[groups], levels),
+    uf = changes$uf, of = lapply(mf[of], levs_and_contr),
+    num = lapply(mf[num], mean), mat = lapply(mf[mat], colMeans),
+    extras = cnms[extras], cc = changes$cc, hasna = hasna, ncs_scale = ncs)
   first_class(formula) <- "nauf.formula"
+  last_class(mf) <- "nauf.frame"
   attr(mf, "terms") <- mt
   attr(mf, "formula") <- formula
 
@@ -690,32 +677,39 @@ nauf_model.frame <- function(formula, data = NULL, subset = NULL,
 }
 
 
-contrast_changes <- function(fixed, bars, uf, mf) {
+nauf.terms <- function(terms, ...) {
+  first_class(terms) <- "nauf.terms"
+  attr(terms, "nauf.info") <- list(...)
+  return(terms)
+}
+
+
+contrast_changes <- function(fixed, bars, mf, uf) {
+  ufn <- names(uf)[uf]
+  uf <- lapply(mf[ufn], function(x) list(levels(x)))
   changes <- lapply(c(list(fixed), bars), .contrast_changes, mf = mf)
   main <- lapply(changes, `[[`, "lvs")
   inter <- lapply(changes, `[[`, "cc")
+  asgn <- lapply(changes, `[[`, "asgn")
   
   # do.call(main) and do.call(c, do.call(c, inter)) are lists of charvecs
   # named by uf; combine all into all_levs
-  all_levs <- c(do.call(c, main), do.call(c, do.call(c, inter)))
+  all_levs <- nsplit(c(do.call(c, main), do.call(c, do.call(c, inter))))[ufn]
   
   # uf is now a named list of unique contrast set levels for each factor
-  uf <- mapply(
-    function(fac, mec, changelevs) {
-      unique(c(list(mec), changelevs[which(names(changelevs) == fac)]))
-    }, fac = names(uf), mec = uf, MoreArgs = list(changelevs = all_levs),
-    SIMPLIFY = FALSE
-  )
+  uf <- mlapply(mec = uf, changelevs = all_levs, fun = function(mec, changelevs)
+    unique(c(list(mec), changelevs)))
   
   # convert to named numeric vectors of contrast references
   main <- lapply(main, contr_nums, levlist = uf)
-  inter <- lapply(inter, function(x) sapply(x, contr_nums, levlist = uf,
-    simplify = FALSE))
+  inter <- lapply(inter, function(x) mlapply(levs = x, same = list(levlist = uf),
+    fun = contr_nums))
   
   # join so one element per form (fixed + bars)
-  cc <- lapply(1:length(main), function(x) c(main[[x]], inter[[x]]))
+  cc <- mlapply(m = main, i = inter, a = asgn, fun = function(m, i, a)
+    c(m, mlapply(factors = i, assign = a, fun = list)))
   
-  return(list(uf = uf, cc = cc))
+  return(rsa_list(uf, cc))
 }
 
 
@@ -723,23 +717,24 @@ contrast_changes <- function(fixed, bars, uf, mf) {
 # change in interactions from the main effect contrasts *for the bar* because
 # if the main effect contrasts are not .c1., they will have been changed in
 # mf prior to calling ccmat
-.contrast_changes <- function(form, mf) {
-  mt <- attr(mf, "terms")
-  allmat <- attr(mt, "factors")
-  rn <- rownames(allmat)
+.contrast_changes <- function(form, mf, uf, hasna) {
+  lvs <- cc <- asgn <- list()
   
   if (re <- !inherits(form, "formula")) {
     group <- varnms(barform(form, 3))
     if (is.null(varnms(form <- barform(form, 2)))) {
-      return(list(uf = NULL, cc = NULL))
+      return(rsa_list(lvs, cc, asgn))
     }
-    if (re <- anyNA(mf[group])) {
+    if (re <- any(hasna[group])) {
       mf <- droplevels(mf[!rowna(mf[group]), , drop = FALSE])
     }
   }
   
-  mf <- mf[rn <- rownames(fmat <- attr(stats::terms(form), "factors") > 0)]
-  nauf <- (uf <- sapply(mf, is.uf)) & sapply(mf, anyNA)
+  fmat <- attr(stats::terms(form), "factors") > 0
+  rn <- rownames(fmat)
+  uf <- uf[rn]
+  hasna <- hasna[rn]
+  nauf <- uf & hasna
   ufmat <- fmat[uf, , drop = FALSE]
   naufmat <- fmat[nauf, , drop = FALSE]
   check_inter <- length(inter <- which(colSums(ufmat) > 1 & colSums(naufmat)))
@@ -747,20 +742,20 @@ contrast_changes <- function(fixed, bars, uf, mf) {
 
   if (check_main) {
     lvs <- lapply(mf[main], levels)
-  } else {
-    lvs <- list()
   }
   
   if (check_inter) {
-    cc <- lapply(unique(lapply(inter, function(x)
-      sort(rownames(ufmat)[ufmat[, x]]))), nauf_interaction, mf = mf)
-    cc <- lapply(cc[vapply(cc, `[[`, TRUE, "changed")], `[[`, "levels")
-    names(cc) <- vapply(cc, function(x) paste(names(x), collapse = ":"), "")
-  } else {
-    cc <- list()
+    cc <- unique(lapply(inter, function(x) sort(rownames(ufmat)[ufmat[, x]])))
+    cc <- mlapply(cols = cc, same = list(x = mf), fun = nauf_interaction)
+    changed <- sapply(cc, `[[`, "changed")
+    cc <- lapply(cc[changed], `[[`, "levels")
+    facs <- lapply(cc, names)
+    asgn <- mlapply(facs, same = list(m = fmat), fun = function(f, m)
+      which(sapply(m[f, , drop = FALSE], 2, all)))
+    names(asgn) <- names(cc) <- sapply(facs, paste, collapse = ":")
   }
   
-  return(list(lvs = lvs, cc = cc))
+  return(rsa_list(lvs, cc, asgn))
 }
 
 
@@ -773,25 +768,9 @@ contr_nums <- function(levs, levlist) {
 }
 
 
-nauf_interaction <- function(x, cols = colnames(x)) {
-  if (!is.data.frame(x)) stop("'x' must be a data.frame'")
-  if (!is.character(cols)) {
-    if (is.numeric(cols) || is.logical(cols)) {
-      cols <- colnames(x)[cols]
-    } else {
-      stop("'cols' must be a character, numeric, or logical vector")
-    }
-  }
-  cols <- unique(cols)
+nauf_interaction <- function(x, cols) {
   nm <- paste(cols, collapse = ":")
-
-  # coerce char/logical/binary to unordered factor and record levels
-  x <- droplevels(charlogbin_to_uf(x[cols]))
-  uf <- sapply(x, is.uf)
-  if (sum(uf) < 2) {
-    stop("interaction ", nm, " does not involve at least two unordered factors")
-  }
-  x <- x[uf]
+  x <- x[cols]
   mlvs <- lapply(x, function(n) reorder_ft(sort(levels(n))))
 
   # remove any unique combination which involves NAs
@@ -807,19 +786,24 @@ nauf_interaction <- function(x, cols = colnames(x)) {
   #    then at this point [c] has been dropped form f1,
   #    but we still need to drop [d, g] from f2
   if (empty_cells(x)) {
-    torm <- vector("list", ncol(x))
-
-    for (j in 1:length(torm)) {
-      for (i in levels(x[[j]])) {
-        check <- droplevels(x[x[[j]] == i, -j, drop = FALSE])
-        if (any(sapply(check, nlevels) == 1)) {
-          torm[[j]] <- c(torm[[j]], i)
-        }
+    torm <- mlapply(i = lapply(x, levels), j = 1:ncol(x), same = list(mat = x),
+      fun = function(j, i, mat) {
+        do.call(c, mlapply(lev = i, same = list(n = j, m = mat),
+          fun = function(lev, n, m) {
+            check <- droplevels(m[m[[n]] %in% lev, -n, drop = FALSE])
+            if (any(sapply(check, nlevels) == 1)) return(lev)
+            return(NULL)
+          }
+        ))
       }
-    }
-
-    for (j in 1:length(torm)) {
-      x[x[[j]] %in% torm[[j]], j] <- NA
+    )
+    
+    if (length(torm <- torm[lengths(torm) > 0])) {
+      f <- names(torm)
+      x[f] <- mlapply(fac = x[f], levs = torm, fun = function(fac, levs) {
+        fac[fac %in% levs] <- NA
+        return(fac)
+      })
     }
 
     x <- unique(droplevels(x[!rowna(x), , drop = FALSE]))
@@ -930,9 +914,8 @@ nauf_mm <- function(mf, ccn = 1) {
     formula <- stats::terms(barform(lme4::findbars(formula)[[ccn - 1]], 2))
     ccmain <- intersect(names(ufc), names(cc))
     if (length(ccmain)) {
-      mf[ccmain] <- mapply(apply_contrast_changes, fac = mf[ccmain],
-        levs = ufc[ccmain], cj = cc[ccmain], MoreArgs = list(ncs = ncs),
-        SIMPLIFY = FALSE)
+      mf[ccmain] <- mlapply(fac = mf[ccmain], levs = ufc[ccmain], cj = cc[ccmain],
+        same = list(ncs = ncs), fun = apply_contrast_changes)
       cc <- cc[-which(names(cc) %in% ccmain)]
     }
   }
@@ -983,8 +966,8 @@ apply_contrast_changes <- function(fac, levs, cj, ncs) {
 ccmat <- function(cc, mf, ufc, ncs, fmat) {
   uf <- names(cc$factors)
   
-  mf[uf] <- mapply(apply_contrast_changes, fac = mf[uf], levs = ufc[uf],
-    cj = cc$factors, MoreArgs = list(ncs = ncs), SIMPLIFY = FALSE)
+  mf[uf] <- mlapply(fac = mf[uf], levs = ufc[uf], cj = cc$factors,
+    same = list(ncs = ncs), fun = apply_contrast_changes)
   
   fmat <- fmat[, cc$assign, drop = FALSE] > 0
   main <- rownames(fmat)[rowSums(fmat) > 0]
@@ -1009,7 +992,7 @@ ccmat <- function(cc, mf, ufc, ncs, fmat) {
 #' @importFrom Matrix rBind t sparseMatrix drop0 diag KhatriRao
 nauf_mkReTrms <- function(fr, lvs = NULL) {
   # based on lme4::mkReTrms
-  if (!inherits(fr, "nauf.frame")) {
+  if (!is.nauf.frame(fr)) {
     stop("'fr' was not created with nauf_model.frame")
   }
   bars <- lme4::findbars(attr(fr, "formula"))
@@ -1021,8 +1004,8 @@ nauf_mkReTrms <- function(fr, lvs = NULL) {
 
   names(bars) <- lme4_barnames(bars)
   term.names <- vapply(bars, lme4_safeDeparse, "")
-  blist <- mapply(nauf_mkBlist, bar = bars, ccn = 1 + 1:length(bars),
-    MoreArgs = list(fr = fr, lvs = lvs), SIMPLIFY = FALSE)
+  blist <- mlapply(bar = bars, ccn = 1 + 1:length(bars), same = list(fr = fr,
+    lvs = lvs), fun = nauf_mkBlist)
   nl <- vapply(blist, `[[`, 0L, "nl")
   if (any(diff(nl) > 0)) {
     ord <- rev(order(nl))

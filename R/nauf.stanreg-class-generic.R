@@ -12,6 +12,13 @@ NULL
 
 
 #' @export
+print.nauf.stanreg <- function(x, ...) {
+  NextMethod("print")
+  cat("\n\n")
+}
+
+
+#' @export
 formula.nauf.stanreg <- function(x, fixed.only = FALSE, random.only = FALSE,
                                  ...) {
   form <- x$formula
@@ -25,8 +32,7 @@ formula.nauf.stanreg <- function(x, fixed.only = FALSE, random.only = FALSE,
     if (random.only) form <- lme4_reOnly(form, response = TRUE)
   }
   
-  class(form) <- c("nauf.formula", "formula")
-
+  first_class(form) <- "nauf.formula"
   return(form)
 }
 
@@ -51,50 +57,51 @@ terms.nauf.stanreg <- function(x, fixed.only = TRUE, random.only = FALSE, ...) {
     attr(tt, "predvars") <- attr(terms(x$glmod$fr), "predvars.random")
   }
 
-  attr(tt, "nauf.info") <- nauf.info(x$glmod$fr)
-    # calling nauf.info(x) would create infinite recursion
-  class(tt) <- c("nauf.terms", "terms", "formula")
-
+  nauf.info(tt) <- nauf.info(x)
+  first_class(tt) <- "nauf.terms"
   return(tt)
 }
 
 
 #' @export
-print.nauf.stanreg <- function(x, ...) {
-  NextMethod("print")
-  cat("\n")
-}
-
-
-#' @export
-predict.nauf.stanreg <- function(object, newdata = NULL, re.form = NULL,
-                                 type = c("link", "response"), offset = NULL,
-                                 na.action = na.pass, samples = FALSE, ...) {
-  if (!is.null(newdata) && !is.data.frame(newdata)) {
-    stop("'newdata', if specified, must be a data.frame.")
-  }
+predict.nauf.stanreg <- function(object, ..., newdata = NULL,
+                                 type = c("link", "response"), se.fit = FALSE) {
+  if (is.nauf.stanmer(object)) 
+    stop("'predict' is not available for models fit with ", 
+      object$call[[1]], ". Please use the 'posterior_predict' function instead.", 
+      call. = FALSE)
+      
   type <- match.arg(type)
-  
-  dat <- nauf_pp_data(object, newdata = newdata, re.form = re.form,
-    offset = offset, ...)
-    
-  eta <- nauf_pp_eta(object, dat)
-  if (type == "response") eta <- object$family$linkinv(eta)
-  
-  fit <- colMeans(eta)
-  if (is.null(newdata)) {
-    names(fit) <- nms <- rownames(newdata)
-  } else {
-    names(fit) <- nms <- rownames(model.frame(object))
+  if (!se.fit && is.null(newdata)) {
+    if (type == "link") return(object$linear.predictors)
+    return(object$fitted.values)
   }
   
-  if (!samples) return(fit)
+  if (type == "response") {
+    stop("type='response' should not be used for models estimated by MCMC", 
+      "\nor variational approximation. Instead, use the 'posterior_predict' ", 
+      "function to draw \nfrom the posterior predictive distribution.", 
+      call. = FALSE)
+  }
   
-  eta <- nauf.mcmc(eta, nchain(object), nms)
+  dat <- nauf_pp_data(object, newdata)
+  stanmat <- as.matrix(object)
+  beta <- stanmat[, seq_len(ncol(dat$x)), drop = FALSE]
+  eta <- rsa_linear_predictor.matrix(beta, dat$x, dat$offset)
+  if (type == "response") eta <- object$family$linkinv(eta)
+  fit <- colMeans(eta)
   
-  return(list(fit = fit, samples = eta))
+  if (!se.fit) return(fit)
+  se.fit <- apply(eta, 2L, sd)
+  return(rsa_nlist(fit, se.fit))
 }
 
+
+
+###### rstantools methods ######
+
+## These functions are not different from the stanreg versions in what they
+## produce, except for the treatment of re.form and new group levels in predict 
 
 #' @export
 posterior_predict.nauf.stanreg <- function(object, newdata = NULL, draws = NULL,
@@ -157,291 +164,157 @@ log_lik.nauf.stanreg <- function(object, newdata = NULL, offset = NULL, ...) {
 
 
 #' @export
-fixef.nauf.stanreg <- function(object, method = c("median", "mean", "samples"),
-                               permuted = TRUE, ...) {
-  method <- match.arg(method)
-  
-  if (method == "median") return(NextMethod("fixef"))
-  
-  if (method == "mean") {
-    return(object$stan_summary[1:ncol(model.matrix(object)), "mean"])
+posterior_linpred.nauf.stanreg <- function(object, transform = FALSE,
+                                           newdata = NULL, re.form = NULL, 
+                                           offset = NULL, XZ = FALSE, ...) {
+  if (!is.null(newdata) && !is.data.frame(newdata)) {
+    stop("'newdata', if specified, must be a data.frame.")
   }
   
-  samp <- rstan::extract(object$stanfit,
-    c(if (colnames(model.matrix(object)) == "(Intercept)") "alpha", "beta"),
-    permuted)
+  dat <- nauf_pp_data(object, newdata = newdata, re.form = re.form, 
+    offset = offset)
+    
+  if (XZ) {
+    XZ <- dat[["x"]]
+    if (is.nauf.stanmer(object)) XZ <- cbind(XZ, t(dat[["Zt"]]))
+    return(XZ)
+  }
   
-  if (permuted) return(do.call(cbind, samp))
+  eta <- nauf_pp_eta(object, data = dat, draws = NULL)[["eta"]]
   
-  return(nauf.mcmc(samp))
+  if (is.null(newdata)) {
+    colnames(eta) <- rownames(model.frame(object))
+  } else {
+    colnames(eta) <- rownames(newdata)
+  }
+  
+  if (!transform) return(eta)
+  
+  return(object$family$linkinv(eta))
 }
 
 
 #' @export
-ranef.nauf.stanreg <- function(object, method = c("median", "mean", "samples"),
-                               permuted = TRUE, by_group = TRUE,
-                               drop_NEW = TRUE, ...) {
-  method <- match.arg(method)
-  
-  all_names <- object$stanfit@sim$fnames_oi
-  sel <- rsa_b_names(all_names)
-  
-  fl <- as.list(object$glmod$reTrms$flist)
-  levs <- lapply(fl, levels)
-  
-  if (drop_NEW) {
-    not_NEW <- which(!grepl("_NEW_", all_names[sel], fixed = TRUE))
-    sel <- setdiff(sel, which(grepl("_NEW_", all_names, fixed = TRUE)))
-  } else {
-    levs <- lapply(levs, c, "_NEW_")
-  }
-  
-  bnms <- all_names[sel]
-  bnms <- substr(bnms, 3, nchar(bnms) - 1)
-  
-  asgn <- attr(fl, "assign")
-  attr(fl, "assign") <- NULL
-  cnms <- object$glmod$reTrms$cnms
-  mark <- !grepl("^Xr", names(cnms))
-  cnms <- cnms[mark]
-  asgn <- asgn[mark]
-  
-  nc <- vapply(cnms, length, 1L)
-  nm <- vapply(levs[asgn], length, 1L)
-  nb <- nc * nm
-  nbseq <- rep.int(seq_along(nb), nb)
-    
-  if (method != "samples") {
-    ans <- object$stan_summary[sel, if (method == "mean") "mean" else "50%"]
-    
-    if (!by_group) {
-      names(ans) <- bnms
-      return(ans)
-    }
-    
-    ml <- split(ans, nbseq)
-    for (i in seq_along(ml)) {
-      ml[[i]] <- matrix(ml[[i]], ncol = nc[i], byrow = TRUE, 
-        dimnames = list(NULL, cnms[[i]]))
-    }
-    ans <- sapply(intersect(names(fl), names(cnms)), function(i) {
-      data.frame(do.call(cbind, ml[names(ml) == i]), row.names = levs[[i]],
-        check.names = FALSE)
-    }, simplify = FALSE)
-    
-    return(structure(ans, class = "ranef.mer"))
-  }
-  
-  if (permuted) {
-    ans <- rstan::extract(object$stanfit, "b")[[1]]
-    if (drop_NEW) ans <- ans[, not_NEW, drop = FALSE]
-    
-  } else if (!by_group) {
-    return(nauf.mcmc(rstan::extract(object$stanfit, "b",
-      FALSE)[, , sel, drop = FALSE], NULL, bnms))
-      
-  } else {
-    ans <- as.matrix(object$stanfit)[, sel, drop = FALSE]
-  }
-  
-  #  dimnames(ans) <- list(iterations = NULL, parameters = bnms)
-  if (!by_group) return(ans)
-  
-  
+loo_linpred.nauf.stanreg <- function(object, type = c("mean", "var", "quantile"),
+                                     probs = 0.5, transform = FALSE, ..., lw) {
+  type <- match.arg(type)
+  lwts <- nauf_loo_weights(object, lw, log = TRUE, ...)
+  linpreds <- posterior_linpred(object, transform = transform)
+  return(loo::E_loo(x = linpreds, lw = lwts, type = type, probs = probs))
 }
-
-function (object, ...) 
-{
-    all_names <- if (used.optimizing(object)) 
-        rownames(object$stan_summary)
-    else object$stanfit@sim$fnames_oi
-    sel <- b_names(all_names)
-    ans <- object$stan_summary[sel, select_median(object$algorithm)]
-    ans <- ans[!grepl("_NEW_", names(ans), fixed = TRUE)]
-    fl <- .flist(object)
-    levs <- lapply(fl, levels)
-    asgn <- attr(fl, "assign")
-    cnms <- .cnms(object)
-    mark <- !grepl("^Xr", names(cnms))
-    fl <- fl[mark]
-    asgn <- asgn[mark]
-    levs <- levs[mark]
-    cnms <- cnms[mark]
-    nc <- vapply(cnms, length, 1L)
-    nb <- nc * vapply(levs, length, 1L)
-    
-    nbseq <- rep.int(seq_along(nb), nb)
-    ml <- split(ans, nbseq)
-    for (i in seq_along(ml)) {
-        ml[[i]] <- matrix(ml[[i]], ncol = nc[i], byrow = TRUE, 
-            dimnames = list(NULL, cnms[[i]]))
-    }
-    ans <- lapply(seq_along(fl), function(i) {
-        data.frame(do.call(cbind, ml[i]), row.names = levs[[i]], 
-            check.names = FALSE)
-    })
-    names(ans) <- names(fl)
-    structure(ans, class = "ranef.mer")
-}
-
 
 
 #' @export
-ranef.nauf.stanreg <- function(object, samples = FALSE, permuted = TRUE,
-                               arr = FALSE, drop_NEW = TRUE, ...) {
-  if (!is.nauf.stanmer(object)) {
-    stop("model contains no random effects")
+loo_predict.nauf.stanreg <- function(object, type = c("mean", "var", "quantile"),
+                                     probs = 0.5, ..., lw) {
+  type <- match.arg(type)
+  lwts <- nauf_loo_weights(object, lw, log = TRUE, ...)
+  preds <- posterior_predict(object)
+  return(loo::E_loo(x = preds, lw = lwts, type = type, probs = probs))
+}
+
+
+#' @export
+loo_predictive_interval.nauf.stanreg <- function(object, prob = 0.9, ..., lw) {
+  stopifnot(length(prob) == 1)
+  alpha <- (1 - prob) / 2
+  probs <- c(alpha, 1 - alpha)
+  labs <- paste0(100 * probs, "%")
+  intervals <- loo_predict(object, type = "quantile", probs = probs,
+    lw = lw, ...)
+  rownames(intervals) <- labs
+  return(t(intervals))
+}
+
+
+#' @export
+loo.nauf.stanreg <- function(x, ..., k_threshold = NULL) {
+  if (rsa_model_has_weights(x)) {
+    rsa_recommend_exact_loo(reason = "model has weights")
   }
-  if (!samples) return(NextMethod("ranef"))
+  user_threshold <- !is.null(k_threshold)
+  if (user_threshold) {
+    rsa_validate_k_threshold(k_threshold)
+  } else {
+    k_threshold <- 0.7
+  }
   
-  g <- rstan::extract(object$stanfit, "b", permuted = permuted)
-  all_names <- object$stanfit@sim$fnames_oi
-  b_names <- all_names[grep("^b\\[", all_names)]
-  keep <- !grepl("_NEW_", b_names, fixed = TRUE)
+  loo_x <- suppressWarnings(loo::loo(rsa_ll_fun(x), args = nauf_ll_args(x), ...))
+  bad_obs <- loo::pareto_k_ids(loo_x, k_threshold)
+  n_bad <- length(bad_obs)
+  out <- structure(loo_x, name = deparse(substitute(x)),
+    discrete = rsa_is_discrete(x), yhash = rsa_hash_y(x))
+    
+  if (!length(bad_obs)) {
+    if (user_threshold) {
+      message("All pareto_k estimates below user-specified threshold of ", 
+        k_threshold, ". \nReturning loo object.")
+    }
+    return(out)
+  }
   
-  if (drop_NEW) {
-    if (permuted) {
-      g <- g[[1]][, keep, drop = FALSE]
+  if (!user_threshold) {
+    if (n_bad > 10) {
+      rsa_recommend_kfold(n_bad)
     } else {
-      g <- g[, , keep, drop = FALSE]
+      rsa_recommend_reloo(n_bad)
     }
-  } else if (permuted) {
-    g <- g[[1]]
+    return(out)
   }
   
-  re <- object$glmod$reTrms
+  reloo_out <- rsa_reloo(x, loo_x, obs = bad_obs)
   
-  groups <- colnames(re$flist)
-  members <- sapply(re$flist, levels, simplify = FALSE)
-  if (!drop_NEW) {
-    for (g in groups) {
-      members[[g]] <- c(members[[g]], "_NEW_")
-    }
-  }
-  
-  if (arr) {
-    gnums <- vector("list", length(groups))
-    names(gnums) <- groups
-    nms <- gnums
-    
-    asgn <- attr(re$flist, "assign")
-    cnms <- re$cnms
-    nc <- lengths(cnms)
-    nm <- lengths(members)[asgn]
-    nb <- nc * nm
-    bnums <- lapply(nb, function(x) 1:x)
-    if (length(bnums) > 1) {
-      for (j in 2:length(bnums)) {
-        bnums[[j]] <- bnums[[j]] + max(bnums[[j - 1]])
-      }
-    }
-    mnums <- list()
-    for (j in 1:length(bnums)) {
-      mnums[[j]] <- rep(1:nm[j], each = nc[j])
-    }
-    
-    for (j in 1:length(groups)) {
-      w <- which(asgn == j)
-      gnums[[j]] <- unname(unlist(bnums[w]))[order(unname(unlist(mnums[w])))]
-      nms[[j]] <- list(m = members[[j]], parameters = unname(unlist(cnms[w])))
-      names(nms[[j]])[1] <- groups[j]
-    }
-    
-    matdims <- lapply(nms, lengths)
-    
-    if (permuted) {
-      return(mapply(function(loc, md, g, n) {
-        iter <- dim(g)[1]
-        a <- array(dim = c(iter, md), dimnames = c(dimnames(g)[1], n))
-        for (i in 1:iter) {
-          a[i, , ] <- matrix(g[i, loc], md[1], md[2], byrow = TRUE)
-        }
-        return(a)
-      }, gnums, matdims, nms, MoreArgs = list(g = g), SIMPLIFY = FALSE))
-      
-    } else {
-      return(mapply(function(loc, md, g, n) {
-        iter <- dim(g)[1]
-        chains <- dim(g)[2]
-        a <- array(dim = c(iter, chains, md), dimnames = c(dimnames(g)[1:2], n))
-        for (ch in 1:chains) {
-          for (i in 1:iter) {
-            a[i, ch, , ] <- matrix(g[i, ch, loc], md[1], md[2], byrow = TRUE)
-          }
-        }
-        return(a)
-      }, gnums, matdims, nms, MoreArgs = list(g = g), SIMPLIFY = FALSE))
-    }
-  }
-  
-  nms <- sapply(groups, function(x) paste(x, members[[x]], sep = "_"),
-    simplify = FALSE)
-  nms <- unlist(sapply(1:length(re$cnms), function(x)
-    as.vector(t(outer(nms[[names(re$cnms)[x]]], re$cnms[[x]], paste,
-    sep = ":"))), simplify = FALSE))
-    
-  if (permuted) {
-    dimnames(g) <- list(iterations = NULL, parameters = nms)
-  } else {
-    dimnames(g)[[3]] <- nms
-  }
-  
-  return(g)
+  return(structure(reloo_out, name = attr(out, "name"), discrete = attr(out, 
+    "discrete"), yhash = attr(out, "yhash")))
 }
 
 
 #' @export
-coef.nauf.stanreg <- function(object, samples = FALSE, permuted = TRUE,
-                              drop_NEW = TRUE, ...) {
-  if (!samples) return(NextMethod("coef"))
-  
-  fef <- fixef(object, samples, permuted)
-  if (!inherits(object, "lmerMod")) return(fe)
-  ref <- ranef(object, samples, permuted, arr = TRUE, drop_NEW = drop_NEW)
-  re <- object$glmod$reTrms
-  fl <- re$flist
-  groups <- colnames(fl)
-  glist <- vector("list", ncol(fl))
-  names(glist) <- groups
-  
-  if (permuted) {
-    fnms <- colnames(fef)
-    for (g in groups) {
-      rnms <- dimnames(ref[[g]])[[3]]
-      dnms <- dimnames(ref[[g]])
-      dnms[[3]] <- union(fnms, rnms)
-      
-      glist[[g]] <- array(0, dim = c(dim(ref[[g]])[1:2], length(dnms[[3]])),
-        dimnames = dnms)
-      glist[[g]][, , rnms] <- ref[[g]][, , rnms]
-      
-      for (f in fnms) {
-        glist[[g]][, , f] <- glist[[g]][, , f] + matrix(fef[, f],
-          nrow(fef), dim(ref[[g]])[2])
-      }
-    }
-    
-    return(glist)
+waic.nauf.stanreg <- function(x, ...) {
+  out <- waic(rsa_ll_fun(x), args = nauf_ll_args(x))
+  return(structure(out, class = c("loo", "waic"), name = deparse(substitute(x)), 
+      discrete = rsa_is_discrete(x), yhash = rsa_hash_y(x)))
+}
+
+
+#' @export
+nauf_kfold <- function(x, K = 10, save_fits = FALSE) {
+  stopifnot(is.nauf.stanreg(x))
+  stopifnot(K > 1, K <= nobs(x))
+  if (rsa_model_has_weights(x)) {
+    stop("kfold is not currently available for models fit using weights.")
   }
   
-  fnms <- dimnames(fef)[[3]]
-  for (g in groups) {
-    rnms <- dimnames(ref[[g]])[[4]]
-    dnms <- dimnames(ref[[g]])
-    dnms[[4]] <- union(fnms, rnms)
-    
-    glist[[g]] <- array(0, dim = c(dim(ref[[g]])[1:3], length(dnms[[4]])),
-      dimnames = dnms)
-    glist[[g]][, , , rnms] <- ref[[g]][, , , rnms]
-    
-    for (f in fnms) {
-      for (ch in 1:dim(ref[[g]])[2]) {
-        glist[[g]][, ch, , f] <- glist[[g]][, ch, , f] + matrix(fef[, ch, f],
-          dim(fef)[1], dim(ref[[g]])[3])
-      }
-    }
+  d <- rsa_kfold_and_reloo_data(x)
+  N <- nrow(d)
+  perm <- sample.int(N)
+  idx <- ceiling(seq(from = 1, to = N, length.out = K + 1))
+  
+  bin <- .bincode(perm, breaks = idx, right = FALSE, include.lowest = TRUE)
+  lppds <- list()
+  fits <- array(list(), c(K, 2), list(NULL, c("fit", "omitted")))
+  
+  for (k in 1:K) {
+    message("Fitting model ", k, " out of ", K)
+    omitted <- which(bin == k)
+    fit_k <- update(object = x, data = d[-omitted, , drop = FALSE],
+      weights = NULL, refresh = 0)
+    lppds[[k]] <- log_lik(fit_k, newdata = d[omitted, , drop = FALSE],
+      newx = rstanarm::get_x(x)[omitted, , drop = FALSE], 
+      stanmat = as.matrix(x))
+    if (save_fits) fits[k, ] <- list(fit = fit_k, omitted = omitted)
   }
   
-  return(glist)
+  elpds <- unlist(lapply(lppds, function(x) {
+    apply(x, 2, rsa_log_mean_exp)
+  }))
+  
+  out <- list(elpd_kfold = sum(elpds), se_elpd_kfold = sqrt(N * var(elpds)),
+    pointwise = cbind(elpd_kfold = elpds))
+  if (save_fits) out$fits <- fits
+  
+  return(structure(out, class = c("kfold", "loo"), K = K,
+    name = deparse(substitute(x)), discrete = rsa_is_discrete(x),
+    yhash = rsa_hash_y(x)))
 }
 

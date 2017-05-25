@@ -104,7 +104,7 @@ nauf_stan_glmer <- function(formula, data = NULL, family = gaussian, subset,
     contrasts, algorithm, glmod)
   
   out <- rsa_stanreg(fit)
-  class(out) <- c("nauf.stanreg", class(out), "lmerMod")
+  add_class(out) <- list("nauf.stanreg", "lmerMod")
   out$modeling_function <- "nauf_stan_glmer"
   
   return(out)
@@ -280,7 +280,7 @@ nauf_stan_glm <- function(formula, family = gaussian(), data = NULL, weights,
     
   out <- rsa_stanreg(fit)
   out$xlevels <- .getXlevels(mt, mf)
-  class(out) <- c("nauf.stanreg", class(out))
+  first_class(out) <- "nauf.stanreg"
   
   return(out)
 }
@@ -337,7 +337,7 @@ nauf_stan_lm <- function(formula, data = NULL, subset, weights,
     
   out <- rsa_stanreg(fit)
   out$xlevels <- .getXlevels(mt, modelframe)
-  class(out) <- c("nauf.stanreg", class(out))
+  first_class(out) <- "nauf.stanreg"
   
   return(out)
 }

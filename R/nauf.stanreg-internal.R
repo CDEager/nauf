@@ -1,5 +1,9 @@
 
 
+## functions in this file are based on the corresponding functions in
+## rstanarm v2.15.3
+
+
 nauf_pp_data <- function(object, newdata = NULL, re.form = NULL, offset = NULL, 
                          ...) {
   if (is.nauf.stanmer(object)) {
@@ -39,9 +43,8 @@ nauf_pp_data_mer_z <- function(object, newdata, re.form = NULL,
   if (is.null(newdata)) return(list(Zt = object$glmod$reTrms$Zt))
   
   mt <- stats::delete.response(terms(object, fixed.only = FALSE))
-  attr(mt, "nauf.info")$allow.new.levels <- allow.new.levels
+  nauf.info(mt, "allow.new.levels") <- allow.new.levels
   mf <- model.frame(mt, newdata)
-  # add to model.frame to keep track of new levels?
   
   # not forming Z_names (should only be necessary when new levels are tracked)
   return(list(Zt = nauf_mkReTrms(mf, lapply(object$glmod$flist,
@@ -93,24 +96,22 @@ nauf_pp_data_offset <- function(object, newdata = NULL, offset = NULL) {
 
 
 nauf_pp_eta <- function(object, data, draws = NULL) {
-  x <- data$x
   S <- rsa_posterior_sample_size(object)
   if (is.null(draws)) draws <- S
   if (draws > S) stop("'draws' should be <= posterior sample size (", S, ").")
-  some_draws <- isTRUE(draws < S)
-  if (some_draws) samp <- sample(S, draws)
+  if (some_draws <- isTRUE(draws < S)) samp <- sample(S, draws)
   
   if (is.null(data$Zt)) {
     stanmat <- as.matrix(object)
-    beta <- stanmat[, seq_len(ncol(x)), drop = FALSE]
+    beta <- stanmat[, seq_len(ncol(data$x)), drop = FALSE]
     if (some_draws) beta <- beta[samp, , drop = FALSE]
-    eta <- rsa_linear_predictor.matrix(beta, x, data$offset)
+    eta <- rsa_linear_predictor.matrix(beta, data$x, data$offset)
     
   } else {
     stanmat <- as.matrix(object$stanfit)
-    beta <- stanmat[, seq_len(ncol(x)), drop = FALSE]
+    beta <- stanmat[, seq_len(ncol(data$x)), drop = FALSE]
     if (some_draws) beta <- beta[samp, , drop = FALSE]
-    eta <- rsa_linear_predictor.matrix(beta, x, data$offset)
+    eta <- rsa_linear_predictor.matrix(beta, data$x, data$offset)
     b <- stanmat[, grepl("^b\\[", colnames(stanmat)), drop = FALSE]
     if (some_draws) b <- b[samp, , drop = FALSE]
     eta <- eta + as.matrix(b %*% data$Zt)
@@ -153,7 +154,6 @@ nauf_ll_args <- function(object, newdata = NULL, offset = NULL,
   has_newdata <- !is.null(newdata)
   
   if (has_newdata && reloo_or_kfold && !is.nauf.stanmer(object)) {
-    # this should be fine as long as reloo and kfold are fixe
     dots <- list(...)
     x <- dots$newx
     stanmat <- dots$stanmat
@@ -211,5 +211,19 @@ nauf_ll_args <- function(object, newdata = NULL, offset = NULL,
   }
   
   return(rsa_nlist(data, draws, S = NROW(draws$beta), N = nrow(data)))
+}
+
+
+nauf_loo_weights <- function(object, lw, log = FALSE, ...) {
+  if (!missing(lw)) {
+    stopifnot(is.matrix(lw))
+  } else {
+    message("Running PSIS to compute weights...")
+    psis <- loo::psislw(llfun = rsa_ll_fun(object),
+      llargs = nauf_ll_args(object), ...)
+    lw <- psis[["lw_smooth"]]
+  }
+  if (log) return(lw)
+  return(exp(lw))
 }
 

@@ -399,7 +399,8 @@ nauf_glm <- function(formula, family = gaussian, data = NULL, weights, subset,
   fit <- c(fit, list(call = call, formula = formula, terms = mt, data = data,
     offset = offset, control = control, method = method, contrasts = NULL,
     xlevels = .getXlevels(mt, mf)))
-  class(fit) <- c("nauf.glm", fit$class, c("glm", "lm"))
+  
+  add_class(fit) <- list("nauf.glm", c("glm", "lm"))
 
   return(fit)
 }

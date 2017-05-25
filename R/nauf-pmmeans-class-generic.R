@@ -210,12 +210,12 @@
 #'
 #' \code{nauf_pmmeans} returns a \code{nauf.pmm} object, which is a list
 #' inheriting from \code{lsm.list} with an additional attribute
-#' \code{nauf.specs} containing information about the variables and subsets from
+#' \code{specs} containing information about the variables and subsets from
 #' the call to the function.  The \code{nauf.pmm} list contains an element
 #' \code{pmmeans}, and, if pairwise comparisons were made, a second element
 #' \code{contrasts}, both of which are \code{\link[lsmeans]{lsmobj-class}}
 #' objects.  The \code{nauf.pmm} object has \code{summary} and \code{print}
-#' methods which print information from the \code{nauf.specs} attribute, and
+#' methods which print information from the \code{specs} attribute, and
 #' then call the \code{\link[lsmeans]{summary.ref.grid}} methods (to which
 #' arguments \code{infer}, \code{type}, \code{adjust}, etc. can be passed).
 #'
@@ -225,6 +225,9 @@
 #' @name nauf-pmmeans
 NULL
 
+
+
+###### nauf.ref.grid ######
 
 #' @export
 terms.nauf.ref.grid <- function(x, ...) {
@@ -238,126 +241,208 @@ print.nauf.ref.grid <- function(x, ...) {
 }
 
 
+
+###### nauf.pmm.stan ######
+
+#' @importFrom rstan monitor
 #' @export
-print.nauf.pmm <- function(x, ...) {
-  print(summary(x, ...), ...)
-}
-
-
-#' @export
-print.summ.nauf.pmm <- function(x, ...) {
-  nauf <- attr(x, "nauf.specs")
-  attr(x, "nauf.specs") <- NULL
-
-  if (nauf$bayes) {
-    cat("\nPosterior marginal means for '",
-      paste(nauf$variables, collapse = ":"), "'", sep = "")
-  } else {
-    cat("\nPredicted marginal means for '",
-      paste(nauf$variables, collapse = ":"), "'", sep = "")
+summary.nauf.pmm.stan <- function(object, probs = c(0.025, 0.975),
+                                  type = c("link", "response"), ...) {
+  type <- match.arg(type)
+  lbl <- "link"
+  
+  if (type == "response") {
+    if (!is.null(object$family) && is.function(inv <- object$family$linkinv)) {
+      object$samples <- inv(object$samples)
+      if (is.null(lbl <- object$inv.lbl)) lbl <- "response"
+    } else {
+      warning("'type' is 'response' but there is no inverse link function.",
+        "  No transformation performed.")
+    }
   }
   
-  if (length(nauf$keep_NA)) {
-    cat("\nNA considered a level for:", add_quotes(nauf$keep_NA))
-  }
-  if (length(nauf$drop_NA)) {
-    cat("\nNA not considered a level for:", add_quotes(nauf$drop_NA))
-  }
-  if (length(nauf$by)) {
-    cat("\nPairwise comparisons by '", paste(nauf$by, collapse = ":"), "'",
-      sep = "")
-  }
-  if (length(nauf$note)) {
-    cat("\nNote:", nauf$note)
-  }
-  cat("\n")
-
-  if (length(nauf$averaged_over)) {
-    cat("\nFactors averaged over:", add_quotes(nauf$averaged_over))
-  }
-  if (length(nauf$held_at_mean)) {
-    cat("\nCovariates held at their means:", add_quotes(nauf$held_at_mean))
-  }
-  if (length(nauf$conditioned_on)) {
-    cat("\nFactors conditioned on:", add_quotes(nauf$conditioned_on),
-      "\n\nSee the 'subset' element of the 'nauf.specs'",
-      "attribute for subsetted groups.")
-  }
-
-  cat("\n")
-
-  if (sum(lengths(nauf[c("averaged_over", "held_at_mean",
-  "conditioned_on")]))) {
-    cat("\n")
-  }
-
-  if (nauf$bayes) {
-    for (i in 1:length(x)) {
-      cat("$", names(x)[i], "\n", sep = "")
-      print(x[[i]], ...)
-      cat("\n")
-    }
+  probs <- sort(union(probs, 0.5))
+  summ <- as.data.frame(rstan::monitor(object$samples, warmup = 0,
+    probs = probs, print = FALSE))
+  
+  summ$MAD <- apply(object$samples, 3, mad)
+  summ[["P(>0)"]] <- apply(object$samples > 0, 3, mean)
+  nc <- ncol(summ)
+  med <- match("50%", colnames(summ))
+  
+  # mean se_mean sd ... 50%    ... n_eff   Rhat   MAD     P(>0)
+  # 1    2       3      med        nc-3    nc-2   nc-1    nc
+  # Mean MCSE    SD ... Median ... ESS     Rhat   MAD     P(>0)
+  colnames(summ)[c(1:3, med, nc - 3)] <- c("Mean", "MCSE", "SD", "Median", "ESS")
+  
+  # Mean   SD   Median MAD   P(>0)  ...        ESS    MCSE   Rhat
+  # 1      3    med    nc-1  nc     grep("%")  nc-3   2      nc-2
+  ord <- c(1, 3, med, nc - 1, nc, grep("%", colnames(summ)), nc - 3, 2, nc - 2)
+  summ <- summ[ord]
+  
+  if (is.data.frame(object$names)) {
+    summ <- cbind(object$names, summ)
+  } else if (is.character(object$names)) {
+    summ <- cbind(data.frame(Name = object$names), summ)
   } else {
-    class(x) <- class(x)[-1]
-    print(x, ...)
+    summ <- cbind(data.frame(Name = dimnames(object$samples)[[3]]), summ)
   }
-
-  invisible(NULL)
+  rownames(summ) <- NULL
+  
+  return(structure(summ, class = "summ.nauf.pmm.stan", type = lbl,
+    misc = object$misc))
 }
 
 
 #' @export
-print.summ.nauf.postmm <- function(x, row.names = FALSE, ...) {
-  lbl <- attr(x, "lbl")
-  attr(x, "lbl") <- NULL
-  print.summ.nauf.mcmc(x, row.names = row.names, ...)
-  if (!is.null(lbl)) {
+print.summ.nauf.pmm.stan <- function(x, row.names = FALSE, mce = FALSE,
+                                     rhat = NULL, ...) {
+  type <- attr(x, "type")
+  attr(x, "type") <- NULL
+  misc <- attr(x, "misc")
+  attr(x, "misc") <- NULL
+  class(x) <- "data.frame"
+  
+  if (!mce) x <- x[-which(colnames(x) == "MCE")]
+  if (w <- any(x$Rhat > 1.1)) {
+    warning("Some Rhat's are greater than 1.1; chains have not converged.")
+  }
+  if (isFALSE(rhat) || (is.null(rhat) && !w)) {
+    x <- x[-which(colnames(x) == "Rhat")]
+  }
+  
+  print(x, row.names = FALSE, ...)
+
+  if (type != "link") {
     cat("\nEstimates are given on the", lbl, "scale.\n")
   }
 }
 
 
 #' @export
-print.nauf.postmm <- function(x, ...) {
+as.array.nauf.pmm.stan <- function(x, ...) {
+  return(x$samples)
+}
+
+
+#' @export
+as.matrix.nauf.pmm.stan <- function(x, ...) {
+  m <- apply(x$samples, 3, function(y) y)
+  if (!is.matrix(m)) {
+    m <- t(m)
+  }
+  dimnames(m) <- list(iterations = NULL, parameters = dimnames(x$samples)[[3]])
+  return(m)
+}
+
+
+#' @export
+print.nauf.pmm.stan <- function(x, ...) {
   print(summary(x, ...), ...)
 }
 
 
 #' @export
-summary.nauf.pmm <- function(object, ...) {
-  if (inherits(object, "lsm.list")) {
+as.data.frame.nauf.pmm.stan <- function(x, row.names = NULL, optional = FALSE,
+                                        ...) {
+  return(as.data.frame(summary(x, ...)))
+}
+
+
+#' @export
+as.data.frame.summ.nauf.pmm.stan <- function(x, row.names = NULL,
+                                             optional = FALSE, ...) {
+  class(x) <- "data.frame"
+  attr(x, "misc") <- NULL
+  attr(x, "type") <- NULL
+  return(x)
+}
+
+
+
+###### nauf.pmm.list ######
+
+#' @export
+summary.nauf.pmm.list <- function(object, ...) {
+  specs <- attr(object, "specs")
+  attr(object, "specs") <- NULL
+  
+  if (!specs$bayes) {
     class(object) <- c("lsm.list", "list")
     summ <- summary(object, ...)
-    class(summ) <- c("summ.nauf.pmm", class(summ))
-    attr(summ, "nauf.specs") <- attr(object, "nauf.specs")
-    return(summ)
+  } else {
+    class(object) <- "list"
+    summ <- mlapply(object = object, same = list(...), fun = summary)
   }
   
-  summ <- sapply(object, summary, ..., simplify = FALSE)
-  class(summ) <- c("summ.nauf.pmm", "list")
-  attr(summ, "nauf.specs") <- attr(object, "nauf.specs")
+  first_class(summ) <- "summ.nauf.pmm.list"
+  attr(summ, "specs") <- specs
   return(summ)
 }
 
 
 #' @export
-summary.nauf.postmm <- function(object, probs = c(0.025, 0.5, 0.975),
-                                psign = TRUE, type = c("link", "response"),
-                                ...) {
-  type <- match.arg(type)
-  lbl <- NULL
-  if (type == "response" && !is.null(object$family)) {
-    if (!is.function(inv <- object$family$linkinv)) {
-      warning("'type' is 'response' but there is no inverse link function.",
-        "  No transformation performed.")
-    } else {
-      object$mcmc <- inv(object$mcmc)
-      lbl <- object$misc$inv.lbl
-    }
+print.summ.nauf.pmm.list <- function(x, ...) {
+  specs <- attr(x, "specs")
+  attr(x, "specs") <- NULL
+  drop_class(x) <- "summ.nauf.pmm.list"
+  do.call("print_pmm_list", c(list(x = x), specs, list(...)))
+}
+
+
+#' @export
+print_pmm_list <- function(x, variables, pairwise, averaged_over, held_at_mean,
+                           conditioned_on, keep_NA, drop_NA, subset, by, bayes,
+                           note, ...) {
+  cat("\n", if (bayes) "Posterior" else "Predicted", " marginal means for '",
+    paste(variables, collapse = ":"), "'", sep = "")
+  
+  if (length(keep_NA)) {
+    cat("\nNA considered a level for:", add_quotes(keep_NA))
   }
-  summ <- cbind(object$grid, summary(object$mcmc, probs, psign, ...))
-  attr(summ, "lbl") <- lbl
-  class(summ) <- c("summ.nauf.postmm", "data.frame")
-  return(summ)
+  if (length(drop_NA)) {
+    cat("\nNA not considered a level for:", add_quotes(drop_NA))
+  }
+  if (length(by)) {
+    cat("\nPairwise comparisons by '", paste(by, collapse = ":"), "'", sep = "")
+  }
+  if (length(note)) {
+    cat("\nNote:", note)
+  }
+  cat("\n")
+
+  if (length(averaged_over)) {
+    cat("\nFactors averaged over:", add_quotes(averaged_over))
+  }
+  if (length(held_at_mean)) {
+    cat("\nCovariates held at their means:", add_quotes(held_at_mean))
+  }
+  if (length(conditioned_on)) {
+    cat("\nFactors conditioned on:", add_quotes(conditioned_on),
+      "\n\nSee the 'subset' element of the 'specs' attribute for subsetted",
+      "groups")
+  }
+
+  cat("\n")
+  if (sum(lengths(list(averaged_over, held_at_mean, conditioned_on)))) {
+    cat("\n")
+  }
+
+  if (bayes) {
+    for (i in 1:length(x)) {
+      cat("$", names(x)[i], "\n", sep = "")
+      print(x[[i]], ...)
+      cat("\n")
+    }
+  } else {
+    drop_class(x) <- "summ.nauf.pmm.list"
+    print(x, ...)
+  }
+}
+
+
+#' @export
+print.nauf.pmm.list <- function(x, ...) {
+  print(summary(x, ...), ...)
 }
 

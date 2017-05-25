@@ -313,6 +313,124 @@ rsa_binom_y_prop <- function(y, family, weights) {
 }
 
 
+rsa_recommend_exact_loo <- function(reason) {
+  stop("'loo' is not supported if ", reason, ". ",
+    "If refitting the model 'nobs(x)' times is feasible, ", 
+    "we recommend calling 'kfold' with K equal to the ", 
+    "total number of observations in the data to perform exact LOO-CV.", 
+    call. = FALSE)
+}
+
+
+rsa_recommend_kfold <- function(n) {
+  warning("Found ", n, " observations with a pareto_k > 0.7. ", 
+    "With this many problematic observations we recommend calling ", 
+    "'kfold' with argument 'K=10' to perform 10-fold cross-validation ", 
+    "rather than LOO.", call. = FALSE)
+}
+
+
+rsa_recommend_reloo <- function(n) {
+  warning("Found ", n, " observation(s) with a pareto_k > 0.7. ", 
+    "We recommend calling 'loo' again with argument 'k_threshold = 0.7' ", 
+    "in order to calculate the ELPD without the assumption that ", 
+    "these observations are negligible. ", "This will refit the model ", 
+    n, " times to compute the ELPDs for the problematic observations directly.", 
+    call. = FALSE)
+}
+
+
+rsa_validate_k_threshold <- function(k) {
+  if (!is.numeric(k) || length(k) != 1) {
+    stop("'k_threshold' must be a single numeric value.", call. = FALSE)
+  } else if (k < 0) {
+    stop("'k_threshold' < 0 not allowed.", call. = FALSE)
+  } else if (k > 1) {
+    warning("Setting 'k_threshold' > 1 is not recommended.", 
+      "\nFor details see the PSIS-LOO section in help('loo-package', 'loo').", 
+      call. = FALSE)
+  }
+}
+
+
+rsa_kfold_and_reloo_data <- function(x) {
+  dat <- x[["data"]]
+  sub <- getCall(x)[["subset"]]
+  d <- get_all_vars(formula(x), dat)
+  if (!is.null(sub)) {
+    keep <- eval(substitute(sub), envir = dat)
+    d <- d[keep, , drop = FALSE]
+  }
+  na.omit(d)
+}
+
+
+rsa_reloo <- function(x, loo_x, obs, ..., refit = TRUE) {
+  stopifnot(!is.null(x$data), inherits(loo_x, "loo"))
+  
+  if (is.null(loo_x$pareto_k)) {
+    stop("No Pareto k estimates found in 'loo' object.")
+  }
+  
+  J <- length(obs)
+  d <- rsa_kfold_and_reloo_data(x)
+  lls <- vector("list", J)
+  
+  message(J, " problematic observation(s) found.", "\nModel will be refit ", 
+    J, " times.")
+    
+  if (!refit) return(NULL)
+  
+  for (j in 1:J) {
+    message("\nFitting model ", j, " out of ", J, " (leaving out observation ", 
+      obs[j], ")")
+    omitted <- obs[j]
+    fit_j <- suppressWarnings(update(x, data = d[-omitted, , drop = FALSE],
+      refresh = 0))
+    lls[[j]] <- log_lik(fit_j, newdata = d[omitted, , drop = FALSE],
+      newx = rstanarm::get_x(x)[omitted, , drop = FALSE], 
+      stanmat = as.matrix(fit_j))
+  }
+
+  elpd_loo <- unlist(lapply(lls, rsa_log_mean_exp))
+  ll_x <- log_lik(x, newdata = d[obs, , drop = FALSE])
+  hat_lpd <- apply(ll_x, 2, rsa_log_mean_exp)
+  p_loo <- hat_lpd - elpd_loo
+  sel <- c("elpd_loo", "p_loo", "looic")
+  loo_x$pointwise[obs, sel] <- cbind(elpd_loo, p_loo, -2 * elpd_loo)
+  loo_x[sel] <- with(loo_x, colSums(pointwise[, sel]))
+  loo_x[paste0("se_", sel)] <- with(loo_x, {
+    N <- nrow(pointwise)
+    sqrt(N * apply(pointwise[, sel], 2, var))
+  })
+  loo_x$pareto_k[obs] <- 0
+  
+  return(loo_x)
+}
+
+
+rsa_log_mean_exp <- function(x) {
+  max_x <- max(x)
+  max_x + log(sum(exp(x - max_x))) - log(length(x))
+}
+
+
+#' @importFrom digest sha1
+rsa_hash_y <- function(x, ...) {
+  if (!requireNamespace("digest", quietly = TRUE)) {
+    stop("Please install the 'digest' package.")
+  }
+  y <- rstanarm::get_y(x)
+  attributes(y) <- NULL
+  return(digest::sha1(x = y, ...))
+}
+
+
+rsa_is_discrete <- function(object) {
+  return(object$family$family %in% c("binomial", "poisson", "neg_binomial_2"))
+}
+
+
 rsa_model_has_weights <- function(x) {
   wts <- x[["weights"]]
   return(length(wts) && !all(wts == wts[1]))
