@@ -1,6 +1,6 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
-nauf 1.0.0
+nauf 1.0.1
 ==========
 
 [![Build Status](https://travis-ci.org/CDEager/nauf.svg?branch=master)](https://travis-ci.org/CDEager/nauf)
@@ -89,7 +89,7 @@ mod <- nauf_lmer(sdat$formula, sdat$data)
 summary(mod)
 #> Linear mixed model fit by REML ['nauf.lmerMod']
 #> Formula: 
-#> pvoi ~ uvoi + lang * wordpos + (1 + wordpos + uvoi | c_speaker) +  
+#> pvoi ~ lang * wordpos + uvoi + (1 + wordpos + uvoi | c_speaker) +  
 #>     (1 + wordpos | s_speaker)
 #>    Data: sdat$data
 #> 
@@ -105,8 +105,8 @@ summary(mod)
 #>            wordposFinal   0.042090 0.20516  -0.67            
 #>            wordposInitial 0.034222 0.18499   0.36 -0.91      
 #>            uvoiVoiced     0.028117 0.16768  -0.21  0.76 -0.73
-#>  s_speaker (Intercept)    0.123762 0.35180                   
-#>            wordposFinal   0.011091 0.10532   0.92            
+#>  s_speaker (Intercept)    0.123763 0.35180                   
+#>            wordposFinal   0.011092 0.10532   0.92            
 #>            wordposInitial 0.006788 0.08239  -0.38  0.01      
 #>  Residual                 0.482529 0.69464                   
 #> Number of obs: 1622, groups:  c_speaker, 26; s_speaker, 16
@@ -114,21 +114,21 @@ summary(mod)
 #> Fixed effects:
 #>                            Estimate Std. Error t value
 #> (Intercept)                 0.02215    0.06339   0.349
-#> uvoiVoiced                  0.64891    0.04716  13.761
 #> langCatalan                 0.28058    0.06339   4.426
 #> wordposFinal                0.46883    0.04183  11.208
 #> wordposInitial             -0.40194    0.03791 -10.603
+#> uvoiVoiced                  0.64890    0.04716  13.761
 #> langCatalan:wordposFinal    0.28252    0.04183   6.754
 #> langCatalan:wordposInitial -0.39017    0.03791 -10.292
 #> 
 #> Correlation of Fixed Effects:
-#>             (Intr) uvoVcd lngCtl wrdpsF wrdpsI lngC:F
-#> uvoiVoiced  -0.098                                   
-#> langCatalan -0.150 -0.098                            
-#> wordposFinl  0.105  0.282 -0.416                     
-#> wordposIntl  0.045 -0.236  0.155 -0.669              
-#> lngCtln:wrF -0.416  0.282  0.105  0.076 -0.184       
-#> lngCtln:wrI  0.155 -0.236  0.045 -0.184  0.057 -0.669
+#>             (Intr) lngCtl wrdpsF wrdpsI uvoVcd lngC:F
+#> langCatalan -0.150                                   
+#> wordposFinl  0.105 -0.416                            
+#> wordposIntl  0.045  0.155 -0.669                     
+#> uvoiVoiced  -0.098 -0.098  0.282 -0.236              
+#> lngCtln:wrF -0.416  0.105  0.076 -0.184  0.282       
+#> lngCtln:wrI  0.155  0.045 -0.184  0.057 -0.236 -0.669
 ```
 
 Predicted marginal means can be calculated for specific subsets where a factor is contrastive. For example, *uvoi* is only contrastive for word-medial Catalan fricatives, so we could call:
@@ -149,12 +149,12 @@ nauf_pmmeans(rg, "uvoi", pairwise = TRUE,
 #> 
 #> $pmmeans
 #>  uvoi          pmmean        SE    df   lower.CL    upper.CL
-#>  Voiced     0.9923975 0.1005598 25.74  0.7855905  1.19920443
-#>  Voiceless -0.3054125 0.1163455 23.48 -0.5458214 -0.06500371
+#>  Voiced     0.9923974 0.1005598 25.74  0.7855905  1.19920437
+#>  Voiceless -0.3054125 0.1163456 23.48 -0.5458214 -0.06500364
 #> 
 #> Confidence level used: 0.95 
 #> 
 #> $contrasts
 #>  contrast           estimate         SE    df t.ratio p.value
-#>  Voiced - Voiceless  1.29781 0.09431171 20.33  13.761  <.0001
+#>  Voiced - Voiceless  1.29781 0.09431177 20.33  13.761  <.0001
 ```
