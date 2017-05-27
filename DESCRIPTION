@@ -20,8 +20,7 @@ Imports:
     lsmeans (>= 2.25-5),
     pbkrtest (>= 0.4-7),
     car (>= 2.1-4),
-    lmerTest (>= 2.0-33),
-    afex (>= 0.17-8)
+    lmerTest (>= 2.0-33)
 License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true
@@ -30,6 +29,7 @@ BugReports: https://github.com/CDEager/nauf/issues
 Suggests:
     testthat,
     knitr,
-    rmarkdown
+    rmarkdown,
+    afex
 RoxygenNote: 5.0.1
 VignetteBuilder: knitr
