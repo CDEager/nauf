@@ -27,25 +27,30 @@ pmm[[4]] <- nauf_pmmeans(rg.pvoi, c("lang", "dur"), pairwise = TRUE)
 pmm <- lapply(lapply(pmm, summary), `[[`, 1)
 
 
+a1 <- as.numeric(b["(Intercept)"] + b["langCatalan"] - (b["wordposFinal"] +
+  b["uvoiVoiced"] + b["langCatalan:wordposFinal"]) / 2)
+a2 <- as.numeric(b["(Intercept)"] - b["langCatalan"] - (b["wordposFinal"] - 
+  b["langCatalan:wordposFinal"]) / 2)
+
 test_that("subset works", {
-  expect_equal(pmm[[1]]$pmmean, as.numeric(c(
-    b[1] + b[3] - (b[4] + b[2] + b[7]) / 2,
-    b[1] - b[3] - (b[4] - b[7]) / 2)))
+  expect_equal(pmm[[1]]$pmmean, c(a1, a2))
 })
 
 
 test_that("na_as_level works", {
-  expect_equal(pmm[[2]]$pmmean, as.numeric(b[1] + c(b[2], -b[2], 0)))
+  expect_equal(pmm[[2]]$pmmean, as.numeric(b["(Intercept)"] + c(b["uvoiVoiced"],
+    -b["uvoiVoiced"], 0)))
 })
 
 
 test_that("covariate works", {
-  expect_equal(pmm[[3]]$pmmean, as.numeric(b[6]))
+  expect_equal(pmm[[3]]$pmmean, as.numeric(b["dur"]))
 })
 
 
 test_that("factor covariate works", {
-  expect_equal(pmm[[4]]$pmmean, as.numeric(b[6] + c(b[9], -b[9])))
+  expect_equal(pmm[[4]]$pmmean, as.numeric(b["dur"] + c(b["langCatalan:dur"],
+    -b["langCatalan:dur"])))
 })
 
 
