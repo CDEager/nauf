@@ -221,7 +221,7 @@ The *nauf* package allows unordered factors and random effects grouping factors 
 
 If you use the *nauf* package in a publication, please cite:
 
-    Eager, Christopher D. (2017). nauf: Regression with NA Values in Unordered Factors. R package version 1.0.0. https://CRAN.R-project.org/package=nauf
+    Eager, Christopher D. (2017). nauf: Regression with NA Values in Unordered Factors. R package version 1.0.1. https://CRAN.R-project.org/package=nauf
 
 If you analyze the **plosives** dataset in a publication, please cite:
 

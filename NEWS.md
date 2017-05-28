@@ -1,6 +1,11 @@
-# nauf 1.0.0-9000
+# nauf 1.0.1-9000
 
 * Support for Bayesian models fit with rstanarm added (glm(er), lm(er), glm(er).nb)
+
+
+# nauf 1.0.1
+
+* Minor bug fix for compatibility with standardize 0.2.0
 
 
 # nauf 1.0.0

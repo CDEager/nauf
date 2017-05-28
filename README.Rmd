@@ -12,7 +12,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-# nauf 1.0.0
+# nauf 1.0.1
 
 [![Build Status](https://travis-ci.org/CDEager/nauf.svg?branch=master)](https://travis-ci.org/CDEager/nauf)
 

@@ -1,7 +1,7 @@
 Package: nauf
 Type: Package
 Title: Regression with NA Values in Unordered Factors
-Version: 1.0.0-9000
+Version: 1.0.1-9000
 Authors@R: person("Christopher D.", "Eager",
     email = "eagerstats@gmail.com", role = c("aut","cre"))
 Description: Fits regressions where unordered factors can be set to NA in 
@@ -9,7 +9,7 @@ Description: Fits regressions where unordered factors can be set to NA in
     contrastive by using sum contrasts and setting NA values to zero.
 Depends:
     R (>= 3.3.3),
-    standardize (>= 0.1.1),
+    standardize (>= 0.2.0),
     lme4 (>= 1.1-12),
     rstanarm (>= 2.15.3)
 Imports:
