@@ -421,10 +421,10 @@ model.frame.nauf.terms <- function(formula, data = NULL, subset = NULL,
   mf <- eval(mc, parent.frame())
   
   attr(mf, "formula") <- stats::formula(attr(mf, "terms"))
-  nauf.info(mf) <- info
   first_class(mf, "terms") <- "nauf.terms"
   first_class(mf, "formula") <- "nauf.formula"
   last_class(mf) <- "nauf.frame"
+  nauf.info(mf) <- info
   
   v <- colnames(mf)
   uf <- intersect(v, names(info$uf))
@@ -662,7 +662,7 @@ nauf_model.frame <- function(formula, data = NULL, subset = NULL,
     return_contr = FALSE)
   attr(mt, "dataClasses")[cnms[uf | rgrp]] <- "factor"
   
-  changes <- contrast_changes(fe_form, bars, mf, uf)
+  changes <- contrast_changes(fe_form, bars, mf, uf, hasna)
     
   mt <- nauf.terms(mt, resp = cnms[1], groups = lapply(mf[groups], levels),
     uf = changes$uf, of = lapply(mf[of], levs_and_contr),
@@ -684,21 +684,22 @@ nauf.terms <- function(terms, ...) {
 }
 
 
-contrast_changes <- function(fixed, bars, mf, uf) {
+contrast_changes <- function(fixed, bars, mf, uf, hasna) {
   ufn <- names(uf)[uf]
-  uf <- lapply(mf[ufn], function(x) list(levels(x)))
-  changes <- lapply(c(list(fixed), bars), .contrast_changes, mf = mf)
+  changes <- lapply(c(list(fixed), bars), .contrast_changes, mf = mf, uf = uf,
+    hasna = hasna)
+  uf <- lapply(mf[ufn], levels)
   main <- lapply(changes, `[[`, "lvs")
   inter <- lapply(changes, `[[`, "cc")
   asgn <- lapply(changes, `[[`, "asgn")
   
   # do.call(main) and do.call(c, do.call(c, inter)) are lists of charvecs
-  # named by uf; combine all into all_levs
-  all_levs <- nsplit(c(do.call(c, main), do.call(c, do.call(c, inter))))[ufn]
-  
+  # named by uf; combine with uf and take unique
+  all_main <- setNames(do.call(c, main), unname(unlist(lapply(main, names))))
+  all_inter <- setNames(do.call(c, do.call(c, inter)),
+    unname(unlist(lapply(inter, function(x) lapply(x, names)))))
+  uf <- lapply(nsplit(c(uf, all_main, all_inter))[ufn], unique)
   # uf is now a named list of unique contrast set levels for each factor
-  uf <- mlapply(mec = uf, changelevs = all_levs, fun = function(mec, changelevs)
-    unique(c(list(mec), changelevs)))
   
   # convert to named numeric vectors of contrast references
   main <- lapply(main, contr_nums, levlist = uf)
@@ -709,7 +710,7 @@ contrast_changes <- function(fixed, bars, mf, uf) {
   cc <- mlapply(m = main, i = inter, a = asgn, fun = function(m, i, a)
     c(m, mlapply(factors = i, assign = a, fun = list)))
   
-  return(rsa_list(uf, cc))
+  return(rsa_nlist(uf, cc))
 }
 
 
@@ -723,7 +724,7 @@ contrast_changes <- function(fixed, bars, mf, uf) {
   if (re <- !inherits(form, "formula")) {
     group <- varnms(barform(form, 3))
     if (is.null(varnms(form <- barform(form, 2)))) {
-      return(rsa_list(lvs, cc, asgn))
+      return(rsa_nlist(lvs, cc, asgn))
     }
     if (re <- any(hasna[group])) {
       mf <- droplevels(mf[!rowna(mf[group]), , drop = FALSE])
@@ -748,14 +749,18 @@ contrast_changes <- function(fixed, bars, mf, uf) {
     cc <- unique(lapply(inter, function(x) sort(rownames(ufmat)[ufmat[, x]])))
     cc <- mlapply(cols = cc, same = list(x = mf), fun = nauf_interaction)
     changed <- sapply(cc, `[[`, "changed")
-    cc <- lapply(cc[changed], `[[`, "levels")
-    facs <- lapply(cc, names)
-    asgn <- mlapply(facs, same = list(m = fmat), fun = function(f, m)
-      which(sapply(m[f, , drop = FALSE], 2, all)))
-    names(asgn) <- names(cc) <- sapply(facs, paste, collapse = ":")
+    if (any(changed)) {
+      cc <- lapply(cc[changed], `[[`, "levels")
+      facs <- lapply(cc, names)
+      asgn <- mlapply(f = facs, same = list(m = fmat), fun = function(f, m)
+        which(apply(m[f, , drop = FALSE], 2, all)))
+      names(asgn) <- names(cc) <- sapply(facs, paste, collapse = ":")
+    } else {
+      cc <- list()
+    }
   }
   
-  return(rsa_list(lvs, cc, asgn))
+  return(rsa_nlist(lvs, cc, asgn))
 }
 
 
@@ -883,11 +888,10 @@ nauf_interaction <- function(x, cols) {
 #'
 #' @export
 nauf_model.matrix <- function(object = NULL, data = NULL, ...) {
-  mc <- match.call()
-
   if (is.nauf.frame(object)) return(nauf_mm(object))
   if (is.nauf.frame(data)) return(nauf_mm(data))
   if (inherits(object, "formula")) {
+    mc <- match.call()
     names(mc)[2] <- "formula"
     mc[[1]] <- quote(nauf::nauf_model.frame)
     mf <- eval(mc, parent.frame())
@@ -924,25 +928,21 @@ nauf_mm <- function(mf, ccn = 1) {
 
   if (length(cc)) {
     mmlist <- list()
-    cnms <- character()
     asgn <- attr(mm, "assign")
     asgn_cc <- sort(unique(unlist(lapply(cc, `[[`, "assign"))))
     mmrm <- which(asgn %in% asgn_cc)
     asgn <- asgn[-mmrm]
     if (length(asgn)) {
       mmlist[[1]] <- mm[, -mmrm, drop = FALSE]
-      cnms <- colnames(mmlist[[1]])
     }
     fmat <- attr(formula, "factors")
     
     ccmms <- lapply(cc, ccmat, mf = mf, ufc = ufc, ncs = ncs, fmat = fmat)
     mm <- do.call(cbind, c(mmlist, lapply(ccmms, `[[`, "matrix")))
-    asgn <- c(asgn, unlist(lapply(ccmms, `[[`, "assign")))
-    names(asgn) <- c(cnms, colnames(mm))
-    asgn <- sort(asgn)
+    asgn <- sort(setNames(c(asgn, unlist(lapply(ccmms, `[[`, "assign"))),
+      colnames(mm)))
     mm <- mm[, names(asgn), drop = FALSE]
-    names(asgn) <- NULL
-    attr(mm, "assign") <- asgn
+    attr(mm, "assign") <- unname(asgn)
   }
 
   attr(mm, "contrasts") <- NULL
@@ -1075,7 +1075,7 @@ nauf_mkBlist <- function(bar, ccn, fr, lvs) {
   if (is.null(lvs)) {
     ff <- droplevels(ff)
     if (all(is.na(ff))) {
-      stop("Invalid grouping factor specification, ", deparse(bar[[b]][[3]]),
+      stop("Invalid grouping factor specification, ", deparse(bar[[3]]),
         call. = FALSE)
     }
 

@@ -13,6 +13,7 @@ dat[25:26, 4] <- NA
 dat <- rbind(dat, dat)
 dat$o <- factor(rep(1:3, length.out = nrow(dat)), ordered = TRUE)
 dat$x <- rnorm(nrow(dat))
+dat <- nauf:::charlogbin_to_uf(dat)
 
 f12 <- list(levels = list(
   f1 = c("a", "b", "c"),
@@ -71,25 +72,25 @@ changed = TRUE)
 
 
 test_that("simple unordered factor cases work", {
-  expect_equal(nauf:::nauf_interaction(dat, c(1, 2)), f12)
-  expect_equal(nauf:::nauf_interaction(dat, c(1, 3)), f13)
-  expect_equal(nauf:::nauf_interaction(dat, c(1, 4)), f14)
-  expect_equal(nauf:::nauf_interaction(dat, c(2, 3)), f23)
-  expect_equal(nauf:::nauf_interaction(dat, c(2, 4)), f24)
-  expect_equal(nauf:::nauf_interaction(dat, c(3, 4)), f34)
+  expect_equal(nauf:::nauf_interaction(dat, c("f1", "f2")), f12)
+  expect_equal(nauf:::nauf_interaction(dat, c("f1", "f3")), f13)
+  expect_equal(nauf:::nauf_interaction(dat, c("f1", "f4")), f14)
+  expect_equal(nauf:::nauf_interaction(dat, c("f2", "f3")), f23)
+  expect_equal(nauf:::nauf_interaction(dat, c("f2", "f4")), f24)
+  expect_equal(nauf:::nauf_interaction(dat, c("f3", "f4")), f34)
 })
 
 test_that("higher order cases work", {
-  expect_equal(nauf:::nauf_interaction(dat, c(1, 2, 4)), f124)
-  expect_equal(nauf:::nauf_interaction(dat, c(2, 3, 4)), f234)
+  expect_equal(nauf:::nauf_interaction(dat, c("f1", "f2", "f4")), f124)
+  expect_equal(nauf:::nauf_interaction(dat, c("f2", "f3", "f4")), f234)
 })
 
 test_that("errors work", {
-  expect_error(nauf:::nauf_interaction(dat, c(1, 2, 3)))
+  expect_error(nauf:::nauf_interaction(dat, c("f1", "f2", "f3")))
   expect_error(nauf:::nauf_interaction(dat, "d"))
-  expect_error(nauf:::nauf_interaction(dat, c("f1", "x")))
-  expect_error(nauf:::nauf_interaction(dat))
-  expect_error(nauf:::nauf_interaction(dat, c(1, 2, 3, 4)))
+  expect_error(expect_warning(nauf:::nauf_interaction(dat, c("f1", "x"))))
+  expect_error(expect_warning(nauf:::nauf_interaction(dat)))
+  expect_error(nauf:::nauf_interaction(dat, c("f1", "f2", "f3", "f4")))
 })
 
 d <- expand.grid(

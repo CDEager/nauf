@@ -97,8 +97,8 @@ terms.nauf.merMod <- function(x, fixed.only = TRUE, random.only = FALSE, ...) {
     attr(tt, "predvars") <- attr(terms(x@frame), "predvars.random")
   }
 
-  nauf.info(tt) <- nauf.info(x@frame)
   first_class(tt) <- "nauf.terms"
+  nauf.info(tt) <- nauf.info(x@frame)
 
   return(tt)
 }
@@ -260,7 +260,7 @@ predict.nauf.glmerMod <- function(object, newdata = NULL, newparams = NULL,
                                   terms = NULL, type = c("link", "response"),
                                   allow.new.levels = FALSE, na.action = na.pass,
                                   ...) {
-  return(predit.nauf.merMod(object, newdata, newparams, re.form, ReForm, REForm,
+  return(predict.nauf.merMod(object, newdata, newparams, re.form, ReForm, REForm,
     REform, terms, type, allow.new.levels, na.action, ...))
 }
 
@@ -272,7 +272,7 @@ predict.nauf.lmerMod <- function(object, newdata = NULL, newparams = NULL,
                                  terms = NULL, type = c("link", "response"),
                                  allow.new.levels = FALSE, na.action = na.pass,
                                  ...) {
-  return(predit.nauf.merMod(object, newdata, newparams, re.form, ReForm, REForm,
+  return(predict.nauf.merMod(object, newdata, newparams, re.form, ReForm, REForm,
     REform, terms, type, allow.new.levels, na.action, ...))
 }
 
@@ -466,7 +466,7 @@ anova.nauf.merMod <- function(object, ..., refit = TRUE, model.names = NULL,
     }
   }
   
-  fits <- do.call(fit_nest_models,
+  fits <- do.call(fit_nested_models,
     c(rsa_nlist(fe, a1, glmod, X, asgn, mcout), vals))
   
   lik_full <- as.numeric(logLik(object))
@@ -578,9 +578,9 @@ fit_nested_models.nauf.lmerMod <- function(fe, a1, glmod, X, asgn, mcout, start,
     
     opt <- do.call(lme4::optimizeLmer, opt_args)
     cc <- lme4_checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,
-      lbound = environment(devfun)$lower)
+      lbound = environment(opt_args$devfun)$lower)
       
-    fits[[ft]] <- nauf.lmerMod(lme4::mkMerMod(environment(devfun),
+    fits[[ft]] <- nauf.lmerMod(lme4::mkMerMod(environment(opt_args$devfun),
       opt, glmod$reTrms, fr = glmod$fr, mc = mcout, lme4conv = cc))
       
     cat(".")

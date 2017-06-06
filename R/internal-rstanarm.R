@@ -515,25 +515,25 @@ rsa_ll_fun <- function(object) {
 
 rsa_ll_gaussian_i <- function(i, data, draws) {
   val <- dnorm(data$y, mean = rsa_mu(data, draws), sd = draws$sigma, log = TRUE)
-  rsa_weignted(val, data$weights)
+  rsa_weighted(val, data$weights)
 }
 
 
 rsa_ll_binomial_i <- function(i, data, draws) {
   val <- dbinom(data$y, size = data$trials, prob = rsa_mu(data, draws), log = TRUE)
-  rsa_weignted(val, data$weights)
+  rsa_weighted(val, data$weights)
 }
 
 
 rsa_ll_poisson_i <- function(i, data, draws) {
   val <- dpois(data$y, lambda = rsa_mu(data, draws), log = TRUE)
-  rsa_weignted(val, data$weights)
+  rsa_weighted(val, data$weights)
 }
 
 
 rsa_ll_neg_binomial_2_i <- function(i, data, draws) {
   val <- dnbinom(data$y, size = draws$size, mu = rsa_mu(data, draws), log = TRUE)
-  rsa_weignted(val, data$weights)
+  rsa_weighted(val, data$weights)
 }
 
 
@@ -541,14 +541,14 @@ rsa_ll_inverse.gaussian_i <- function(i, data, draws) {
   mu <- rsa_mu(data, draws)
   val <- 0.5 * log(draws$lambda/(2 * pi)) - 1.5 * log(data$y) - 
     0.5 * draws$lambda * (data$y - mu)^2/(data$y * mu^2)
-  rsa_weignted(val, data$weights)
+  rsa_weighted(val, data$weights)
 }
 
 
 rsa_ll_Gamma_i <- function(i, data, draws) {
   val <- dgamma(data$y, shape = draws$shape, rate = draws$shape/rsa_mu(data, 
     draws), log = TRUE)
-  rsa_weignted(val, data$weights)
+  rsa_weighted(val, data$weights)
 }
 
 

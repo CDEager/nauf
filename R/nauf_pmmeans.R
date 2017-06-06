@@ -33,12 +33,14 @@ nauf_ref.grid <- function(mod, KR = FALSE, ...) {
   xlev <- xlev[intersect(vars, names(xlev))]
 
   g <- expand.grid(lvs)
-  g[mames(mlvs)] <- mlapply(data = mlvs, ncol = lengths(mlvs),
+  g[names(mlvs)] <- mlapply(data = mlvs, ncol = lengths(mlvs),
     same = list(nrow = nrow(g), byrow = TRUE), fun = matrix)
 
   mm <- model.matrix(fenr, g)
   asgn <- attr(mm, "assign")
 
+  hasna <- names(info$hasna)[info$hasna]
+  mf[hasna] <- lapply(mf[hasna], addNA)
   g[[".wgt."]] <- data.frame(xtabs(~ ., mf[names(xlev)]))$Freq
 
   if (!(bayes <- is.nauf.stanreg(mod))) summ <- summary(mod)

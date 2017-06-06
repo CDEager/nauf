@@ -4,10 +4,26 @@
 \alias{nauf.stanreg}
 \title{Class for fitted Bayesian models with \code{nauf} contrasts.}
 \description{
-ADD DESCRIPTION
+Models fit with \code{\link{nauf_stan_lm}}, \code{\link{nauf_stan_glm}}, 
+\code{\link{nauf_stan_glm.nb}}, \code{\link{nauf_stan_lmer}}, 
+\code{\link{nauf_stan_glmer}}, and \code{\link{nauf_stan_glmer.nb}} have 
+class \code{nauf.stanreg} and inherit from class \code{stanreg} (see 
+\code{\link[rstanarm]{stanreg-objects}} for details on the elements contained 
+in the fitted model object).  The \code{stanreg} methods for the generic 
+functions listed in the \code{\link[rstanarm]{stanreg-methods}} page 
+(including those linked to in the 'See Also' section) work for 
+\code{nauf.stanreg} models, with the same restrictions on the \code{re.form} 
+argument described in the \code{\link{predict.nauf.merMod}} page when using 
+the \code{posterior_predict} and \code{predict} functions.  The only 
+exception is that the \code{\link[rstanarm]{kfold}} function from the 
+\code{rstanarm} package cannot be used on \code{nauf.stanreg} objects; 
+instead, \code{\link{nauf_kfold}} should be used.  The 
+\code{\link{nauf_ref.grid}} and \code{\link{nauf_pmmeans}} functions also 
+work with \code{nauf.stanreg} objects.
 }
 \seealso{
 \code{\link{nauf_stan_glm}}, \code{\link{nauf_stan_glmer}},
-  \code{\link{nauf_contrasts}}, and \code{\link[rstanarm]{stanreg-objects}}.
+  \code{\link{nauf_contrasts}}, \code{\link[rstanarm]{stanreg-objects}},
+  and \code{\link[rstanarm]{stanreg-methods}}.
 }
 

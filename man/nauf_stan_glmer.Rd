@@ -46,10 +46,26 @@ error.  Only MCMC is currently supported.}
 A \code{\link{nauf.stanreg}} object.
 }
 \description{
-ADD DESCRIPTION
+The Bayesian mixed effects regression functions \code{nauf_stan_lmer}, \code{nauf_stan_glmer.nb},
+and \code{nauf_stan_glmer} fit linear, negative binomial, and other generalized
+linear mixed effects models, respectively, impelementing
+\code{\link{nauf_contrasts}}.
 }
 \details{
-ADD DETAILS
+\code{nauf_stan_lmer}, \code{nauf_stan_glmer}, and \code{nauf_stan_glmer.nb} are based on
+the \code{rstanarm} functions \code{\link[rstanarm]{stan_lmer}}, \code{\link[rstanarm]{stan_glmer}},
+and \code{\link[rstanarm]{stan_glmer.nb}}, respectively, but implement
+\code{\link{nauf_contrasts}}.  The \code{nauf} functions have all the same
+arguments as the functions they are based on, but additionally
+\code{ncs_scale}, which is passed to \code{\link{nauf_model.frame}}.  Other
+than \code{ncs_scale}, the arguments have the same functions as they do in
+the functions they are based on.  The default values for \code{na.action} and
+\code{contrasts} cannot be changed (see \code{\link{nauf_model.frame}}).
+The default priors for the \code{nauf} Bayesian mixed effects regression
+functions are the defaults from \code{rstanarm} version 2.15.3; if you have
+a later version of the \code{rstanarm} package, then the default priors for
+the \code{nauf} regression fitting functions may be different from the
+\code{rstanarm} defaults.
 }
 \examples{
 \dontrun{

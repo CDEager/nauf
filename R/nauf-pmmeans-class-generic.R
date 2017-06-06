@@ -54,6 +54,27 @@
 #' covariates is calcualted for each level of the full interaction of the
 #' factors.
 #'
+#' If \code{by} is specified, then \code{pairwise} is forced to 
+#' \code{TRUE}, and pairwise comparisons are performed within each level of the 
+#' full interaction of the factors listed in \code{by}, rather than performing 
+#' all possible pairwise comparisons.  For example, if there are two factors
+#' \code{f1} with levels \code{A}, \code{B}, and \code{C}, and a factor
+#' \code{f2} with levels \code{D} and \code{E}:
+#'
+#' \preformatted{
+#' # this will produce six pmmeans (A:D, A:E, B:D, B:E, C:D, C:E) and
+#' # all 15 pairwise comparisons
+#' nauf_pmmeans(rg, c("f1", "f2"), pairwise = TRUE)
+#'
+#' # this would produce the same six pmmeans, but only three pairwise
+#' # comparisons (A:D - A:E, B:D - B:E, C:D - C:E)
+#' nauf_pmmeans(rg, c("f1", "f2"), by = "f1")
+#'
+#' # this would produce the same six pmmeans, but only six pairwise comparisons
+#' # (A:D - B:D, A:D - C:D, B:D - C:D, A:E - B:E, A:E - C:E, B:E - C:E)
+#' nauf_pmmeans(rg, c("f1", "f2"), by = "f2")
+#' }
+#'
 #' The reference grid returned by \code{nauf_ref.grid} contains combinations of
 #' factors which are not actually possible in the data set.  For example,
 #' if factor \code{f1} has levels \code{A} and \code{B}, and factor \code{f2}
@@ -119,7 +140,7 @@
 #' contain \code{NA} values, then the \code{subset} argument is unnecessary.
 #' If any of the factors in \code{specs} \emph{do} contain \code{NA} values,
 #' then you will almost always want to use the \code{subset} argument.  Now
-#' consider that we are interested now in \code{f2}.  Because \code{f2} is only
+#' consider that we are interested in \code{f2}.  Because \code{f2} is only
 #' contrastive when \code{f1 = B}, we probably want to call:
 #'
 #' \preformatted{
@@ -191,7 +212,8 @@
 #'   comparisons of the predicted marginal means should be performed.  If
 #'   \code{specs} is a formula, then the \code{pairwise} argument is ignored and
 #'   the left hand side of the formula is used to determined whether pairwise
-#'   comparsions should be made.
+#'   comparsions should be made.  If \code{by} is not \code{NULL} then
+#'   \code{pairwise} is forced to \code{TRUE}.
 #' @param subset A list indicating which subsets of the reference grid should be
 #'   considered in the calculation of the predicted marginal means. See
 #'   'Details'.
@@ -199,6 +221,11 @@
 #'   that have \code{NA} values that should be considered as levels. The default
 #'   \code{NULL} indicates that \code{NA} should not be considered as a level
 #'   for any unordered factors in \code{specs}. See 'Details'.
+#' @param by An optional character vector specifying unordered factors in
+#'   \code{specs}.  If specified, then pairwise comparisons are performed
+#'   within each level of the full interaction term of the factors, rather than
+#'   for all possible combinations.  If an unordered factor listed in \code{by}
+#'   is not included in \code{specs}, it is added to \code{specs} automatically.
 #' @param ... Additional arguments are ignored with a warning.
 #'
 #' @return
@@ -206,25 +233,132 @@
 #' list with one element \code{ref.grid} of class
 #' \code{\link[lsmeans]{ref.grid-class}}.  This reference grid should not be
 #' used directly with \code{\link[lsmeans]{lsmeans}}, but rather only with
-#' \code{nauf_pmmeans}.
+#' \code{nauf_pmmeans}. \code{nauf_pmmeans} returns a 
+#' \code{\link{nauf.pmm.list}} object.
 #'
-#' \code{nauf_pmmeans} returns a \code{nauf.pmm} object, which is a list
-#' inheriting from \code{lsm.list} with an additional attribute
-#' \code{specs} containing information about the variables and subsets from
-#' the call to the function.  The \code{nauf.pmm} list contains an element
-#' \code{pmmeans}, and, if pairwise comparisons were made, a second element
-#' \code{contrasts}, both of which are \code{\link[lsmeans]{lsmobj-class}}
-#' objects.  The \code{nauf.pmm} object has \code{summary} and \code{print}
-#' methods which print information from the \code{specs} attribute, and
-#' then call the \code{\link[lsmeans]{summary.ref.grid}} methods (to which
-#' arguments \code{infer}, \code{type}, \code{adjust}, etc. can be passed).
-#'
-#' @seealso \code{\link{nauf_contrasts}}, \code{\link{nauf_glm}}, and
-#'   \code{\link{nauf_glmer}}.
+#' @seealso \code{\link{nauf_contrasts}}, \code{\link{nauf_glm}},
+#'   \code{\link{nauf_glmer}}, \code{\link{nauf_stan_glm}}, and
+#'   \code{\link{nauf_stan_glmer}}.
 #'
 #' @name nauf-pmmeans
 NULL
 
+
+#' List of predicted marginal means objects for \code{nauf} models.
+#'
+#' The \code{\link{nauf_pmmeans}} function returns an object of class
+#' \code{nauf.pmm.list}.
+#'
+#' The \code{nauf.pmm.list} object contains a first element \code{pmmeans}
+#' which contains the predicted marginal means, and possibly additional
+#' \code{contrasts} elements depending on whether the call to 
+#' \code{\link{nauf_pmmeans}} indicated that pairwise comparisons should be made.  
+#' If the \code{by} argument was specified, there will be a numbered 
+#' \code{contrasts} element for each level of the full interaction of the 
+#' factors listed in the \code{by} argument.  The object also has a \code{specs}
+#' attribute which contains information about the variables and subsets from the 
+#' call to the function.
+#'
+#' The object has \code{summary} and \code{print} methods which first print 
+#' information from the \code{specs} attribute, and then pass addtional function
+#' arguments along to each element in the list.  For frequentist regressions, 
+#' the elements in the \code{nauf.pmm.list} are 
+#' \code{\link[lsmeans]{lsmobj-class}} objects. In this case, the \code{summary} 
+#' and \code{print} methods for the \code{nauf.pmm.list} take arguments listed in 
+#' \code{\link[lsmeans]{summary.ref.grid}} (e.g. \code{infer}, \code{type}, 
+#' \code{adjust}, etc.). For Bayesian regressions, the elements in the 
+#' \code{nauf.pmm.list} are \code{\link{nauf.pmm.stan}} objects. In this case, 
+#' the \code{summary} and \code{print} methods for the \code{nauf.pmm.list} take 
+#' arguments which are listed in \code{\link{nauf.pmm.stan}}.
+#'
+#' @name nauf.pmm.list
+NULL
+
+
+#' Posterior samples of marginal means from Bayesian \code{nauf} models.
+#'
+#' When \code{\link{nauf_pmmeans}} is used with Bayesian regressions, the 
+#' elements of the resulting \code{\link{nauf.pmm.list}} have class 
+#' \code{nauf.pmm.stan}.
+#'
+#' The \code{nauf.pmm.stan} object is a list with the following elements.
+#'
+#' \describe{
+#'   \item{names}{A data frame with the levels of each factor (or 'inc_1' for
+#'     covariates), with one row for each element in the third dimension of 
+#'     \code{samples}.}
+#'   \item{contrasts}{The fixed effects model matrix showing the contrasts 
+#'     applied to the regression coefficients (rows correspond to the 
+#'     \code{names} element).}
+#'   \item{samples}{An array with three dimensions. The first corresponds to 
+#'     iterations, the second to chains, and the third to parameters (the same 
+#'     structure returned by \code{\link[rstan]{as.array.stanfit}}).}
+#'   \item{family}{The regression family.}
+#'   \item{inv.lbl}{The label of the inverse link (e.g. probability, rate, etc.).}
+#'   \item{misc}{A list with additional information based on the type of model.}
+#' }
+#'
+#' @param object A \code{nauf.pmm.stan} object.
+#' @param probs A vector of quantiles to calculate for the estimates.
+#'   The default is a 95% credible interval (also called an uncertainty interval). 
+#'   The median (0.5) is always added regardless of whether it is specified.
+#' @param type If \code{"link"} (the default), then the estimates are not 
+#'   transformed prior to summary; if \code{"response"}, then the inverse link 
+#'   function in the object's \code{family} element is applied to the 
+#'   \code{samples} element prior to summary.
+#' @param x Either a \code{nauf.pmm.stan} object, or the \code{summ.nauf.pmm.stan} 
+#'   object returned by calling \code{summary} on a \code{nauf.pmm.stan} object.
+#' @param row.names,optional Changes from the defaults are ignored.
+#' @param mcse A logical indicating whether the Monte Carlo standard errors
+#'   should be printed (default \code{FALSE} since the column is always recoverable
+#'   by dividing the \code{SD} column by the square root of the \code{ESS} column).
+#' @param rhat An optional logical indicating whether or not to print the 
+#'   Gelman-Rubin R-hat statistic.  If \code{rhat = NULL} (the default), then 
+#'   the \code{Rhat} column of the summary is only printed if any of the 
+#'   statistics are greater that \code{1.1}. Regardless of the value of the 
+#'   \code{rhat} argument, a warning is issued if any of the statistics are 
+#'   greater than \code{1.1}. 
+#' @param ... See the \code{Methods} section.
+#'
+#' @return The returned object depends on the function.  See the 'Methods'
+#'   section.
+#'
+#' @section Methods:
+#' \describe{
+#'   \item{summary}{Returns a data frame with class
+#'     \code{summ.nauf.pmm.stan}, with means, standard deviations, medians, mean 
+#'     absolute differences, the posterior probability that the estimate is 
+#'     greater than zero, quantiles specified in \code{probs}, the effective 
+#'     sample size, Monte Carlo standard error, and Gelman-Rubin R-hat statistic.
+#'     Additional arguments in \code{...} are ignored.  Quantiles, effective
+#'     samples size, and Monte Carlo standard error, and R-hat statistics are
+#'     computed using \code{\link[rstan]{monitor}}.}
+#'   \item{print}{For \code{summ.nauf.pmm.stan} objects, the data frame is
+#'     printed, omitting the Monte Carlo standard error and 
+#'     R-hat statistic based on \code{mcse} and \code{rhat}.  If the inverse
+#'     link function was used, then a message indicating the response type
+#'     is also printed. Additional arguments in \code{...} are passed to 
+#'     \code{\link[base]{print.data.frame}}. For \code{nauf.pmm.stan} objects,
+#'     first \code{summary} is called, passing along \code{...},
+#'     and then print is called on the resulting \code{summ.nauf.pmm.stan}, also
+#'     passing along \code{...} arguments.}
+#'   \item{as.data.frame}{For \code{summ.nauf.pmm.stan} objects, removes the 
+#'     \code{data.frame} contained in a \code{summ.nauf.pmm.stan}.  Additional
+#'     arguments in \code{...} are ignored. For \code{nauf.pmm.stan} objects,
+#'     first \code{summary} is called, passing along \code{...}, and then
+#'     \code{as.data.frame} is called on the resulting \code{summ.nauf.pmm.stan}
+#'     object, ignoring \code{...} arugments.}
+#'   \item{as.array}{Returns the \code{samples} element of a 
+#'     \code{nauf.pmm.stan} object. Additional arguments in \code{...} are 
+#'     ignored.}
+#'   \item{as.matrix}{Returns the \code{samples} element of a 
+#'     \code{namf.pmm.stan} object, flattening the array into a matrix such that 
+#'     the rows represent iterations ordered by chain and the columns represent 
+#'     parameters.}
+#' }
+#'
+#' @name nauf.pmm.stan
+NULL
 
 
 ###### nauf.ref.grid ######
@@ -244,7 +378,12 @@ print.nauf.ref.grid <- function(x, ...) {
 
 ###### nauf.pmm.stan ######
 
+#' @rdname nauf.pmm.stan
+#'
+#' @method summary nauf.pmm.stan
+#'
 #' @importFrom rstan monitor
+#' 
 #' @export
 summary.nauf.pmm.stan <- function(object, probs = c(0.025, 0.975),
                                   type = c("link", "response"), ...) {
@@ -294,8 +433,10 @@ summary.nauf.pmm.stan <- function(object, probs = c(0.025, 0.975),
 }
 
 
+#' @rdname nauf.pmm.stan
+#'
 #' @export
-print.summ.nauf.pmm.stan <- function(x, row.names = FALSE, mce = FALSE,
+print.summ.nauf.pmm.stan <- function(x, row.names = FALSE, mcse = FALSE,
                                      rhat = NULL, ...) {
   type <- attr(x, "type")
   attr(x, "type") <- NULL
@@ -303,7 +444,7 @@ print.summ.nauf.pmm.stan <- function(x, row.names = FALSE, mce = FALSE,
   attr(x, "misc") <- NULL
   class(x) <- "data.frame"
   
-  if (!mce) x <- x[-which(colnames(x) == "MCE")]
+  if (!mcse) x <- x[-which(colnames(x) == "MCSE")]
   if (w <- any(x$Rhat > 1.1)) {
     warning("Some Rhat's are greater than 1.1; chains have not converged.")
   }
@@ -314,17 +455,21 @@ print.summ.nauf.pmm.stan <- function(x, row.names = FALSE, mce = FALSE,
   print(x, row.names = FALSE, ...)
 
   if (type != "link") {
-    cat("\nEstimates are given on the", lbl, "scale.\n")
+    cat("\nEstimates are given on the", type, "scale.\n")
   }
 }
 
 
+#' @rdname nauf.pmm.stan
+#'
 #' @export
 as.array.nauf.pmm.stan <- function(x, ...) {
   return(x$samples)
 }
 
 
+#' @rdname nauf.pmm.stan
+#'
 #' @export
 as.matrix.nauf.pmm.stan <- function(x, ...) {
   m <- apply(x$samples, 3, function(y) y)
@@ -336,12 +481,16 @@ as.matrix.nauf.pmm.stan <- function(x, ...) {
 }
 
 
+#' @rdname nauf.pmm.stan
+#'
 #' @export
 print.nauf.pmm.stan <- function(x, ...) {
   print(summary(x, ...), ...)
 }
 
 
+#' @rdname nauf.pmm.stan
+#'
 #' @export
 as.data.frame.nauf.pmm.stan <- function(x, row.names = NULL, optional = FALSE,
                                         ...) {
@@ -349,6 +498,8 @@ as.data.frame.nauf.pmm.stan <- function(x, row.names = NULL, optional = FALSE,
 }
 
 
+#' @rdname nauf.pmm.stan
+#'
 #' @export
 as.data.frame.summ.nauf.pmm.stan <- function(x, row.names = NULL,
                                              optional = FALSE, ...) {
@@ -362,6 +513,8 @@ as.data.frame.summ.nauf.pmm.stan <- function(x, row.names = NULL,
 
 ###### nauf.pmm.list ######
 
+#' @method summary nauf.pmm.list
+#'
 #' @export
 summary.nauf.pmm.list <- function(object, ...) {
   specs <- attr(object, "specs")
@@ -386,11 +539,10 @@ print.summ.nauf.pmm.list <- function(x, ...) {
   specs <- attr(x, "specs")
   attr(x, "specs") <- NULL
   drop_class(x) <- "summ.nauf.pmm.list"
-  do.call("print_pmm_list", c(list(x = x), specs, list(...)))
+  do.call(print_pmm_list, c(list(x = x), specs, list(...)))
 }
 
 
-#' @export
 print_pmm_list <- function(x, variables, pairwise, averaged_over, held_at_mean,
                            conditioned_on, keep_NA, drop_NA, subset, by, bayes,
                            note, ...) {

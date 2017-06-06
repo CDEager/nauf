@@ -2,10 +2,26 @@
 
 #' Class for fitted Bayesian models with \code{nauf} contrasts.
 #'
-#' ADD DESCRIPTION
+#' Models fit with \code{\link{nauf_stan_lm}}, \code{\link{nauf_stan_glm}}, 
+#' \code{\link{nauf_stan_glm.nb}}, \code{\link{nauf_stan_lmer}}, 
+#' \code{\link{nauf_stan_glmer}}, and \code{\link{nauf_stan_glmer.nb}} have 
+#' class \code{nauf.stanreg} and inherit from class \code{stanreg} (see 
+#' \code{\link[rstanarm]{stanreg-objects}} for details on the elements contained 
+#' in the fitted model object).  The \code{stanreg} methods for the generic 
+#' functions listed in the \code{\link[rstanarm]{stanreg-methods}} page 
+#' (including those linked to in the 'See Also' section) work for 
+#' \code{nauf.stanreg} models, with the same restrictions on the \code{re.form} 
+#' argument described in the \code{\link{predict.nauf.merMod}} page when using 
+#' the \code{posterior_predict} and \code{predict} functions.  The only 
+#' exception is that the \code{\link[rstanarm]{kfold}} function from the 
+#' \code{rstanarm} package cannot be used on \code{nauf.stanreg} objects; 
+#' instead, \code{\link{nauf_kfold}} should be used.  The 
+#' \code{\link{nauf_ref.grid}} and \code{\link{nauf_pmmeans}} functions also 
+#' work with \code{nauf.stanreg} objects.
 #'
 #' @seealso \code{\link{nauf_stan_glm}}, \code{\link{nauf_stan_glmer}},
-#'   \code{\link{nauf_contrasts}}, and \code{\link[rstanarm]{stanreg-objects}}.
+#'   \code{\link{nauf_contrasts}}, \code{\link[rstanarm]{stanreg-objects}},
+#'   and \code{\link[rstanarm]{stanreg-methods}}.
 #'
 #' @name nauf.stanreg
 NULL
@@ -194,6 +210,8 @@ posterior_linpred.nauf.stanreg <- function(object, transform = FALSE,
 }
 
 
+#' @importFrom loo E_loo
+#'
 #' @export
 loo_linpred.nauf.stanreg <- function(object, type = c("mean", "var", "quantile"),
                                      probs = 0.5, transform = FALSE, ..., lw) {
@@ -227,6 +245,8 @@ loo_predictive_interval.nauf.stanreg <- function(object, prob = 0.9, ..., lw) {
 }
 
 
+#' @importFrom loo loo pareto_k_ids
+#'
 #' @export
 loo.nauf.stanreg <- function(x, ..., k_threshold = NULL) {
   if (rsa_model_has_weights(x)) {
@@ -277,6 +297,34 @@ waic.nauf.stanreg <- function(x, ...) {
 }
 
 
+#' @export
+pp_check.nauf.stanreg <- function(object, plotfun = "dens_overlay", nreps = NULL,
+                                  seed = NULL, ...) {
+  plotfun_name <- rsa_ppc_function_name(plotfun)
+  plotfun <- get(plotfun_name, pos = asNamespace("bayesplot"), mode = "function")
+  
+  is_binomial_model <- object$family$family == "binomial"
+  
+  y_yrep <- rsa_ppc_y_and_yrep(object, seed = seed,
+    nreps = rsa_set_nreps(nreps, fun = plotfun_name),
+    binned_resid_plot = isTRUE(plotfun_name == "ppc_error_binned"))
+    
+  args <- nauf_ppc_args(object, y = y_yrep[["y"]], yrep = y_yrep[["yrep"]], 
+      fun = plotfun_name, ...)
+      
+  do.call(plotfun, args)
+}
+
+
+#' Cross-validation for \code{nauf.stanreg} models.
+#'
+#' The same as \code{\link[rstanarm]{kfold}}, but ensuring the use of
+#' \code{\link{nauf_contrasts}}.
+#'
+#' @param x,K,save_fits See \code{\link[rstanarm]{kfold}}.
+#'
+#' @return An object with classes \code{kfold} and \code{loo}.
+#'
 #' @export
 nauf_kfold <- function(x, K = 10, save_fits = FALSE) {
   stopifnot(is.nauf.stanreg(x))

@@ -2,9 +2,25 @@
 
 #' Fit a Bayesian mixed effects regression with \code{nauf} contrasts.
 #'
-#' ADD DESCRIPTION
+#' The Bayesian mixed effects regression functions \code{nauf_stan_lmer}, \code{nauf_stan_glmer.nb},
+#' and \code{nauf_stan_glmer} fit linear, negative binomial, and other generalized
+#' linear mixed effects models, respectively, impelementing
+#' \code{\link{nauf_contrasts}}.
 #'
-#' ADD DETAILS
+#' \code{nauf_stan_lmer}, \code{nauf_stan_glmer}, and \code{nauf_stan_glmer.nb} are based on
+#' the \code{rstanarm} functions \code{\link[rstanarm]{stan_lmer}}, \code{\link[rstanarm]{stan_glmer}},
+#' and \code{\link[rstanarm]{stan_glmer.nb}}, respectively, but implement
+#' \code{\link{nauf_contrasts}}.  The \code{nauf} functions have all the same
+#' arguments as the functions they are based on, but additionally
+#' \code{ncs_scale}, which is passed to \code{\link{nauf_model.frame}}.  Other
+#' than \code{ncs_scale}, the arguments have the same functions as they do in
+#' the functions they are based on.  The default values for \code{na.action} and
+#' \code{contrasts} cannot be changed (see \code{\link{nauf_model.frame}}).
+#' The default priors for the \code{nauf} Bayesian mixed effects regression
+#' functions are the defaults from \code{rstanarm} version 2.15.3; if you have
+#' a later version of the \code{rstanarm} package, then the default priors for
+#' the \code{nauf} regression fitting functions may be different from the
+#' \code{rstanarm} defaults.
 #'
 #' @param formula,data,family,subset,weights,na.action,offset,contrasts,ncs_scale See
 #'   \code{\link{nauf_model.frame}} and \code{\link{nauf_glFormula}}.
@@ -170,16 +186,38 @@ nauf_stan_glmer.nb <- function(formula, data = NULL, subset, weights,
 
 #' Fit a Bayesian fixed effects regression with \code{nauf} contrasts.
 #'
-#' ADD DESCRIPTION
+#' The Bayesian fixed effects regression functions \code{nauf_stan_lm}, \code{nauf_stan_glm.nb},
+#' and \code{nauf_stan_glm} fit linear, negative binomial, and other generalized
+#' linear models, respectively, impelementing \code{\link{nauf_contrasts}}.
 #'
-#' ADD DETAILS
+#' \code{nauf_stan_lm}, \code{nauf_stan_glm}, and \code{nauf_stan_glm.nb} are based on
+#' the \code{rstanarm} functions \code{\link[rstanarm]{stan_lm}}, \code{\link[rstanarm]{stan_glm}},
+#' and \code{\link[rstanarm]{stan_glm.nb}}, respectively, but implement
+#' \code{\link{nauf_contrasts}}.  The \code{nauf} functions have all the same
+#' arguments as the functions they are based on, but additionally
+#' \code{ncs_scale}, which is passed to \code{\link{nauf_model.frame}}.  Other
+#' than \code{ncs_scale}, the arguments have the same functions as they do in
+#' the functions they are based on.  The
+#' default values for \code{na.action}, \code{contrasts}, \code{model},
+#' \code{x}, and \code{y} cannot be changed.  For \code{na.action} and
+#' \code{contrasts}, see \code{\link{nauf_model.frame}}.  Forcing \code{model},
+#' \code{x}, and \code{y} to be \code{TRUE} ensures that the fitted model
+#' retains the model frame, model matrix, and response, respectively.  This is
+#' necessary for some generic functions applied to the fitted model to work
+#' properly.
+#' The default priors for the \code{nauf} Bayesian fixed effects regression
+#' functions are the defaults from \code{rstanarm} version 2.15.3; if you have
+#' a later version of the \code{rstanarm} package, then the default priors for
+#' the \code{nauf} regression fitting functions may be different from the
+#' \code{rstanarm} defaults.
 #'
 #' @param formula,data,family,subset,weights,na.action,offset,contrasts,model,x,y,ncs_scale See
 #'   \code{\link{nauf_model.frame}}.
 #' @param ... Further arguments to be passed to \code{\link[rstan]{sampling}}.
 #'   See \code{\link[rstanarm]{stan_glmer}} for details.
 #' @param link,prior,prior_intercept,prior_aux,prior_PD,adapt_delta,QR,sparse See
-#'   \code{\link[rstanarm]{stan_glm}}.
+#'   \code{\link[rstanarm]{stan_glm}} and \code{\link[rstanarm]{stan_lm}}.
+#' @param singular.ok See \code{\link[rstanarm]{stan_lm}}.
 #' @param algorithm Changes from the default \code{"sampling"} result in an
 #'   error.  Only MCMC is currently supported.
 #'
@@ -241,7 +279,7 @@ nauf_stan_glm <- function(formula, family = gaussian(), data = NULL, weights,
   offset <- as.vector(stats::model.offset(mf))
   if (is.null(offset)) {
     offset <- double(0)
-  } else if (length(o) != nrow(mf)) {
+  } else if (length(offset) != nrow(mf)) {
     stop("'offset' must have exactly one element per row of 'data'")
   }
   

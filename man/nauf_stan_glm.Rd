@@ -38,17 +38,40 @@ See \code{\link[rstanarm]{stan_glmer}} for details.}
 \item{algorithm}{Changes from the default \code{"sampling"} result in an
 error.  Only MCMC is currently supported.}
 
+\item{singular.ok}{See \code{\link[rstanarm]{stan_lm}}.}
+
 \item{link, prior, prior_intercept, prior_aux, prior_PD, adapt_delta, QR, sparse}{See
-\code{\link[rstanarm]{stan_glm}}.}
+\code{\link[rstanarm]{stan_glm}} and \code{\link[rstanarm]{stan_lm}}.}
 }
 \value{
 A \code{\link{nauf.stanreg}} object.
 }
 \description{
-ADD DESCRIPTION
+The Bayesian fixed effects regression functions \code{nauf_stan_lm}, \code{nauf_stan_glm.nb},
+and \code{nauf_stan_glm} fit linear, negative binomial, and other generalized
+linear models, respectively, impelementing \code{\link{nauf_contrasts}}.
 }
 \details{
-ADD DETAILS
+\code{nauf_stan_lm}, \code{nauf_stan_glm}, and \code{nauf_stan_glm.nb} are based on
+the \code{rstanarm} functions \code{\link[rstanarm]{stan_lm}}, \code{\link[rstanarm]{stan_glm}},
+and \code{\link[rstanarm]{stan_glm.nb}}, respectively, but implement
+\code{\link{nauf_contrasts}}.  The \code{nauf} functions have all the same
+arguments as the functions they are based on, but additionally
+\code{ncs_scale}, which is passed to \code{\link{nauf_model.frame}}.  Other
+than \code{ncs_scale}, the arguments have the same functions as they do in
+the functions they are based on.  The
+default values for \code{na.action}, \code{contrasts}, \code{model},
+\code{x}, and \code{y} cannot be changed.  For \code{na.action} and
+\code{contrasts}, see \code{\link{nauf_model.frame}}.  Forcing \code{model},
+\code{x}, and \code{y} to be \code{TRUE} ensures that the fitted model
+retains the model frame, model matrix, and response, respectively.  This is
+necessary for some generic functions applied to the fitted model to work
+properly.
+The default priors for the \code{nauf} Bayesian fixed effects regression
+functions are the defaults from \code{rstanarm} version 2.15.3; if you have
+a later version of the \code{rstanarm} package, then the default priors for
+the \code{nauf} regression fitting functions may be different from the
+\code{rstanarm} defaults.
 }
 \examples{
 \dontrun{
