@@ -13,6 +13,8 @@ necessary to implement \code{\link{nauf_contrasts}} in regression.
 \details{
 The \code{nauf.info} attribute is a list with the following elements:
 \describe{
+  \item{formula}{The \code{formula} argument to \code{\link{nauf_model.frame}}
+    with double-bars expanded.}
   \item{resp}{The name of the response variable.}
   \item{groups}{A named list of random effects grouping factor levels.}
   \item{uf}{A named list with an elment for each unordered factor. Each of

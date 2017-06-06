@@ -60,7 +60,8 @@ formula.nauf.merMod <- function(x, fixed.only = FALSE, random.only = FALSE,
   if (random.only) form <- lme4_reOnly(form, response = TRUE)
 
   first_class(form) <- "nauf.formula"
-
+  attr(form, "standardized.scale") <- attr(attr(x@frame, "formula"),
+    "standardized.scale")
   return(form)
 }
 
@@ -239,7 +240,7 @@ predict.nauf.merMod <- function(object, newdata = NULL, newparams = NULL,
     pred <- pred + offset
 
     if (re) {
-      z <- Matrix::t(nauf_mkReTrms(mfnew, lapply(object@flist, levels))$Zt)
+      z <- Matrix::t(nauf_mkReTrms(mfnew, levasgn(object))$Zt)
       b <- as.vector(lme4::getME(object, "b"))
       pred <- pred + base::drop(as(z %*% b, "matrix"))
     }

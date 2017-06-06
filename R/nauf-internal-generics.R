@@ -1,5 +1,49 @@
 
 
+get_reTrms <- function(x) {
+  UseMethod("get_reTrms")
+}
+
+
+get_reTrms.default <- function(x) {
+  stop("methods for classes c(", add_quotes(class(x), ", "), ") do not exist.")
+}
+
+
+get_reTrms.list <- function(x) {
+  if (is.glmod(x)) {
+    return(x$reTrms)
+  } else if (all(c("cnms", "flist", "Zt") %in% names(x))) {
+    return(x)
+  } else {
+    stop("'x' is a list but not a lmod/glmod or reTrms")
+  }
+}
+
+
+get_reTrms.nauf.stanreg <- function(x) {
+  if (!is.nauf.stanmer(x)) stop("Model has no random effects")
+  return(x$glmod$reTrms)
+}
+
+
+get_reTrms.nauf.merMod <- function(x) {
+  return(lme4::getME(x, c("Zt", "theta", "Lind", "Gp", "lower", "Lambdat",
+    "flist", "cnms", "Ztlist")))
+}
+
+
+get_reTrms.nauf.lmerMod <- function(x) {
+  return(get_reTrms.nauf.merMod(x))
+}
+
+
+get_reTrms.nauf.glmerMod <- function(x) {
+  return(get_reTrms.nauf.merMod(x))
+}
+
+
+
 ###### get number of chains in a stan object
 nchain <- function(x) {
   UseMethod("nchain")

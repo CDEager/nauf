@@ -69,9 +69,16 @@ the \code{nauf} regression fitting functions may be different from the
 }
 \examples{
 \dontrun{
-dat <- fricatives
-# add NA stuff
-mod <- nauf_stan_lmer(f, d)
+sobj <- standardize(vdur ~ place + stress + spont +
+  (1 + place + stress + spont | speaker) + (1 | item),
+  subset(plosives, dialect == "Cuzco" & voicing == "Voiceless"))
+
+mod <- nauf_stan_lmer(sobj$formula, sobj$data,
+  prior = normal(0, 1, autoscale = FALSE),
+  prior_intercept = normal(0, 1, autoscale = FALSE),
+  prior_aux = normal(0, 1, autoscale = FALSE),
+  prior_covariance = decov(2, 1.5, 2, 0.25)
+)
 }
 
 }

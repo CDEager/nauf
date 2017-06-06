@@ -40,15 +40,17 @@ nauf_pp_data_mer_x <- function(object, newdata, ...) {
 nauf_pp_data_mer_z <- function(object, newdata, re.form = NULL,
                                allow.new.levels = TRUE, na.action = na.pass) {
   if (!condition_on_re(re.form)) return(list())
-  if (is.null(newdata)) return(list(Zt = object$glmod$reTrms$Zt))
   
-  mt <- stats::delete.response(terms(object, fixed.only = FALSE))
-  nauf.info(mt, "allow.new.levels") <- allow.new.levels
-  mf <- model.frame(mt, newdata)
+  if (is.null(newdata)) {
+    mf <- object$glmod$fr
+  } else {
+    mt <- stats::delete.response(terms(object, fixed.only = FALSE))
+    nauf.info(mt, "allow.new.levels") <- allow.new.levels
+    mf <- model.frame(mt, newdata)
+  }
   
   # not forming Z_names (should only be necessary when new levels are tracked)
-  return(list(Zt = nauf_mkReTrms(mf, lapply(object$glmod$flist,
-    function(f) c(levels(f), "_NEW_")))$Zt))
+  return(list(Zt = nauf_mkReTrms(mf, levasgn(object, TRUE))$Zt))
 }
 
 
@@ -174,7 +176,7 @@ nauf_ll_args <- function(object, newdata = NULL, offset = NULL,
   }
   
   fname <- f$family
-  if (fname == "binomial") {
+  if (fname != "binomial") {
     data <- data.frame(y, x)
   } else {
     trials <- 1

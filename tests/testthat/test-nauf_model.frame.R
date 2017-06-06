@@ -132,8 +132,10 @@ d$f1[!is.na(d$subj) & d$f1 == "c"] <- NA
 d$y <- stats::rnorm(nrow(d))
 
 nml <- setNames(list(), character())
-
+f <- y ~ f1 + (1 + f1 | subj)
+nauf:::first_class(f) <- "nauf.formula"
 ni2 <- list(
+  formula = f,
   resp = "y",
   groups = list(subj = paste(1:5)),
   uf = list(f1 = list(c("a", "b", "c"), c("a", "b"))),

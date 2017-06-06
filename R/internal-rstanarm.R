@@ -353,7 +353,7 @@ rsa_validate_k_threshold <- function(k) {
 }
 
 
-rsa_kfold_and_reloo_data <- function(x) {
+nauf_kfold_and_reloo_data <- function(x) {
   dat <- x[["data"]]
   sub <- getCall(x)[["subset"]]
   d <- get_all_vars(formula(x), dat)
@@ -361,7 +361,7 @@ rsa_kfold_and_reloo_data <- function(x) {
     keep <- eval(substitute(sub), envir = dat)
     d <- d[keep, , drop = FALSE]
   }
-  na.omit(d)
+  return(d)
 }
 
 
@@ -373,7 +373,7 @@ rsa_reloo <- function(x, loo_x, obs, ..., refit = TRUE) {
   }
   
   J <- length(obs)
-  d <- rsa_kfold_and_reloo_data(x)
+  d <- nauf_kfold_and_reloo_data(x)
   lls <- vector("list", J)
   
   message(J, " problematic observation(s) found.", "\nModel will be refit ", 

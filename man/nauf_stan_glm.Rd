@@ -75,9 +75,10 @@ the \code{nauf} regression fitting functions may be different from the
 }
 \examples{
 \dontrun{
-dat <- fricatives
-# add NA stuff
-mod <- nauf_stan_lm(f, d)
+sobj <- standardize(vdur ~ place + stress + spont,
+  subset(plosives, dialect == "Cuzco" & voicing == "Voiceless"))
+
+mod <- nauf_stan_lm(sobj$formula, sobj$data, prior = R2(location = 0.5))
 }
 
 }

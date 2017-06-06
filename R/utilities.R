@@ -315,6 +315,14 @@ condition_on_re <- function(re.form, ReForm, REForm, REform) {
 }
 
 
+levasgn <- function(x, add_NEW = FALSE) {
+  flist <- get_reTrms(x)$flist
+  lvs <- lapply(flist, levels)[attr(flist, "assign")]
+  if (add_NEW) lvs <- lapply(lvs, c, "_NEW_")
+  return(lvs)
+}
+
+
 last_names <- function(object, nms) {
   d <- length(dim(object))
   if (missing(nms)) {

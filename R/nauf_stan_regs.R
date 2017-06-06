@@ -35,9 +35,16 @@
 #'
 #' @examples
 #' \dontrun{
-#' dat <- fricatives
-#' # add NA stuff
-#' mod <- nauf_stan_lmer(f, d)
+#' sobj <- standardize(vdur ~ place + stress + spont +
+#'   (1 + place + stress + spont | speaker) + (1 | item),
+#'   subset(plosives, dialect == "Cuzco" & voicing == "Voiceless"))
+#' 
+#' mod <- nauf_stan_lmer(sobj$formula, sobj$data,
+#'   prior = normal(0, 1, autoscale = FALSE),
+#'   prior_intercept = normal(0, 1, autoscale = FALSE),
+#'   prior_aux = normal(0, 1, autoscale = FALSE),
+#'   prior_covariance = decov(2, 1.5, 2, 0.25)
+#' )
 #' }
 #' 
 #' @seealso \code{\link{nauf_contrasts}} for a description of the treatment of 
@@ -225,9 +232,10 @@ nauf_stan_glmer.nb <- function(formula, data = NULL, subset, weights,
 #'
 #' @examples
 #' \dontrun{
-#' dat <- fricatives
-#' # add NA stuff
-#' mod <- nauf_stan_lm(f, d)
+#' sobj <- standardize(vdur ~ place + stress + spont,
+#'   subset(plosives, dialect == "Cuzco" & voicing == "Voiceless"))
+#' 
+#' mod <- nauf_stan_lm(sobj$formula, sobj$data, prior = R2(location = 0.5))
 #' }
 #' 
 #' @seealso \code{\link{nauf_contrasts}} for a description of the treatment of 

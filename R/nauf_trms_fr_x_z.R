@@ -353,6 +353,8 @@ add_contr_zeros <- function(mat, cj, rn) {
 #'
 #' The \code{nauf.info} attribute is a list with the following elements:
 #' \describe{
+#'   \item{formula}{The \code{formula} argument to \code{\link{nauf_model.frame}}
+#'     with double-bars expanded.}
 #'   \item{resp}{The name of the response variable.}
 #'   \item{groups}{A named list of random effects grouping factor levels.}
 #'   \item{uf}{A named list with an elment for each unordered factor. Each of
@@ -420,9 +422,9 @@ model.frame.nauf.terms <- function(formula, data = NULL, subset = NULL,
   mc["ncs_scale"] <- NULL
   mf <- eval(mc, parent.frame())
   
-  attr(mf, "formula") <- stats::formula(attr(mf, "terms"))
+  attr(mf, "formula") <- info$formula
+  attr(mf, "terms") <- formula
   first_class(mf, "terms") <- "nauf.terms"
-  first_class(mf, "formula") <- "nauf.formula"
   last_class(mf) <- "nauf.frame"
   nauf.info(mf) <- info
   
@@ -449,6 +451,7 @@ model.frame.nauf.terms <- function(formula, data = NULL, subset = NULL,
         return(fac)
       }
     )
+    
   } else {
     mf[groups] <- mlapply(x = mf[groups], levels = info$groups[groups],
       same = list(ordered = FALSE), fun = factor)
@@ -458,7 +461,7 @@ model.frame.nauf.terms <- function(formula, data = NULL, subset = NULL,
     warning("Some variables which did not have NA values when the model was ",
       "fit have NA values in the new model frame.")
   }
-
+  
   return(mf)
 }
 
@@ -664,7 +667,8 @@ nauf_model.frame <- function(formula, data = NULL, subset = NULL,
   
   changes <- contrast_changes(fe_form, bars, mf, uf, hasna)
     
-  mt <- nauf.terms(mt, resp = cnms[1], groups = lapply(mf[groups], levels),
+  mt <- nauf.terms(mt, formula = lme4::expandDoubleVerts(formula),
+    resp = cnms[1], groups = lapply(mf[groups], levels),
     uf = changes$uf, of = lapply(mf[of], levs_and_contr),
     num = lapply(mf[num], mean), mat = lapply(mf[mat], colMeans),
     extras = cnms[extras], cc = changes$cc, hasna = hasna, ncs_scale = ncs)
@@ -1004,8 +1008,8 @@ nauf_mkReTrms <- function(fr, lvs = NULL) {
 
   names(bars) <- lme4_barnames(bars)
   term.names <- vapply(bars, lme4_safeDeparse, "")
-  blist <- mlapply(bar = bars, ccn = 1 + 1:length(bars), same = list(fr = fr,
-    lvs = lvs), fun = nauf_mkBlist)
+  blist <- mlapply(bar = bars, ccn = 1 + 1:length(bars),
+    same = list(lvs = lvs, fr = fr), fun = nauf_mkBlist)
   nl <- vapply(blist, `[[`, 0L, "nl")
   if (any(diff(nl) > 0)) {
     ord <- rev(order(nl))
@@ -1068,7 +1072,7 @@ nauf_mkReTrms <- function(fr, lvs = NULL) {
 }
 
 
-nauf_mkBlist <- function(bar, ccn, fr, lvs) {
+nauf_mkBlist <- function(bar, ccn, lvs, fr) {
   gvars <- varnms(barform(bar, 3))
   ff <- interaction(fr[gvars])
 
@@ -1076,12 +1080,10 @@ nauf_mkBlist <- function(bar, ccn, fr, lvs) {
     ff <- droplevels(ff)
     if (all(is.na(ff))) {
       stop("Invalid grouping factor specification, ", deparse(bar[[3]]),
-        call. = FALSE)
+        " are all NA", call. = FALSE)
     }
-
-  } else {  # implies predict method with new data
-    ff <- factor(ff, levels = lvs[[paste(gvars, collapse = ":")]],
-      ordered = FALSE)
+  } else {  # implies predict method
+    ff <- factor(ff, levels = lvs[[ccn - 1]], ordered = FALSE)
   }
 
   mm <- nauf_mm(fr, ccn)

@@ -28,9 +28,12 @@ NULL
 
 
 #' @export
-print.nauf.stanreg <- function(x, ...) {
-  NextMethod("print")
+print.nauf.stanreg <- function(x, digits = 4, ...) {
+  drop_class(x) <- "nauf.stanreg"
+  print(x, digits = digits, ...)
   cat("\n\n")
+  first_class(x) <- "nauf.stanreg"
+  invisible(x)
 }
 
 
@@ -49,6 +52,7 @@ formula.nauf.stanreg <- function(x, fixed.only = FALSE, random.only = FALSE,
   }
   
   first_class(form) <- "nauf.formula"
+  attr(form, "standardized.scale") <- attr(x$formula, "standardized.scale")
   return(form)
 }
 
@@ -73,8 +77,8 @@ terms.nauf.stanreg <- function(x, fixed.only = TRUE, random.only = FALSE, ...) {
     attr(tt, "predvars") <- attr(terms(x$glmod$fr), "predvars.random")
   }
 
-  nauf.info(tt) <- nauf.info(x)
   first_class(tt) <- "nauf.terms"
+  nauf.info(tt) <- nauf.info(x)
   return(tt)
 }
 
@@ -333,7 +337,8 @@ nauf_kfold <- function(x, K = 10, save_fits = FALSE) {
     stop("kfold is not currently available for models fit using weights.")
   }
   
-  d <- rsa_kfold_and_reloo_data(x)
+  x$call["open_progress"] <- NULL
+  d <- nauf_kfold_and_reloo_data(x)
   N <- nrow(d)
   perm <- sample.int(N)
   idx <- ceiling(seq(from = 1, to = N, length.out = K + 1))
