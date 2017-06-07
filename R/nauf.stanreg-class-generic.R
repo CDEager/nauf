@@ -13,9 +13,11 @@
 #' \code{nauf.stanreg} models, with the same restrictions on the \code{re.form} 
 #' argument described in the \code{\link{predict.nauf.merMod}} page when using 
 #' the \code{posterior_predict} and \code{predict} functions.  The only 
-#' exception is that the \code{\link[rstanarm]{kfold}} function from the 
-#' \code{rstanarm} package cannot be used on \code{nauf.stanreg} objects; 
-#' instead, \code{\link{nauf_kfold}} should be used.  The 
+#' exceptions are that the \code{\link[rstanarm]{kfold}} function from the 
+#' \code{rstanarm} package and the \code{\link[shinystan]{launch_shinystan}} 
+#' function from the \code{shinystan} package cannot be used on 
+#' \code{nauf.stanreg} objects; instead, \code{\link{nauf_kfold}} and 
+#' \code{\link{nauf_launch_shinystan}} should be used.  The 
 #' \code{\link{nauf_ref.grid}} and \code{\link{nauf_pmmeans}} functions also 
 #' work with \code{nauf.stanreg} objects.
 #'
@@ -301,25 +303,6 @@ waic.nauf.stanreg <- function(x, ...) {
 }
 
 
-#' @export
-pp_check.nauf.stanreg <- function(object, plotfun = "dens_overlay", nreps = NULL,
-                                  seed = NULL, ...) {
-  plotfun_name <- rsa_ppc_function_name(plotfun)
-  plotfun <- get(plotfun_name, pos = asNamespace("bayesplot"), mode = "function")
-  
-  is_binomial_model <- object$family$family == "binomial"
-  
-  y_yrep <- rsa_ppc_y_and_yrep(object, seed = seed,
-    nreps = rsa_set_nreps(nreps, fun = plotfun_name),
-    binned_resid_plot = isTRUE(plotfun_name == "ppc_error_binned"))
-    
-  args <- nauf_ppc_args(object, y = y_yrep[["y"]], yrep = y_yrep[["yrep"]], 
-      fun = plotfun_name, ...)
-      
-  do.call(plotfun, args)
-}
-
-
 #' Cross-validation for \code{nauf.stanreg} models.
 #'
 #' The same as \code{\link[rstanarm]{kfold}}, but ensuring the use of
@@ -369,5 +352,37 @@ nauf_kfold <- function(x, K = 10, save_fits = FALSE) {
   return(structure(out, class = c("kfold", "loo"), K = K,
     name = deparse(substitute(x)), discrete = rsa_is_discrete(x),
     yhash = rsa_hash_y(x)))
+}
+
+
+#' @importFrom bayesplot pp_check
+#'
+#' @export
+pp_check.nauf.stanreg <- function(object, plotfun = "dens_overlay", nreps = NULL,
+                                  seed = NULL, ...) {
+  drop_class(object) <- "nauf.stanreg"
+  pp_check(object = object, plotfun = plotfun, nreps = nreps, seed = seed, ...)
+}
+
+
+#' Launch the ShinyStan app for a \code{nauf} model.
+#'
+#' \code{nauf_launch_shinystan} is just a wrapper function for
+#' \code{\link[shinystan]{launch_shinystan}} which removes the \code{nauf.stanreg}
+#' class attribute from the \code{object} argument.
+#'
+#' @param object An object of class \code{\link{nauf.stanreg}}.
+#' @param rstudio,... See \code{\link[shinystan]{launch_shinystan}}.
+#'
+#' @return See \code{\link[shinystan]{launch_shinystan}}.
+#'
+#' @importFrom shinystan launch_shinystan
+#'
+#' @export
+nauf_launch_shinystan <- function(object,
+                                  rstudio = getOption("shinystan.rstudio"),
+                                  ...) {
+  drop_class(object) <- "nauf.stanreg"
+  shinystan::launch_shinystan(object, rstudio, ...)
 }
 

@@ -232,9 +232,9 @@ nauf_stan_glmer.nb <- function(formula, data = NULL, subset, weights,
 #'
 #' @examples
 #' \dontrun{
-#' sobj <- standardize(vdur ~ place + stress + spont,
-#'   subset(plosives, dialect == "Cuzco" & voicing == "Voiceless"))
-#' 
+#' dat <- fricatives
+#' dat$uvoi[!(dat$lang == "Catalan" & dat$wordpos == "Medial")] <- NA
+#' sobj <- standardize(dur ~ lang * wordpos + uvoi, dat)
 #' mod <- nauf_stan_lm(sobj$formula, sobj$data, prior = R2(location = 0.5))
 #' }
 #' 

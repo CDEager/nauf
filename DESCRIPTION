@@ -27,7 +27,8 @@ Imports:
     rstan (>= 2.15.1),
     bayesplot (>= 1.2.0),
     digest (>= 0.6.12),
-    loo (>= 1.1.0)
+    loo (>= 1.1.0),
+    shinystan (>= 2.3.0)
 License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true

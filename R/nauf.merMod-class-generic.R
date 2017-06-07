@@ -409,8 +409,10 @@ anova.nauf.merMod <- function(object, ..., refit = TRUE, model.names = NULL,
     if (method != "lme4") {
       stop("Multiple nauf models supplied. Must use method 'lme4'")
     }
-    out <- NextMethod("anova")
+    out <- lme4_anova.merMod(object, ..., refit = refit,
+      model.names = paste(1:(dotmods + 1)))
     first_class(out) <- "nauf.mer.anova"
+    
     return(out)
   }
 
@@ -449,7 +451,7 @@ anova.nauf.merMod <- function(object, ..., refit = TRUE, model.names = NULL,
   }
   
   mcout <- getCall(object)
-  glmod <- list(fr = object@frame, X = X, reTrms = nauf_mkReTrms(object@frame))
+  glmod <- list(fr = object@frame, X = X, reTrms = get_reTrms(object))
   if (linear) {
     glmod$REML <- reml
   } else {
@@ -458,17 +460,21 @@ anova.nauf.merMod <- function(object, ..., refit = TRUE, model.names = NULL,
   
   getargs <- c("start", "verbose", "control", if (!linear) "nAGQ")
   defaults <- formals(if (linear) nauf_lmer else nauf_glmer)[getargs]
-  vals <- list()
+  vals <- setNames(vector("list", length(getargs)), getargs)
   for (a in getargs) {
     if (a %in% names(mcout)) {
-      vals[[a]] <- eval(mcout[[a]], parent.frame())
+      if (!is.null(val_a <- eval(mcout[[a]], parent.frame()))) {
+        vals[[a]] <- val_a
+      }
     } else {
-      vals[[a]] <- eval(defaults[[a]], parent.frame())
+      if (!is.null(val_a <- eval(defaults[[a]], parent.frame()))) {
+        vals[[a]] <- val_a
+      }
     }
   }
   
-  fits <- do.call(fit_nested_models,
-    c(rsa_nlist(fe, a1, glmod, X, asgn, mcout), vals))
+  fits <- do.call(fit_nested_models, c(rsa_nlist(object, fe, a1, glmod, X,
+    asgn), vals))
   
   lik_full <- as.numeric(logLik(object))
   lik_rest <- as.numeric(vapply(fits, logLik, 0))
@@ -550,21 +556,22 @@ anova.nauf.merMod <- function(object, ..., refit = TRUE, model.names = NULL,
 }
 
 
-fit_nested_models <- function(fe, a1, glmod, X, asgn, mcout, start, verbose,
-                              control, ...) {
+fit_nested_models <- function(object, fe, a1, glmod, X, asgn, start,
+                              verbose, control, ...) {
   UseMethod("fit_nested_models")
 }
 
 
-fit_nested_models.nauf.lmerMod <- function(fe, a1, glmod, X, asgn, mcout, start,
-                                           verbose, control, ...) {
+fit_nested_models.nauf.lmerMod <- function(object, fe, a1, glmod, X, asgn,
+                                           start, verbose, control, ...) {
   fits <- setNames(vector("list", length(fe)), fe)
+  mcout <- getCall(object)
   
   if (!inherits(control, "lmerControl")) {
     control <- do.call(lme4::lmerControl, control)
   }
   
-  formula <- deparse(mcout[["formula"]])
+  formula <- deparse(mcout$formula)
   devfun_args <- c(glmod, rsa_nlist(start, verbose, control))
   opt_args <- c(list(devfun = NULL), control[c("optimizer", "restart_edge",
     "boundary.tol")], rsa_nlist(control = control$optCtrl, verbose, start),
@@ -572,7 +579,7 @@ fit_nested_models.nauf.lmerMod <- function(fe, a1, glmod, X, asgn, mcout, start,
   
   cat("Fitting", length(fe), "nested nauf_lmer models [")
   for (ft in 1:length(fe)) {
-    mcout[["formula"]] <- stats::formula(paste(formula, "-", fe[ft]))
+    mcout$formula <- stats::formula(paste(formula, "-", fe[ft]))
     
     devfun_args$X <- X[, -which(asgn == (ft - 1 + a1)), drop = FALSE]
     opt_args$devfun <- do.call(lme4::mkLmerDevfun, devfun_args)
@@ -592,10 +599,11 @@ fit_nested_models.nauf.lmerMod <- function(fe, a1, glmod, X, asgn, mcout, start,
 }
 
 
-fit_nested_models.nauf.glmerMod <- function(fe, a1, glmod, X, asgn, mcout,
+fit_nested_models.nauf.glmerMod <- function(object, fe, a1, glmod, X, asgn,
                                             start, verbose, control, nAGQ,
                                             ...) {
   fits <- setNames(vector("list", length(fe)), fe)
+  mcout <- getCall(object)
   
   if (!inherits(control, "glmerControl")) {
     control <- do.call(lme4::glmerControl, control)
@@ -706,6 +714,107 @@ anova.nauf.glmerMod <- function(object, ..., refit = TRUE, model.names = NULL,
 }
 
 
+lme4_anova.merMod <- function(object, ..., refit = TRUE, model.names = NULL) {
+  mCall <- match.call(expand.dots = TRUE)
+  dots <- list(...)
+  .sapply <- function(L, FUN, ...) unlist(lapply(L, FUN, ...))
+  modp <- (as.logical(vapply(dots, is, NA, "merMod")) | as.logical(vapply(dots, 
+    is, NA, "lm")))
+  if (any(modp)) {
+    mods <- c(list(object), dots[modp])
+    nobs.vec <- vapply(mods, nobs, 1L)
+    
+    if (var(nobs.vec) > 0) {
+      stop("models were not all fitted to the same size of dataset")
+    }
+    if (is.null(mNms <- model.names)) {
+      mNms <- vapply(as.list(mCall)[c(FALSE, TRUE, modp)], lme4_safeDeparse, "")
+    }
+    if (any(duplicated(mNms))) {
+      warning("failed to find unique model names, assigning generic names")
+      mNms <- paste0("MODEL", seq_along(mNms))
+    }
+    if (length(mNms) != length(mods)) {
+      stop("model names vector and model list have different lengths")
+    }
+    names(mods) <- sub("@env$", "", mNms)
+    
+    models.reml <- vapply(mods, function(x) is(x, "merMod") && lme4::isREML(x),
+      NA)
+    models.GHQ <- vapply(mods, function(x) is(x, "glmerMod") && lme4::getME(x,
+      "devcomp")$dims["nAGQ"] > 1, NA)
+    if (any(models.GHQ) && any(vapply(mods, function(x) is(x, "glm"), NA))) {
+      stop("GLMMs with nAGQ>1 have log-likelihoods incommensurate with glm() objects")
+    }
+    if (refit) {
+      if (any(models.reml)) message("refitting model(s) with ML (instead of REML)")
+      mods[models.reml] <- lapply(mods[models.reml], lme4::refitML)
+    } else {
+      if (any(models.reml) && any(!models.reml)) {
+        warning("some models fit with REML = TRUE, some not")
+      }
+    }
+    
+    llks <- lapply(mods, stats::logLik)
+    ii <- order(Df <- vapply(llks, attr, FUN.VALUE = numeric(1), "df"))
+    mods <- mods[ii]
+    llks <- llks[ii]
+    Df <- Df[ii]
+    calls <- lapply(mods, getCall)
+    data <- lapply(calls, `[[`, "data")
+    if (!all(vapply(data, identical, NA, data[[1]]))) {
+      stop("all models must be fit to the same data object")
+    }
+    header <- paste("Data:", lme4_abbrDeparse(data[[1]]))
+    subset <- lapply(calls, `[[`, "subset")
+    if (!all(vapply(subset, identical, NA, subset[[1]]))) {
+      stop("all models must use the same subset")
+    }
+    if (!is.null(subset[[1]])) {
+      header <- c(header, paste("Subset:", lme4_abbrDeparse(subset[[1]])))
+    }
+    llk <- unlist(llks)
+    chisq <- 2 * pmax(0, c(NA, diff(llk)))
+    dfChisq <- c(NA, diff(Df))
+    
+    val <- data.frame(Df = Df, AIC = .sapply(llks, AIC),
+      BIC = .sapply(llks, BIC), logLik = llk, deviance = -2 * llk,
+      Chisq = chisq, `Chi Df` = dfChisq,
+      `Pr(>Chisq)` = pchisq(chisq, dfChisq, lower.tail = FALSE),
+      row.names = names(mods), check.names = FALSE)
+    first_class(val) <- "anova"
+    
+    forms <- lapply(lapply(calls, `[[`, "formula"), deparse)
+    
+    return(structure(val, heading = c(header, "Models:", paste(rep(names(mods), 
+      times = lengths(forms)), unlist(forms), sep = ": "))))
+        
+  } else {
+    dc <- lme4::getME(object, "devcomp")
+    X <- lme4::getME(object, "X")
+    stopifnot(length(asgn <- attr(X, "assign")) == dc$dims[["p"]])
+    ss <- as.vector(object@pp$RX() %*% object@beta)^2
+    names(ss) <- colnames(X)
+    terms <- terms(object)
+    nmeffects <- attr(terms, "term.labels")[unique(asgn)]
+    if ("(Intercept)" %in% names(ss)) nmeffects <- c("(Intercept)", nmeffects)
+    ss <- unlist(lapply(split(ss, asgn), sum))
+    stopifnot(length(ss) == length(nmeffects))
+    df <- lengths(split(asgn, asgn))
+    ms <- ss/df
+    f <- ms/(sigma(object)^2)
+    table <- data.frame(df, ss, ms, f)
+    dimnames(table) <- list(nmeffects, c("Df", "Sum Sq", "Mean Sq", "F value"))
+    if ("(Intercept)" %in% nmeffects) {
+      table <- table[-match("(Intercept)", nmeffects), ]
+    }
+    
+    return(structure(table, heading = "Analysis of Variance Table", 
+      class = c("anova", "data.frame")))
+  }
+}
+
+
 #' @export
 print.nauf.mer.anova <- function(x, ...) {
   if (!inherits(x, "list")) {
@@ -750,11 +859,11 @@ simulate.nauf.merMod <- function(object, nsim = 1, seed = NULL, use.u = FALSE,
   if (!is.null(newparams)) {
     stop("'newparams' not currently supported")
   }
-
+  
   re.form.miss <- missing(re.form)
   re.form <- lme4_reFormHack(re.form, ReForm, REForm, REform)
   if (!missing(use.u)) {
-    if (!re.form.miss) {
+    if (use.u == (length(re.form) && is.na(re.form))) {
       stop("should specify only one of ", sQuote("use.u"),
         " and ", sQuote("re.form"))
     }
@@ -764,10 +873,10 @@ simulate.nauf.merMod <- function(object, nsim = 1, seed = NULL, use.u = FALSE,
       re.form <- NA
     }
   }
-
   if (sim_new_re <- !is.null(re.form)) {
     re.form <- NA
   }
+  
   if (!is.null(seed)) set.seed(seed)
   if (!exists(".Random.seed", envir = .GlobalEnv)) runif(1)
   RNGstate <- .Random.seed
