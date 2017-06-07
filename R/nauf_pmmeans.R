@@ -188,6 +188,9 @@ nauf_pmmeans <- function(object, specs, pairwise = FALSE, subset = NULL,
   
   if (!nrow(est_grid)) stop("No grid rows satisfy subsetting conditions")
   
+  est_grid <- est_grid[c(specs$by, setdiff(specs$facs, specs$by), specs$nums)]
+  est_grid <- est_grid[do.call(order, est_grid), , drop = FALSE]
+  
   if (length(specs$by)) {
     by_fac <- est_grid[specs$by]
     for (j in specs$by) {
@@ -228,7 +231,6 @@ nauf_pmmeans <- function(object, specs, pairwise = FALSE, subset = NULL,
 
   if (length(specs$by)) {
     by_num <- as.numeric(by_fac)
-    est_grid <- est_grid[c(specs$by, setdiff(specs$vars, specs$by))]
     est.contr <- split(est, by_num)
     est_grid.contr <- split(est_grid, by_num)
     contr <- mlapply(est = est.contr, eg = est_grid.contr, fun = pairwise_contr)
