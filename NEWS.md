@@ -2,6 +2,8 @@
 
 * Support for Bayesian models fit with rstanarm added (glm(er), lm(er), glm(er).nb)
 
+* Added 'by' argument to nauf_pmmeans
+
 
 # nauf 1.0.1
 
