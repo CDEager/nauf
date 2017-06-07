@@ -131,19 +131,22 @@ d$subj[d$subj > 5] <- NA
 d$f1[!is.na(d$subj) & d$f1 == "c"] <- NA
 d$y <- stats::rnorm(nrow(d))
 
+nml <- setNames(list(), character())
+f <- y ~ f1 + (1 + f1 | subj)
+nauf:::first_class(f) <- "nauf.formula"
 ni2 <- list(
+  formula = f,
   resp = "y",
   groups = list(subj = paste(1:5)),
   uf = list(f1 = list(c("a", "b", "c"), c("a", "b"))),
-  of = list(),
-  num = list(),
-  mat = list(),
+  of = nml,
+  num = nml,
+  mat = nml,
   extras = character(),
   cc = list(list(), list(f1 = 2)),
-  hasna = c(F, T, T),
+  hasna = setNames(c(F, T, T), c("y", "f1", "subj")),
   ncs_scale = 1
 )
-names(ni2$hasna) <- c("y", "f1", "subj")
 
 test_that("ranef group main eff works", {
   expect_equal(attr(attr(nauf_model.frame(y ~ f1 + (1 + f1 | subj), d),

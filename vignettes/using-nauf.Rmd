@@ -16,7 +16,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 
 ## The *nauf* package
 
-It is often the case that a factor only makes sense in a subset of a dataset (i.e. for some observations a factor may simply not be meaningful), or that with observational datasets there are no observations in some levels of an interaction term.  There are also cases where a random effects grouping factor is only applicable in a subset the data, and it is desireable to model the noise introduced by the repeated measures on the group members within the subset of the data where the repeated measures exist.  The *nauf* package allows unordered factors and random effects grouping factors to be coded as NA in the subsets of the data where they are not applicable or otherwise not contrastive.  Sum contrasts are used for all unordered factors (using **named_contr_sum** in the *standardize* package), and then NA values are set to 0.  This allows all of the data to be modeled together without creating collinearity or making the output difficult to interpret.  It is highly recommended that regression variables be put on the same scale with the **standardize** function in the *standardize* package prior to using *nauf* functions (though this is not required for the functions to work).  The "Using the standardize package" vignette also provides useful information on the difference between unordered and ordered factors.
+It is often the case that a factor only makes sense in a subset of a dataset (i.e. for some observations a factor may simply not be meaningful or contrastive), or that with observational datasets there are no observations in some levels of an interaction term.  There are also cases where a random effects grouping factor is only applicable in a subset the data, and it is desireable to model the noise introduced by the repeated measures on the group members within the subset of the data where the repeated measures exist.  The *nauf* package allows unordered factors and random effects grouping factors to be coded as NA in the subsets of the data where they are not applicable or otherwise not contrastive.  Sum contrasts are used for all unordered factors (using **named_contr_sum** in the *standardize* package), and then NA values are set to 0.  This allows all of the data to be modeled together without creating collinearity or making the output difficult to interpret.  It is highly recommended that regression variables be put on the same scale with the **standardize** function in the *standardize* package prior to using *nauf* functions (though this is not required for the functions to work).  The "Using the standardize package" vignette also provides useful information on the difference between unordered and ordered factors.
 
 ## NA values in random effects grouping factors
 
@@ -29,22 +29,21 @@ summary(plosives)
 
 dat <- droplevels(subset(plosives, dialect == "Cuzco" & voicing == "Voiceless"))
 
-item_nas <- is.na(dat$item)
-xtabs(~ item_nas + dat$spont)
+xtabs(~ is.na(item) + spont, dat)
 ```
 
 For our example, we want to model the voiceless duration of the plosives as a function of place of articulation, stress, and whether or not the speech was spontaneous.  When modeling the read speech data (*spont = FALSE*), we want to account for noise introduced by the repeated measures on *item*, but we can't apply this random effects structure to the interview data (*spont = TRUE*).  In addition to this, we want to account for the noise introduced by the individual speakers.  Rather than leaving out the *item* effects to analyze all the data together, or keeping the *item* effects and analyzing the read and spontaneous speech separately, we can model both subsets together and have the *item* effects apply only within the read speech data using *nauf*.  We just need to have *item* coded as NA when it is not applicable, which it already is.  Then the **nauf_lmer** function takes care of the rest.
 
 ```{r}
-sdat <- standardize(vdur ~ spont + place + stress +
+sobj <- standardize(vdur ~ spont + place + stress +
   (1 + spont + place + stress | speaker) + (1 | item), dat)
 
-mod <- nauf_lmer(sdat$formula, sdat$data)
+mod <- nauf_lmer(sobj$formula, sobj$data)
 
 summary(mod)
 ```
 
-This way, we are making use of all of the information in the dataset.  We can obtain a more principled statistical test for the *spont* factor, and also get better information about the other fixed effects and the individual speakers, since the same random effects for speaker apply in both subsets.  We can obtain Type III tests using **anova** (here with *method = "S"* to indicate Satterthwaite approximation for the denominator degrees of freedom in the F tests).
+This way, we are making use of all of the information in the dataset.  We can obtain a more principled statistical test for the *spont* factor, and also get better information about the other fixed effects and the individual speakers, since the same random effects for speaker apply in both the read speech and spontaneous subsets.  We can obtain Type III tests using **anova** (here with *method = "S"* to indicate Satterthwaite approximation for the denominator degrees of freedom in the F tests).
 
 ```{r}
 anova(mod, method = "S")
@@ -60,9 +59,11 @@ nauf_pmmeans(rg, "stress", pairwise = TRUE)
 
 ## NA values in the fixed effects
 
-The **fricatives** dataset (Hualde and Prieto, 2014) included in the *nauf* package contains measures of duration and voicing for intervocalic alveolar fricatives in Spanish and Catalan.  Spanish has only one such fricative, /s/, which can occur in any position in the word (initial, medial, or final).  In Catalan, the situation is much more complicated.  At the beginning of a word and in the middle of a word, both /s/ (underlyingly voiceless) and /z/ (underlyingly voiced) can occur (though word-initial /z/ is rare, and does not occur in the dataset).  In word-final position, there is no contrast between /s/ and /z/ (labeled /S/, underlyingly neutralized), with the voicing of the fricative determined by the following sound.  Because all of the fricatives in the dataset are intervocalic, /S/ ought to be like /z/ (according to traditional descriptions of Catalan), but may be shorter and possibly less voiced.  That is, in the dataset, we have the following set of unique values.
+The **fricatives** dataset (Hualde and Prieto, 2014) included in the *nauf* package contains measures of duration and voicing for intervocalic alveolar fricatives in Spanish and Catalan.  Spanish has only one such fricative, /s/ (underlyingly voiceless), which can occur in any position in the word (initial, medial, or final).  In Catalan, the situation is much more complicated.  At the beginning of a word and in the middle of a word, both /s/ (underlyingly voiceless) and /z/ (underlyingly voiced) can occur (though word-initial /z/ is rare, and does not occur in the dataset).  In word-final position, there is no contrast between /s/ and /z/ (labeled /S/, underlyingly neutralized), with the voicing of the fricative determined by the following sound.  Because all of the fricatives in the dataset are intervocalic, /S/ ought to be like /z/ (according to traditional descriptions of Catalan), but may be shorter and possibly less voiced.  That is, in the dataset, we have the following set of unique values.
 
 ```{r}
+summary(fricatives)
+
 dat <- fricatives
 
 u <- unique(dat[, c("lang", "wordpos", "uvoi")])
@@ -80,44 +81,43 @@ u
 dat$uvoi[!(dat$lang == "Catalan" & dat$wordpos == "Medial")] <- NA
 ```
 
-In this way, we are recognizing that word-final Catalan fricatives are limited to one value for *uvoi*, as are all Spanish fricatives, etc.  The meaning of NA in this table is not always the same, so we have to keep track of it, and we will definitely want to include an interaction between *lang* and *wordpos* since, for example, "Catalan:Final:NA" means neutralized /S/ while "Spanish:Final:NA" means voiceless /s/.  As for being able to include *uvoi* slopes for Catalan speakers and not Spanish speakers, we can create two new grouping factors, one for each language, where the factor is the speaker identifier or NA based on the language the observation comes from:
+In this way, we are recognizing that word-final Catalan fricatives are limited to one value for *uvoi*, as are all Spanish fricatives, etc.  The meaning of NA in this table is not always the same, so we have to keep track of it, and we will definitely want to include an interaction between *lang* and *wordpos* since, for example, "Catalan:Final:NA" means neutralized /S/ while "Spanish:Final:NA" means voiceless /s/.  As for being able to include *uvoi* slopes for Catalan speakers and not Spanish speakers, we can create two new random effects grouping factors, one for each language, where the factor is the speaker identifier or NA based on the language the observation comes from:
 
 ```{r}
-dat$c_speaker <- dat$s_speaker <- dat$speaker
-dat$c_speaker[dat$lang != "Catalan"] <- NA
-dat$s_speaker[dat$lang != "Spanish"] <- NA
+dat$ca_speaker <- dat$sp_speaker <- dat$speaker
+dat$ca_speaker[dat$lang != "Catalan"] <- NA
+dat$sp_speaker[dat$lang != "Spanish"] <- NA
 ```
 
-With these NA values, we can then fit a model with **nauf_lmer** to predict the percentage of the fricatives that is voiced based on *lang*, *wordpos*, and *uvoi*:
+With these NA values, we can then fit a model with **nauf_lmer** to predict the duration of the fricatives based on *lang*, *wordpos*, and *uvoi*:
 
 ```{r}
-s.pvoi <- standardize(pvoi ~ lang * wordpos + uvoi +
-  (1 + wordpos + uvoi | c_speaker) + (1 + wordpos | s_speaker),
-  dat)
+sobj <- standardize(dur ~ lang * wordpos + uvoi +
+  (1 + wordpos + uvoi | ca_speaker) + (1 + wordpos | sp_speaker), dat)
 
-m.pvoi <- nauf_lmer(s.pvoi$formula, s.pvoi$data)
+mod <- nauf_lmer(sobj$formula, sobj$data)
 
-summary(m.pvoi)
+summary(mod)
 ```
 
 To understand how *nauf* treats the NA values in *uvoi*, we call **nauf_contrasts**:
 
 ```{r}
-nauf_contrasts(m.pvoi)
+nauf_contrasts(mod)
 ```
 
-The function returns a list with an element for each of the three factors.  Sum contrasts have been applied for all three with **named_contr_sum** from the *standardize* package, but for *uvoi* there is an additional row indicating that a value of 0 is used when it is NA.  In this way, the *uvoiVoiced* coefficient in the summary never contributes to the fitted value for any observation that belongs to a subset where underlying voicing is not contrastive, and its estimate represents half the difference between voiced and voiceless Catalan word-medial observations.  We can run an **anova** just as we did in the Cuzco example (though in this case it is not as useful since we are interested in making specific comparisons), and also create a reference grid:
+The function returns a list with an element for each of the three factors.  Sum contrasts have been applied for all three with **named_contr_sum** from the *standardize* package, but for *uvoi* there is an additional row indicating that a value of 0 is used when it is NA.  In this way, the *uvoiVoiced* coefficient in the summary never contributes to the fitted value for any observation that belongs to a subset where underlying voicing is not contrastive, and its estimate represents half the difference between underlyingly voiced and voiceless Catalan word-medial observations.  We can run an **anova** just as we did in the Cuzco example (though in this case it is not as useful since we are interested in making specific comparisons), and also create a reference grid:
 
 ```{r}
-anova(m.pvoi, method = "S")
+anova(mod, method = "S")
 
-rg.pvoi <- nauf_ref.grid(m.pvoi)
+rg <- nauf_ref.grid(mod)
 ```
 
-We can now use the **nauf_pmmeans** function's *subset* and *na_as_level* arguments to test hypotheses in the subset of the reference grid where comparisons are valid.  For example, if we want to test whether Spanish fricatives are more voiced than Catalan fricatives, the only just comparison we can make is for word-initial and word-medial /s/.  To do this, we provide **nauf_pmmeans** with a list of valid groups, with each group specified as a named list of unordered factor levels:
+We can now use the **nauf_pmmeans** function's *subset*, *by*, and *na_as_level* arguments to test hypotheses in the subset of the reference grid where comparisons are valid.  For example, if we want to test whether Spanish fricatives are longer than Catalan fricatives, the only just comparison we can make is for word-initial and word-medial /s/.  To do this, we provide **nauf_pmmeans** with a list of valid groups, with each group specified as a named list of unordered factor levels:
 
 ```{r}
-nauf_pmmeans(rg.pvoi, "lang", pairwise = TRUE,
+nauf_pmmeans(rg, "lang", pairwise = TRUE,
   subset = list(
     list(lang = "Catalan", wordpos = "Initial", uvoi = NA),
     list(lang = "Catalan", wordpos = "Medial", uvoi = "Voiceless"),
@@ -126,49 +126,41 @@ nauf_pmmeans(rg.pvoi, "lang", pairwise = TRUE,
 )
 ```
 
-Each of the lists specified in the *subset* list represents a set of valid combinations of factor levels where language is truly contrastive.  Any row in the reference grid which belongs to at least one of the specified groups is kept and the others are ignored.  So the Catalan estimate is an average of Catalan:Initial:NA and Catalan:Medial:Voiceless, and the Spanish estimate is an average of Spanish:Initial:NA and Spanish:Medial:NA.  To test the effect of word position in Spanish, we can call:
+Each of the lists specified in the *subset* list represents a set of valid combinations of factor levels where language is truly contrastive.  Any row in the reference grid which belongs to at least one of the specified groups is kept and the others are ignored.  So the Catalan estimate is an average of Catalan:Initial:NA and Catalan:Medial:Voiceless, and the Spanish estimate is an average of Spanish:Initial:NA and Spanish:Medial:NA.  To test the effect of word position in the two languages separately, we can make use of the *by* argument, and specify the groups for each language where word position is truly contrastive:
 
 ```{r}
-nauf_pmmeans(rg.pvoi, "wordpos", pairwise = TRUE,
-  subset = list(lang = "Spanish", uvoi = NA)
-)
-```
-
-In this call, we are only specifying one group in *subset*, so we don't need to double-list it (i.e. *nauf* will understnd *list(lang = "Spanish", uvoi = NA)* as *list(list(lang = "Spanish", uvoi = NA))*).  In Catalan, while fricatives occur in all three word positions, word position is only fully contrastive (i.e. its effect can only be truly isolated) for word-initial vs. word-medial /s/:
-
-```{r}
-nauf_pmmeans(rg.pvoi, "wordpos", pairwise = TRUE,
+nauf_pmmeans(rg, c("lang", "wordpos"), pairwise = TRUE, by = "lang",
   subset = list(
     list(lang = "Catalan", wordpos = "Initial", uvoi = NA),
-    list(lang = "Catalan", wordpos = "Medial", uvoi = "Voiceless")
+    list(lang = "Catalan", wordpos = "Medial", uvoi = "Voiceless"),
+    list(lang = "Spanish", uvoi = NA)
   )
 )
 ```
 
-Similarly, voicing is only contrastive for Catalan medial fricatives, and so we can call:
+In this way we obtain 5 predicted marginal means, and pairwise comparisons within-language.  Underlying voicing is only contrastive for Catalan medial fricatives, and so we can call:
 
 ```{r}
-nauf_pmmeans(rg.pvoi, "uvoi", pairwise = TRUE,
+nauf_pmmeans(rg, "uvoi", pairwise = TRUE,
   subset = list(lang = "Catalan", wordpos = "Medial")
 )
 ```
 
-For Catalan word-final neutralized /S/, we may be interested in making a comparison to see whether it is somewhere in between /s/ and /z/ in terms of voicing, or not significantly different from /z/.  This case requires the additional argument *na_as_level* to be specified since we want an estimate for a group where *uvoi* is NA (the default is that estiamtes are not generated for any group that has NA's in the estimate table):
+In this call, we are only specifying one group in *subset*, so we don't need to double-list it (i.e. *nauf* will understnd *list(lang = "Catalan", wordpos = "Medial")* as *list(list(lang = "Catalan", wordpos = "Medial"))*).  For Catalan word-final neutralized /S/, we may be interested in making a comparison to see whether it is somewhere in between /s/ and /z/ in terms of duration, or not significantly different from /z/.  This case requires the additional argument *na_as_level* to be specified since we want an estimate for a group where *uvoi* is NA (the default is that estiamtes are not generated for any group that has NA's in the estimate table):
 
 ```{r}
-nauf_pmmeans(rg.pvoi, c("wordpos", "uvoi"), pairwise = TRUE,
+nauf_pmmeans(rg, c("wordpos", "uvoi"), pairwise = TRUE, na_as_level = "uvoi",
   subset = list(
     list(lang = "Catalan", wordpos = "Medial", uvoi = c("Voiced", "Voiceless")),
     list(lang = "Catalan", wordpos = "Final", uvoi = NA)
-  ),
-  na_as_level = "uvoi"
+  )
 )
 ```
 
-As a final example, we could test if Spanish word-final /s/ (being more voiced than Spanish word-medial /s/ above) is as voiced as Catalan word-final /S/:
+As a final example, we could test if Spanish word-final /s/ (being shorter than Spanish word-medial /s/ above) is as short as Catalan word-final /S/:
 
 ```{r}
-nauf_pmmeans(rg.pvoi, "lang", pairwise = TRUE,
+nauf_pmmeans(rg, "lang", pairwise = TRUE,
   subset = list(wordpos = "Final", uvoi = NA)
 )
 ```
@@ -195,12 +187,12 @@ dat$c_speaker[dat$dialect != "Cuzco"] <- NA
 dat$l_speaker[dat$dialect != "Lima"] <- NA
 dat$v_speaker[dat$dialect != "Valladolid"] <- NA
 
-sdat <- standardize(cdur ~ spont * dialect +
+sobj <- standardize(cdur ~ spont * dialect +
   (1 + spont | c_speaker) + (1 + spont | l_speaker) + (1 | v_speaker) +
   (1 + dialect | item),
   dat)
 
-mod <- nauf_lmer(sdat$formula, sdat$data)
+mod <- nauf_lmer(sobj$formula, sobj$data)
 
 summary(mod)
 ```
@@ -212,6 +204,11 @@ nauf_contrasts(mod)
 ```
 
 
+## Regression functions
+
+There are *nauf* regression functions for fixed effects regressions which would normally be fit with *lm*, *glm*, and *glm.nb* (from the *stats* and *MASS* packages), mixed effects regressions which would normally be fit with *lmer*, *glmer*, and *glmer.nb* (from the *lme4* package), and Bayesian versions of these six regression functions which would normally be fit with *stan_lm*, *stan_glm*, *stan_glm.nb*, *stan_lmer*, *stan_glmer*, and *stan_glmer.nb* (from the *rstanarm* package).  In each case, the *nauf* regression function has the same name but preceded by *nauf_* (e.g. *nauf_lm*, *nauf_glmer*, *nauf_stan_glmer.nb*, etc.).  For Bayesian regressions, there are methods for the generic functions in the *rstantools* package, as well as functions *nauf_kfold* and *nauf_launch_shinystan*, and *nauf_ref.grid* and *nauf_pmmeans* work in the same way as illustrated above, but returning summaries based on computing posterior marginal means at each iteration of the model.
+
+
 ## Conclusion
 
 The *nauf* package allows unordered factors and random effects grouping factors to be used even when they are only applicable within a subset of a dataset.  The user only needs to code them as NA when they are not applicable/contrastive, and *nauf* regression fitting functions take care of the rest.  Different random effects structures for the same grouping variable can be fit in different subsets by creating new factors from the grouping factor, and setting them to NA in the appropriate subsets.  The **nauf_pmmeans** function can then be used to test hypotheses conditioning on subsets of the data where a just comparison can be made.
@@ -221,7 +218,7 @@ The *nauf* package allows unordered factors and random effects grouping factors 
 
 If you use the *nauf* package in a publication, please cite:
 
-    Eager, Christopher D. (2017). nauf: Regression with NA Values in Unordered Factors. R package version 1.0.1. https://CRAN.R-project.org/package=nauf
+    Eager, Christopher D. (2017). nauf: Regression with NA Values in Unordered Factors. R package version 1.1.0. https://CRAN.R-project.org/package=nauf
 
 If you analyze the **plosives** dataset in a publication, please cite:
 

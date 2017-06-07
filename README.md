@@ -1,6 +1,6 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
-nauf 1.0.1
+nauf 1.1.0
 ==========
 
 [![Build Status](https://travis-ci.org/CDEager/nauf.svg?branch=master)](https://travis-ci.org/CDEager/nauf)
@@ -17,7 +17,7 @@ install.packages("nauf")
 Package use
 -----------
 
-It is often the case that a factor only makes sense in a subset of a dataset (i.e. for some observations a factor may simply not be meaningful), or that with observational datasets there are no observations in some levels of an interaction term. There are also cases where a random effects grouping factor is only applicable in a subset the data, and it is desireable to model the noise introduced by the repeated measures on the group members within the subset of the data where the repeated measures exist. The *nauf* package allows unordered factors and random effects grouping factors to be coded as NA in the subsets of the data where they are not applicable or otherwise not contrastive. Sum contrasts are used for all unordered factors (using **named\_contr\_sum** in the *standardize* package), and then NA values are set to 0. This allows all of the data to be modeled together without creating collinearity or making the output difficult to interpret.
+It is often the case that a factor only makes sense in a subset of a dataset (i.e. for some observations a factor may simply not be meaningful or contrastive), or that with observational datasets there are no observations in some levels of an interaction term. There are also cases where a random effects grouping factor is only applicable in a subset the data, and it is desireable to model the noise introduced by the repeated measures on the group members within the subset of the data where the repeated measures exist. The *nauf* package allows unordered factors and random effects grouping factors to be coded as NA in the subsets of the data where they are not applicable or otherwise not contrastive. Sum contrasts are used for all unordered factors (using **named\_contr\_sum** in the *standardize* package), and then NA values are set to 0. This allows all of the data to be modeled together without creating collinearity or making the output difficult to interpret.
 
 For example, in the **fricatives** dataset, the factor *uvoi* (underlying voicing) is not contrastive in Spanish, and in Catalan it can only be contrastive in for certain word positions, leading to an imbalanced distribution:
 
@@ -26,6 +26,13 @@ library(nauf)
 #> Loading required package: standardize
 #> Loading required package: lme4
 #> Loading required package: Matrix
+#> Loading required package: rstanarm
+#> Loading required package: Rcpp
+#> rstanarm (Version 2.15.3, packaged: 2017-04-29 06:18:44 UTC)
+#> - Do not expect the default priors to remain the same in future rstanarm versions.
+#> Thus, R scripts should specify priors explicitly, even if they are just the defaults.
+#> - For execution on a local, multicore CPU with excess RAM we recommend calling
+#> options(mc.cores = parallel::detectCores())
 
 summary(fricatives)
 #>       dur              pvoi             lang        wordpos   
@@ -80,18 +87,18 @@ dat$c_speaker <- dat$s_speaker <- dat$speaker
 dat$c_speaker[dat$lang != "Catalan"] <- NA
 dat$s_speaker[dat$lang != "Spanish"] <- NA
 
-sdat <- standardize(pvoi ~ lang * wordpos + uvoi +
+sobj <- standardize(pvoi ~ lang * wordpos + uvoi +
   (1 + wordpos + uvoi | c_speaker) + (1 + wordpos | s_speaker),
   dat)
 
-mod <- nauf_lmer(sdat$formula, sdat$data)
+mod <- nauf_lmer(sobj$formula, sobj$data)
 
 summary(mod)
 #> Linear mixed model fit by REML ['nauf.lmerMod']
 #> Formula: 
 #> pvoi ~ lang * wordpos + uvoi + (1 + wordpos + uvoi | c_speaker) +  
 #>     (1 + wordpos | s_speaker)
-#>    Data: sdat$data
+#>    Data: sobj$data
 #> 
 #> REML criterion at convergence: 3584.7
 #> 
@@ -129,6 +136,22 @@ summary(mod)
 #> uvoiVoiced  -0.098 -0.098  0.282 -0.236              
 #> lngCtln:wrF -0.416  0.105  0.076 -0.184  0.282       
 #> lngCtln:wrI  0.155  0.045 -0.184  0.057 -0.236 -0.669
+
+anova(mod, method = "S")
+#> Mixed Model Anova Table (Type III tests, S-method)
+#> 
+#> Model: pvoi ~ lang * wordpos + uvoi + (1 + wordpos + uvoi | c_speaker) + 
+#> Model:     (1 + wordpos | s_speaker)
+#> Data: $
+#> Data: sobj
+#> Data: data
+#>              num Df den Df       F    Pr(>F)    
+#> lang              1 29.382  19.591 0.0001215 ***
+#> wordpos           2 30.293  71.535 3.349e-12 ***
+#> uvoi              1 20.331 189.361 9.136e-12 ***
+#> lang:wordpos      2 30.293  52.983 1.285e-10 ***
+#> ---
+#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ```
 
 Predicted marginal means can be calculated for specific subsets where a factor is contrastive. For example, *uvoi* is only contrastive for word-medial Catalan fricatives, so we could call:
@@ -145,7 +168,7 @@ nauf_pmmeans(rg, "uvoi", pairwise = TRUE,
 #> 
 #> Factors conditioned on: 'lang' 'wordpos' 
 #> 
-#> See the 'subset' element of the 'nauf.specs' attribute for subsetted groups.
+#> See the 'subset' element of the 'specs' attribute for subsetted groups
 #> 
 #> $pmmeans
 #>  uvoi          pmmean        SE    df   lower.CL    upper.CL

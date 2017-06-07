@@ -1,5 +1,76 @@
 
 
+# reorganized mapply with default for simplify set to FALSE, lower case
+# arguments (just don't use with functions where partial matching could
+# occur), and MoreArgs -> same.  Just a more intuitive way for me to code.
+mlapply <- function(..., same = NULL, simplify = FALSE, use.names = TRUE,
+                    fun = NULL) {
+  return(mapply(FUN = fun, ..., MoreArgs = same, SIMPLIFY = simplify,
+    USE.NAMES = use.names))
+}
+
+
+# args is a list of lists, each of which is passed to do.call(fun)
+doapply <- function(fun, args, simplify = FALSE, use.names = TRUE) {
+  return(mapply(FUN = do.call, args = args, MoreArgs = list(what = fun),
+    SIMPLIFY = simplify, USE.NAMES = use.names))
+}
+
+
+attrapply <- function(x, ..., same = NULL, simplify = FALSE, use.names = TRUE) {
+  return(mapply(FUN = structure, .Data = x, ..., MoreArgs = same,
+    SIMPLIFY = simplify, USE.NAMES = use.names))
+}
+
+
+# split a matrix (based on split.data.frame but with col option)
+msplit <- function(x, f, byrow = TRUE, drop = FALSE, ...) {
+  if (byrow) {
+    return(lapply(split(x = seq_len(nrow(x)), f = f, drop = drop, ...),
+      function(ind) x[ind, , drop = FALSE]))
+  }
+  return(lapply(split(x = seq_len(ncol(x)), f = f, drop = drop, ...),
+    function(ind) x[, ind, drop = FALSE]))
+}
+
+
+# call matrix allowing rownames and colnames to be specified separately
+# (useful for mapply), and then optionally call as.data.frame on the result
+matframe <- function(data = NA, nrow = 1, ncol = 1, byrow = FALSE,
+                     dimnames = NULL, rownames = NULL, colnames = NULL,
+                     as_data_frame = TRUE, ...) {
+  if (!is.null(rownames) || !is.null(colnames)) {
+    if (!is.null(dimnames)) {
+      stop("If 'dimnames' is specified, can't specify rownames or colnames.")
+    }
+    dimnames <- list(rownames, colnames)
+  }
+  
+  ans <- matrix(data = data, nrow = nrow, ncol = ncol, byrow = byrow,
+    dimnames = dimnames)
+    
+  if (as_data_frame) return(as.data.frame(ans, ...))
+  
+  return(ans)
+}
+
+
+nsplit <- function(x, ord = NULL) {
+  if (is.null(ord)) {
+    ans <- split(x, names(x))
+  } else {
+    ans <- split(x[ord], names(x)[ord])
+  }
+  if (is.list(x) && !is.data.frame(x)) ans <- lapply(ans, unname)
+  return(ans)
+}
+
+
+levs_and_contr <- function(fac) {
+  return(list(levels = levels(fac), contrasts = contrasts(fac)))
+}
+
+
 # divide non-neg vec by self to make simplex
 as_simplex <- function(x) {
   return(x / sum(x))
@@ -70,9 +141,10 @@ empty_cells <- function(x) {
 
 # what is the first element in lst which matches x exactly
 in_list <- function(x, lst) {
-  m <- which(sapply(lst, function(n) isTRUE(all.equal(n, x))))
-  if (length(m)) return(m[1])
-  return(0)
+  if (is.character(x)) x <- list(x)
+  m <- match(x, lst, nomatch = 0L)
+  names(m) <- names(x)
+  return(m)
 }
 
 
@@ -100,6 +172,10 @@ get_family <- function(object) {
       return(object)
     }
     stop("'family' not recognized")
+  }
+  
+  if (is.nauf.stanreg(object)) {
+    return(object$family)
   }
 
   if (inherits(object, c("lm", "merMod"))) {
@@ -165,8 +241,11 @@ charlogbin_to_uf <- function(x) {
 nval <- function(x, rm.na = TRUE) {
   if ((L <- length(dim(x))) > 2) stop("'x' must have at most two dims")
   x <- unique(x)
-  if (!L) x <- matrix(x)
-  if (rm.na) x <- x[!rowna(x), , drop = FALSE]
+  if (!L) {
+    if (rm.na) return(sum(!is.na(x)))
+    return(length(x))
+  }
+  if (rm.na) return(sum(!rowna(x)))
   return(nrow(x))
 }
 
@@ -215,5 +294,216 @@ check_groups <- function(formula) {
 # glmer vs lmer, etc
 is.linear <- function(object){
   return(isTRUE(all.equal(get_family(object), gaussian())))
+}
+
+
+psgn <- function(x, f = mean) {
+  return(mean(sign(x) == sign(f(x))))
+}
+
+
+isFALSE <- function(x) {
+  return(identical(FALSE, x))
+}
+
+
+condition_on_re <- function(re.form, ReForm, REForm, REform) {
+  re.form <- lme4_reFormHack(re.form, ReForm, REForm, REform)
+  if (is.null(re.form)) return(TRUE)
+  if (is.na(re.form) || isTRUE(all.equal(~ 0, re.form))) return(FALSE)
+  stop("Currently, only NULL, NA, and ~0 are supported re.form values.")
+}
+
+
+levasgn <- function(x, add_NEW = FALSE) {
+  flist <- get_reTrms(x)$flist
+  lvs <- lapply(flist, levels)[attr(flist, "assign")]
+  if (add_NEW) lvs <- lapply(lvs, c, "_NEW_")
+  return(lvs)
+}
+
+
+last_names <- function(object, nms) {
+  d <- length(dim(object))
+  if (missing(nms)) {
+    if (d) return(dimnames(object)[[d]])
+    return(names(object))
+  }
+  if (d) {
+    if (is.list(nms)) {
+      dimnames(object)[d] <- nms
+    } else {
+      dimnames(object)[[d]] <- nms
+    }
+  } else {
+    if (is.list(nms)) nms <- nms[[1]]
+    names(object) <- nms
+  }
+  return(object)
+}
+
+
+
+
+
+
+###### manipulating classes ######
+
+`drop_class<-` <- function(x, which, value) {
+  if (missing(which)) {
+    if (isS4(x)) stop("'x' is S4; cannot alter class")
+    class(x) <- setdiff(class(x), value)
+  } else {
+    class(attr(x, which)) <- setdiff(class(attr(x, which)), value)
+  }
+  return(x)
+}
+
+
+`first_class<-` <- function(x, which, value) {
+  if (missing(which)) {
+    if (isS4(x)) stop("'x' is S4; cannot alter class")
+    class(x) <- union(value, class(x))
+  } else {
+    class(attr(x, which)) <- union(value, class(attr(x, which)))
+  }
+  return(x)
+}
+
+
+`last_class<-` <- function(x, which, value) {
+  if (missing(which)) {
+    if (isS4(x)) stop("'x' is S4; cannot alter class")
+    class(x) <- c(setdiff(class(x), value), value)
+  } else {
+    class(attr(x, which)) <- c(setdiff(class(attr(x, which)), value), value)
+  }
+  return(x)
+}
+
+
+`add_class<-` <- function(x, which, value) {
+  if (!is.list(value) || length(intersect(value[[1]], value[[2]]))) {
+    stop("should use first/last_class if 'value' is not a list; ",
+      "elements should have no overlap")
+  }
+  if (missing(which)) {
+    if (isS4(x)) stop("'x' is S4; cannot alter class")
+    class(x) <- c(value[[1]], setdiff(class(x), do.call(c, value)), value[[2]])
+  } else {
+    class(attr(x, which)) <- c(value[[1]], setdiff(class(attr(x, which)),
+      do.call(c, value)), value[[2]])
+  }
+  return(x)
+}
+
+
+
+###### is ######
+
+
+is.mixed <- function(object) {
+  return(length(lme4::findbars(formula(object))) > 0)
+}
+
+
+is.glmod <- function(object) {
+  return(is.list(object) && all(c("fr", "X", "reTrms") %in% names(object)))
+}
+
+
+is.nauf.formula <- function(object) {
+  return(inherits(object, "nauf.formula"))
+}
+
+
+is.nauf.terms <- function(object) {
+  return(inherits(object, "nauf.terms"))
+}
+
+
+is.nauf.frame <- function(object) {
+  return(inherits(object, "nauf.frame"))
+}
+
+
+is.nauf.glm <- function(object) {
+  return(inherits(object, "nauf.glm"))
+}
+
+
+is.nauf.lmerMod <- function(object) {
+  return(inherits(object, "nauf.lmerMod"))
+}
+
+
+is.nauf.glmerMod <- function(object) {
+  return(inherits(object, "nauf.glmerMod"))
+}
+
+
+is.nauf.merMod <- function(object) {
+  return(inherits(object, c("nauf.lmerMod", "nauf.glmerMod")))
+}
+
+
+is.nauf.model <- function(object) {
+  return(inherits(object, c("nauf.glm", "nauf.lmerMod", "nauf.glmerMod",
+    "nauf.stanreg")))
+}
+
+
+is.nauf.ref.grid <- function(object) {
+  return(inherits(object, "nauf.ref.grid"))
+}
+
+
+is.nauf.mer.anova <- function(object) {
+  return(inherits(object, "nauf.mer.anova"))
+}
+
+
+is.nauf.pmm <- function(object) {
+  return(inherits(object, "nauf.pmm"))
+}
+
+
+is.summ.nauf.pmm <- function(object) {
+  return(inherits(object, "summ.nauf.pmm"))
+}
+
+
+is.nauf.stanreg <- function(object) {
+  return(inherits(object, "nauf.stanreg"))
+}
+
+
+is.nauf.stanmer <- function(object) {
+  return(inherits(object, "nauf.stanreg") && inherits(object, "lmerMod"))
+}
+
+
+is.nauf.stanfer <- function(object) {
+  return(inherits(object, "nauf.stanreg") && !inherits(object, "lmerMod"))
+}
+
+
+is.nauf.mcmc <- function(object) {
+  return(inherits(object, "nauf.mcmc"))
+}
+
+
+is.summ.nauf.mcmc <- function(object) {
+  return(inherits(object, "summ.nauf.mcmc"))
+}
+
+
+is.nauf.postmm <- function(object) {
+  return(inherits(object, "nauf.postmm"))
+}
+
+
+is.summ.nauf.postmm <- function(object) {
+  return(inherits(object, "summ.nauf.postmm"))
 }
 

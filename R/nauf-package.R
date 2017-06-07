@@ -32,9 +32,17 @@
 #' effects regressions that would normally be fit with \code{\link[lme4]{lmer}},
 #' \code{\link[lme4]{glmer}}, and \code{\link[lme4]{glmer.nb}}.  For fixed
 #' effects \code{nauf} regressions, see \code{\link{nauf_glm}}, and for mixed
-#' effects \code{nauf} regressions, see \code{\link{nauf_glmer}}.
+#' effects \code{nauf} regressions, see \code{\link{nauf_glmer}}. There is also
+#' support for Bayesian versions of these models as would normally be fit with
+#' \code{\link[rstanarm]{stan_lm}}, \code{\link[rstanarm]{stan_glm}},
+#' \code{\link[rstanarm]{stan_glm.nb}}, \code{\link[rstanarm]{stan_lmer}},
+#' \code{\link[rstanarm]{stan_glmer}}, and \code{\link[rstanarm]{stan_glmer.nb}}
+#' (see \code{\link{nauf_stan_glm}} and \code{\link{nauf_stan_glmer}} for
+#' details).
 #'
 #' @section ANOVAs:
+#' The \code{anova} function can be used with any frequentist (i.e. not Bayesian)
+#' \code{nauf} model.
 #' For fixed effects \code{nauf} models, the \code{anova} function uses the
 #' methods for corresponding non-\code{nauf} models (i.e.
 #' \code{\link[stats]{anova.lm}}, \code{\link[stats]{anova.glm}}, or
@@ -51,7 +59,8 @@
 #' The \code{\link{nauf_ref.grid}} function can be used to construct reference
 #' grids for \code{nauf} models (constructing a
 #' \code{\link[lsmeans]{ref.grid-class}} object).  Predicted marginal means
-#' (often called least-squares means) can be calculated with this reference grid
+#' (often called least-squares means; but in the case of Bayesian regression they
+#' are posterior marginal means) can be calculated with this reference grid
 #' using the \code{\link{nauf_pmmeans}} function.  The function also allows the
 #' user to flexibly specify a subset of the reference grid to use when
 #' calculating the marginal means, so that the effect of a factor can be tested
@@ -69,6 +78,8 @@
 #' @import lme4
 #' @import standardize
 #' @import stringr
+#' @import rstanarm
+#' @import Rcpp
 #' @importClassesFrom lme4 merMod lmerMod glmerMod
 "_PACKAGE"
 

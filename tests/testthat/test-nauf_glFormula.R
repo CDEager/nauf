@@ -18,10 +18,10 @@ glmod <- nauf_glFormula(count ~ f1 * f2 * x + (1 + f1 * x + f3 | rg), d,
   family = poisson)
 
 xcols <- c("(Intercept)", "f1a", "f1b", "f1c", "f2e", "x",
-  "f1.c2.a:f2e", "f1.c2.b:f2e", "f1a:x", "f1b:x", "f1c:x", "f2e:x",
-  "f1.c2.a:f2e:x", "f1.c2.b:f2e:x")
-cnms <- list(rg = c("(Intercept)", "f1.c3.a", "f1.c3.b", "x", "f3.c2.g",
-  "f1.c3.a:x", "f1.c3.b:x"))
+  "f1.c3.a:f2e", "f1.c3.b:f2e", "f1a:x", "f1b:x", "f1c:x", "f2e:x",
+  "f1.c3.a:f2e:x", "f1.c3.b:f2e:x")
+cnms <- list(rg = c("(Intercept)", "f1.c2.a", "f1.c2.b", "x", "f3.c2.g",
+  "f1.c2.a:x", "f1.c2.b:x"))
 flist <- data.frame(rg = d$rg)
 flist$rg <- factor(flist$rg)
 attr(flist, "assign") <- 1
