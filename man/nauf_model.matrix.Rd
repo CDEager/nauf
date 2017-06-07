@@ -52,13 +52,13 @@ dat <- plosives
 dat$spont[dat$dialect == "Valladolid"] <- NA
 form <- intdiff ~ voicing * dialect * spont +
   (1 + voicing * spont | speaker) + (1 + dialect | item)
-sdat <- standardize(form, dat)
-mf <- nauf_model.frame(sdat$formula, sdat$data)
+sobj <- standardize(form, dat)
+mf <- nauf_model.frame(sobj$formula, sobj$data)
 
 ## the following all result in the same model matrix
 mm1 <- nauf_model.matrix(mf)
 mm2 <- nauf_model.matrix(form, mf)  # 'form' ignored
-mm3 <- nauf_model.matrix(sdat$formula, sdat$data)
+mm3 <- nauf_model.matrix(sobj$formula, sobj$data)
 
 }
 \seealso{

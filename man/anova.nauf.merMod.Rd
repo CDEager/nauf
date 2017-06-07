@@ -91,9 +91,9 @@ There are six methods of p-value calculation which are supported:
 \examples{
 dat <- droplevels(subset(plosives, voicing == "Voiceless"))
 dat$spont[dat$dialect == "Valladolid"] <- NA
-sdat <- standardize(cdur ~ dialect * spont + (1 | speaker) + (1 | item), dat)
+sobj <- standardize(cdur ~ dialect * spont + (1 | speaker) + (1 | item), dat)
 
-mod <- nauf_lmer(sdat$formula, sdat$data)
+mod <- nauf_lmer(sobj$formula, sobj$data)
 
 \dontrun{
 # lme4 method anova table

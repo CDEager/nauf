@@ -153,13 +153,13 @@ terms.nauf.glmerMod <- function(x, fixed.only = TRUE, random.only = FALSE,
 #' \dontrun{
 #' dat <- plosives
 #' dat$spont[dat$dialect == "Valladolid"] <- NA
-#' sdat <- standardize(intdiff ~ voicing * dialect * spont +
+#' sobj <- standardize(intdiff ~ voicing * dialect * spont +
 #'   (1 + voicing * spont | speaker) + (1 + dialect | item), dat)
 #'
-#' mod <- nauf_lmer(sdat$formula, sdat$data)
+#' mod <- nauf_lmer(sobj$formula, sobj$data)
 #' fit <- predict(mod)  # fitted values
-#' preds <- predict(mod, sdat$data)  # predict same data using all ranef
-#' preds_fe <- predict(mod, sdat$data, re.form = NA)  # only use fixef
+#' preds <- predict(mod, sobj$data)  # predict same data using all ranef
+#' preds_fe <- predict(mod, sobj$data, re.form = NA)  # only use fixef
 #'
 #' isTRUE(all.equal(fit, preds))  # TRUE
 #' isTRUE(all.equal(preds, preds_fe))  # FALSE
@@ -348,9 +348,9 @@ predict.nauf.lmerMod <- function(object, newdata = NULL, newparams = NULL,
 #' @examples
 #' dat <- droplevels(subset(plosives, voicing == "Voiceless"))
 #' dat$spont[dat$dialect == "Valladolid"] <- NA
-#' sdat <- standardize(cdur ~ dialect * spont + (1 | speaker) + (1 | item), dat)
+#' sobj <- standardize(cdur ~ dialect * spont + (1 | speaker) + (1 | item), dat)
 #'
-#' mod <- nauf_lmer(sdat$formula, sdat$data)
+#' mod <- nauf_lmer(sobj$formula, sobj$data)
 #'
 #' \dontrun{
 #' # lme4 method anova table

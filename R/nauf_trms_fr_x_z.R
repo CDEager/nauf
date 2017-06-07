@@ -558,20 +558,20 @@ model.matrix.nauf.terms <- function(object, data = environment(object),
 #' mf_0.5 <- nauf_model.frame(form, dat, ncs_scale = 0.5)
 #'
 #' ## standardize first (recommended use)
-#' sdat <- standardize(form, dat)
-#' sdat_0.5 <- standardize(form, dat, scale = 0.5)
+#' sobj <- standardize(form, dat)
+#' sobj_0.5 <- standardize(form, dat, scale = 0.5)
 #'
-#' # uses ncs_scale = 1 from attr(sdat$formula, "standardized.scale")
-#' mf_sdat <- nauf_model.frame(sdat$formula, sdat$data)
+#' # uses ncs_scale = 1 from attr(sobj$formula, "standardized.scale")
+#' mf_sobj <- nauf_model.frame(sobj$formula, sobj$data)
 #'
-#' # uses ncs_scale = 0.5 from attr(sdat_0.5$formula, "standardized.scale")
-#' mf_sdat_0.5 <- nauf_model.frame(sdat_0.5$formula, sdat_0.5$data)
+#' # uses ncs_scale = 0.5 from attr(sobj_0.5$formula, "standardized.scale")
+#' mf_sobj_0.5 <- nauf_model.frame(sobj_0.5$formula, sobj_0.5$data)
 #'
 #' \dontrun{
 #' ## not recommended
 #' # uses specified ncs_scale = 0.5 and issues a warning since
-#' # attr(sdat$formula, "standardized.scale") = 1
-#' mf_warning <- nauf_model.frame(sdat$formula, sdat$data, ncs_scale = 0.5)
+#' # attr(sobj$formula, "standardized.scale") = 1
+#' mf_warning <- nauf_model.frame(sobj$formula, sobj$data, ncs_scale = 0.5)
 #' }
 #'
 #' @seealso \code{\link{nauf_contrasts}} for a description of the contrasts
@@ -877,13 +877,13 @@ nauf_interaction <- function(x, cols) {
 #' dat$spont[dat$dialect == "Valladolid"] <- NA
 #' form <- intdiff ~ voicing * dialect * spont +
 #'   (1 + voicing * spont | speaker) + (1 + dialect | item)
-#' sdat <- standardize(form, dat)
-#' mf <- nauf_model.frame(sdat$formula, sdat$data)
+#' sobj <- standardize(form, dat)
+#' mf <- nauf_model.frame(sobj$formula, sobj$data)
 #'
 #' ## the following all result in the same model matrix
 #' mm1 <- nauf_model.matrix(mf)
 #' mm2 <- nauf_model.matrix(form, mf)  # 'form' ignored
-#' mm3 <- nauf_model.matrix(sdat$formula, sdat$data)
+#' mm3 <- nauf_model.matrix(sobj$formula, sobj$data)
 #'
 #' @seealso \code{\link{nauf_contrasts}} for a description of the contrasts
 #'   applied to unordered factors, \code{\link{nauf_model.frame}} for creating a
@@ -1143,8 +1143,8 @@ nauf_mkBlist <- function(bar, ccn, lvs, fr) {
 #' dat$spont[dat$dialect == "Valladolid"] <- NA
 #' dat_form <- intdiff ~ voicing * dialect * spont +
 #'   (1 + voicing * spont | speaker) + (1 + dialect | item)
-#' sdat <- standardize(dat_form, dat)
-#' lmod <- nauf_lFormula(sdat$formula, sdat$data)
+#' sobj <- standardize(dat_form, dat)
+#' lmod <- nauf_lFormula(sobj$formula, sobj$data)
 #'
 #' vless <- droplevels(subset(dat, voicing == "Voiceless"))
 #' vless$fully_voiced <- vless$vdur == 0

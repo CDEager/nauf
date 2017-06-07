@@ -65,8 +65,8 @@ dat <- plosives
 dat$spont[dat$dialect == "Valladolid"] <- NA
 dat_form <- intdiff ~ voicing * dialect * spont +
   (1 + voicing * spont | speaker) + (1 + dialect | item)
-sdat <- standardize(dat_form, dat)
-lmod <- nauf_lFormula(sdat$formula, sdat$data)
+sobj <- standardize(dat_form, dat)
+lmod <- nauf_lFormula(sobj$formula, sobj$data)
 
 vless <- droplevels(subset(dat, voicing == "Voiceless"))
 vless$fully_voiced <- vless$vdur == 0

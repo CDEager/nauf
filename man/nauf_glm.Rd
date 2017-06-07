@@ -78,8 +78,8 @@ properly.
 \examples{
 dat <- plosives
 dat$spont[dat$dialect == "Valladolid"] <- NA
-sdat <- standardize(intdiff ~ voicing * dialect * spont, dat)
-mod <- nauf_lm(sdat$formula, sdat$data)
+sobj <- standardize(intdiff ~ voicing * dialect * spont, dat)
+mod <- nauf_lm(sobj$formula, sobj$data)
 
 }
 \seealso{

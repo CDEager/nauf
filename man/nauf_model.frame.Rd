@@ -94,20 +94,20 @@ mf <- nauf_model.frame(form, dat)
 mf_0.5 <- nauf_model.frame(form, dat, ncs_scale = 0.5)
 
 ## standardize first (recommended use)
-sdat <- standardize(form, dat)
-sdat_0.5 <- standardize(form, dat, scale = 0.5)
+sobj <- standardize(form, dat)
+sobj_0.5 <- standardize(form, dat, scale = 0.5)
 
-# uses ncs_scale = 1 from attr(sdat$formula, "standardized.scale")
-mf_sdat <- nauf_model.frame(sdat$formula, sdat$data)
+# uses ncs_scale = 1 from attr(sobj$formula, "standardized.scale")
+mf_sobj <- nauf_model.frame(sobj$formula, sobj$data)
 
-# uses ncs_scale = 0.5 from attr(sdat_0.5$formula, "standardized.scale")
-mf_sdat_0.5 <- nauf_model.frame(sdat_0.5$formula, sdat_0.5$data)
+# uses ncs_scale = 0.5 from attr(sobj_0.5$formula, "standardized.scale")
+mf_sobj_0.5 <- nauf_model.frame(sobj_0.5$formula, sobj_0.5$data)
 
 \dontrun{
 ## not recommended
 # uses specified ncs_scale = 0.5 and issues a warning since
-# attr(sdat$formula, "standardized.scale") = 1
-mf_warning <- nauf_model.frame(sdat$formula, sdat$data, ncs_scale = 0.5)
+# attr(sobj$formula, "standardized.scale") = 1
+mf_warning <- nauf_model.frame(sobj$formula, sobj$data, ncs_scale = 0.5)
 }
 
 }
