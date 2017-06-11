@@ -5,6 +5,7 @@
 #' @importFrom pbkrtest Lb_ddf vcovAdj
 #' @importFrom lsmeans ref.grid
 #' @importFrom lmerTest calcSatterth
+#' @importFrom rstan extract get_sampler_params summary
 #'
 #' @export
 nauf_ref.grid <- function(mod, KR = FALSE, ...) {
@@ -109,6 +110,18 @@ nauf_ref.grid <- function(mod, KR = FALSE, ...) {
     
   if (bayes) {
     rg@post.beta <- as.matrix(mod)[, 1:ncol(model.matrix(mod)), drop = FALSE]
+    
+    lp <- rstan::extract(mod$stanfit, "log-posterior", FALSE)
+    lp <- apply(lp, 3, function(y) y)
+    if (!is.matrix(lp)) lp <- t(lp)
+    colnames(lp) <- "log-posterior"
+
+    params <- rstan::get_sampler_params(mod$stanfit, inc_warmup = FALSE)
+    mtd <- mod$stanfit@stan_args[[1]]$control
+    if (length(mtd)) mtd <- mtd$max_treedepth
+    if (!length(mtd)) mtd <- 10
+    
+    rg@misc$shiny <- rsa_nlist(lp, params, mtd)
   }
   
   if (!is.linear(family <- get_family(mod))) {
@@ -226,7 +239,8 @@ nauf_pmmeans <- function(object, specs, pairwise = FALSE, subset = NULL,
     pmms$pmmeans <- pmm_freq(rg, est, est_grid, estName = "pmmean",
       infer = c(TRUE, FALSE), famSize = nrow(est_grid))
   } else {
-    pmms$pmmeans <- pmm_bayes(rg, est, est_grid, estName = "pmmean")
+    pmms$pmmeans <- pmm_bayes(rg, est, est_grid, estName = "pmmean",
+      shiny = rg@misc$shiny)
   }
 
   if (length(specs$by)) {

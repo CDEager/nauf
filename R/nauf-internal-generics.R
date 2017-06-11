@@ -65,6 +65,17 @@ nchain.stanreg <- function(x) {
 }
 
 
+nchain.nauf.pmm.list <- function(x) {
+  if (!is.nauf.pmm.stan(x[[1]])) return(0L)
+  return(dim(x[[1]]$samples)[2])
+}
+
+
+nchain.nauf.pmm.stan <- function(x) {
+  return(dim(x$samples)[2])
+}
+
+
 
 ###### get number of iterations in a stan object
 niter <- function(x) {
@@ -84,6 +95,17 @@ niter.stanfit <- function(x) {
 
 niter.stanreg <- function(x) {
   return(niter(x$stanfit))
+}
+
+
+niter.nauf.pmm.list <- function(x) {
+  if (!is.nauf.pmm.stan(x[[1]])) return(0L)
+  return(dim(x[[1]]$samples)[1])
+}
+
+
+niter.nauf.pmm.stan <- function(x) {
+  return(dim(x$samples)[1])
 }
 
 

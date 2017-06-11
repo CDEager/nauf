@@ -13,20 +13,23 @@
 #' \code{nauf.stanreg} models, with the same restrictions on the \code{re.form} 
 #' argument described in the \code{\link{predict.nauf.merMod}} page when using 
 #' the \code{posterior_predict} and \code{predict} functions.  The only 
-#' exceptions are that the \code{\link[rstanarm]{kfold}} function from the 
-#' \code{rstanarm} package and the \code{\link[shinystan]{launch_shinystan}} 
-#' function from the \code{shinystan} package cannot be used on 
-#' \code{nauf.stanreg} objects; instead, \code{\link{nauf_kfold}} and 
-#' \code{\link{nauf_launch_shinystan}} should be used.  The 
-#' \code{\link{nauf_ref.grid}} and \code{\link{nauf_pmmeans}} functions also 
-#' work with \code{nauf.stanreg} objects.
+#' exception is that the \code{\link[rstanarm]{kfold}} function from the 
+#' \code{rstanarm} package cannot be used on 
+#' \code{nauf.stanreg} objects; instead, \code{\link{nauf_kfold}} should be used.
+#' The \code{\link{nauf_ref.grid}} and \code{\link{nauf_pmmeans}} functions also 
+#' work with \code{nauf.stanreg} objects, as do
+#' \code{\link[=as.shinystan,nauf.stanreg-method]{as.shinystan}} and
+#' \code{\link[shinystan]{launch_shinystan}}.
 #'
 #' @seealso \code{\link{nauf_stan_glm}}, \code{\link{nauf_stan_glmer}},
 #'   \code{\link{nauf_contrasts}}, \code{\link[rstanarm]{stanreg-objects}},
 #'   and \code{\link[rstanarm]{stanreg-methods}}.
 #'
+#' @importFrom shinystan as.shinystan launch_shinystan
+#' @importMethodsFrom shinystan as.shinystan
+#'
 #' @name nauf.stanreg
-NULL
+setOldClass(c("nauf.stanreg", "stanreg"))
 
 
 #' @export
@@ -365,24 +368,23 @@ pp_check.nauf.stanreg <- function(object, plotfun = "dens_overlay", nreps = NULL
 }
 
 
-#' Launch the ShinyStan app for a \code{nauf} model.
+#' Create a shinystan object from a nauf.stanreg model.
 #'
-#' \code{nauf_launch_shinystan} is just a wrapper function for
-#' \code{\link[shinystan]{launch_shinystan}} which removes the \code{nauf.stanreg}
-#' class attribute from the \code{object} argument.
+#' This is a simple wrapper function that calls the \code{\link[shinystan]{as.shinystan}}
+#' method for \code{stanreg} objects.
 #'
-#' @param object An object of class \code{\link{nauf.stanreg}}.
-#' @param rstudio,... See \code{\link[shinystan]{launch_shinystan}}.
+#' @param X A \code{\link{nauf.stanreg}} model.
+#' @param ... See \code{\link[shinystan]{as.shinystan}}.
 #'
-#' @return See \code{\link[shinystan]{launch_shinystan}}.
+#' @return See \code{\link[shinystan]{as.shinystan}}.
 #'
-#' @importFrom shinystan launch_shinystan
+#' @importFrom stringr str_replace
 #'
 #' @export
-nauf_launch_shinystan <- function(object,
-                                  rstudio = getOption("shinystan.rstudio"),
-                                  ...) {
-  drop_class(object) <- "nauf.stanreg"
-  shinystan::launch_shinystan(object, rstudio, ...)
-}
+setMethod("as.shinystan", signature(X = "nauf.stanreg"), function(X, ...) {
+  class(X) <- class(X)[-1]
+  out <- shinystan::as.shinystan(X, ...)
+  out@model_name <- stringr::str_replace(out@model_name, "rstanarm", "nauf")
+  return(out)
+})
 

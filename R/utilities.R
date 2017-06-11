@@ -291,6 +291,11 @@ check_groups <- function(formula) {
 }
 
 
+nsamp <- function(x) {
+  return(nchain(x) * niter(x))
+}
+
+
 # glmer vs lmer, etc
 is.linear <- function(object){
   return(isTRUE(all.equal(get_family(object), gaussian())))
@@ -495,6 +500,16 @@ is.nauf.mcmc <- function(object) {
 
 is.summ.nauf.mcmc <- function(object) {
   return(inherits(object, "summ.nauf.mcmc"))
+}
+
+
+is.nauf.pmm.stan <- function(object) {
+  return(inherits(object, "nauf.pmm.stan"))
+}
+
+
+is.nauf.pmm.list <- function(object) {
+  return(inherits(object, "nauf.pmm.list"))
 }
 
 

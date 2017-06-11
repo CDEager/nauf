@@ -271,8 +271,12 @@ NULL
 #' the \code{summary} and \code{print} methods for the \code{nauf.pmm.list} take 
 #' arguments which are listed in \code{\link{nauf.pmm.stan}}.
 #'
+#' For posterior marginal means from a Bayesian \code{nauf} model, there is
+#' a method for \code{\link[=as.shinystan,nauf.pmm.list-method]{as.shinystan}} 
+#' which allows \code{\link[shinystan]{launch_shinystan}} to be used.
+#'
 #' @name nauf.pmm.list
-NULL
+setOldClass("nauf.pmm.list")
 
 
 #' Posterior samples of marginal means from Bayesian \code{nauf} models.
@@ -358,7 +362,7 @@ NULL
 #' }
 #'
 #' @name nauf.pmm.stan
-NULL
+setOldClass("nauf.pmm.stan")
 
 
 ###### nauf.ref.grid ######
@@ -510,8 +514,40 @@ as.data.frame.summ.nauf.pmm.stan <- function(x, row.names = NULL,
 }
 
 
-
 ###### nauf.pmm.list ######
+
+#' Create a shinystan object for posterior marginal means from nauf models.
+#'
+#' Joins the \code{samples} elements from the \code{\link{nauf.pmm.stan}} objects
+#' in a \code{\link{nauf.pmm.list}}, adds the \code{log-posterior} to them,
+#' and passes the resulting array to the \code{array} method for
+#' \code{\link[shinystan]{as.shinystan}}.
+#'
+#' @param X A \code{\link{nauf.pmm.list}}.
+#' @param ... Not used.
+#'
+#' @return A \code{\link[shinystan]{shinystan}} object based on the posterior
+#' marginal means (and possibly pairwise comparisons) in \code{X}.  This allows
+#' the results to be viewed in the \code{shinystan} GUI as if they had been
+#' included in the generated quantities block of the model.
+#'
+#' @seealso \code{\link[shinystan]{launch_shinystan}}
+#'
+#' @export
+setMethod("as.shinystan", signature(X = "nauf.pmm.list"), function(X, ...) {
+  if (!all(sapply(X, is.nauf.pmm.stan))) {
+    stop("'X' is not from a Bayesian model")
+  }
+  
+  a <- X[[1]]$misc$shiny
+  samples <- cbind(do.call(cbind, lapply(X, as.matrix)), a$lp)
+  samples <- make_stan_mcmc_array(samples, nchain(X))
+  
+  out <- shinystan::as.shinystan(samples,
+    model_name = "Posterior Marginal Means (nauf)",
+    sampler_params = a$params, algorithm = "NUTS", max_treedepth = a$mtd)
+})
+
 
 #' @method summary nauf.pmm.list
 #'

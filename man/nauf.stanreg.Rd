@@ -15,13 +15,13 @@ functions listed in the \code{\link[rstanarm]{stanreg-methods}} page
 \code{nauf.stanreg} models, with the same restrictions on the \code{re.form} 
 argument described in the \code{\link{predict.nauf.merMod}} page when using 
 the \code{posterior_predict} and \code{predict} functions.  The only 
-exceptions are that the \code{\link[rstanarm]{kfold}} function from the 
-\code{rstanarm} package and the \code{\link[shinystan]{launch_shinystan}} 
-function from the \code{shinystan} package cannot be used on 
-\code{nauf.stanreg} objects; instead, \code{\link{nauf_kfold}} and 
-\code{\link{nauf_launch_shinystan}} should be used.  The 
-\code{\link{nauf_ref.grid}} and \code{\link{nauf_pmmeans}} functions also 
-work with \code{nauf.stanreg} objects.
+exception is that the \code{\link[rstanarm]{kfold}} function from the 
+\code{rstanarm} package cannot be used on 
+\code{nauf.stanreg} objects; instead, \code{\link{nauf_kfold}} should be used.
+The \code{\link{nauf_ref.grid}} and \code{\link{nauf_pmmeans}} functions also 
+work with \code{nauf.stanreg} objects, as do
+\code{\link[=as.shinystan,nauf.stanreg-method]{as.shinystan}} and
+\code{\link[shinystan]{launch_shinystan}}.
 }
 \seealso{
 \code{\link{nauf_stan_glm}}, \code{\link{nauf_stan_glmer}},

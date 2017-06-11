@@ -29,5 +29,9 @@ and \code{print} methods for the \code{nauf.pmm.list} take arguments listed in
 \code{nauf.pmm.list} are \code{\link{nauf.pmm.stan}} objects. In this case, 
 the \code{summary} and \code{print} methods for the \code{nauf.pmm.list} take 
 arguments which are listed in \code{\link{nauf.pmm.stan}}.
+
+For posterior marginal means from a Bayesian \code{nauf} model, there is
+a method for \code{\link[=as.shinystan,nauf.pmm.list-method]{as.shinystan}} 
+which allows \code{\link[shinystan]{launch_shinystan}} to be used.
 }
 
