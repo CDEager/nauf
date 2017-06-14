@@ -9,7 +9,7 @@ Description: Fits regressions where unordered factors can be set to NA in
     contrastive by using sum contrasts and setting NA values to zero.
 Depends:
     R (>= 3.3.3),
-    standardize (>= 0.2.0),
+    standardize (>= 0.2.1),
     lme4 (>= 1.1-12),
     rstanarm (>= 2.15.3)
 Imports:
