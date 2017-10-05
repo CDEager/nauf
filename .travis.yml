@@ -4,6 +4,3 @@ language: r
 r: 3.3.3
 sudo: false
 cache: packages
-
-r_github_packages:
-  - cran/survival
