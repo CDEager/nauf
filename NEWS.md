@@ -1,3 +1,8 @@
+# nauf 1.1.1
+
+* Minor bug fix for compatibility with lsmeans >= 2.27-2
+
+
 # nauf 1.1.0
 
 * Support for Bayesian models fit with rstanarm added

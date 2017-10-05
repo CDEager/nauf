@@ -1,7 +1,7 @@
 Package: nauf
 Type: Package
 Title: Regression with NA Values in Unordered Factors
-Version: 1.1.0
+Version: 1.1.1
 Authors@R: person("Christopher D.", "Eager",
     email = "eagerstats@gmail.com", role = c("aut","cre"))
 Description: Fits regressions where unordered factors can be set to NA in 

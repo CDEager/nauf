@@ -4,7 +4,7 @@
 * win-builder (devel and release)
 
 ## R CMD check results
-There were no ERRORs or WARNINGs. There was 1 NOTE regarding possibly mis-spelled words in DESCRIPTION, but I have verified that the three words (Unordered, contrastive, unordered) are spelled correctly.
+There were no ERRORs, WARNINGs, or NOTES.
 
 ## Downstream dependencies
 There are currently no downstream dependencies.

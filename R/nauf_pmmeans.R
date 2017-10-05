@@ -49,11 +49,12 @@ nauf_ref.grid <- function(mod, KR = FALSE, ...) {
   temp_dat <- data.frame(y = 1:5, x = c(2, 5, 3, 6, 1))
   temp_mod <- lm(y ~ x, temp_dat)
   rg <- lsmeans::ref.grid(temp_mod, data = temp_dat)
-
+  
   rg@model.info <- list(
     call = if (bayes) mod$call else summ$call,
     terms = fenr,
-    xlev = xlev)
+    xlev = xlev,
+    nesting = NULL)
   rg@roles <- list(
     predictors = vars,
     responses = character(),

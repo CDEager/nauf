@@ -1,6 +1,6 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
-nauf 1.1.0
+nauf 1.1.1
 ==========
 
 [![Build Status](https://travis-ci.org/CDEager/nauf.svg?branch=master)](https://travis-ci.org/CDEager/nauf)
@@ -173,7 +173,7 @@ nauf_pmmeans(rg, "uvoi", pairwise = TRUE,
 #> $pmmeans
 #>  uvoi          pmmean        SE    df   lower.CL    upper.CL
 #>  Voiced     0.9923974 0.1005598 25.74  0.7855905  1.19920437
-#>  Voiceless -0.3054125 0.1163456 23.48 -0.5458214 -0.06500364
+#>  Voiceless -0.3054125 0.1163456 23.48 -0.5446837 -0.06614136
 #> 
 #> Confidence level used: 0.95 
 #> 
